@@ -10,9 +10,6 @@ CHANNELS = ["eyes_everywhere_ua", "operatyvnohlep"]
 HOME = ("Запоріжжя", 47.838, 35.139)
 POLL = 1.5                                   # сек между опросами каждого канала
 NTFY = os.getenv("NTFY_TOPIC")
-SPEED = {"drone": 160, "kab": 650, "missile": 900, "aircraft": 0, "strike": 0}   # км/ч (средние)
-TTL = {"drone": 1800, "kab": 600, "missile": 900, "aircraft": 900, "strike": 600}  # сек без новых сообщений
-MERGE_KM = {"drone": 35, "kab": 25, "missile": 60, "aircraft": 20, "strike": 10}
 KAB_H0, KAB_RANGE = 9000, 90                 # м высота пуска, км макс. дальность планирования
 ALERT_ETA2 = 60                              # сек до цели -> «красный» уровень
 
@@ -41,11 +38,84 @@ DROP = {"Маріуполь", "Херсон", "Миколаїв", "Одеса", 
         "Донеччина", "Харківщина", "Херсонщина", "Полтавщина", "Миколаївщина", "Одещина"}
 PLACES[:] = [p for p in PLACES if p[0] not in DROP]
 VIEWBOX = "34.0,48.7,37.3,46.3"                      # lon_лев, lat_верх, lon_прав, lat_низ
-KINDS = [("kab", r"\bкаб|авіабомб|авиабомб|умпк|\bфаб"),
-         ("strike", r"рсзо|реактивн\w* систем|\bград\b|ураган|смерч|артобстр|артилер|обстріл|обстрел|приліт|прилет"),
-         ("missile", r"баліст|балист|ракет|іскандер|искандер|калібр|калибр|кинджал|кінжал"),
-         ("aircraft", r"\bборт|літак|самол[её]т|\bсу-?\d\d|\bту-?\d+|авіаці|авиаци"),
-         ("drone", r"бпла|шахед|шахид|герань|реактив(?!н\w* систем)|мопед|ланцет|орлан|\bфпв|камікадзе|дрон|\bбла\b")]
+# ── КАТАЛОГ ЦЕЛЕЙ ─────────────────────────────────────────────────────────────
+# Каждая цель: id, kind (группа для фильтров), название, regex (по lower-case тексту),
+# скорость км/ч (крейсерская/средняя по открытым источникам — можно править),
+# радиус склейки с уже летящей целью (км), TTL без новых сообщений (сек), иконка, цвет.
+# generic=True — «общее» слово (БпЛА/ракета/літак): игнорируется, если в сообщении есть конкретный тип.
+def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
+    return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=ttl, ico=ico, col=col, generic=generic)
+
+SUBS = [
+ # --- ударные БпЛА / барражирующие боеприпасы ---
+ S("banderol", "drone", "Бандероль (S8000)", r"бандерол\w*|\bs-?8000", 560, 80, 1200, "cruise", "#ff3d81"),        # крейс. 520–560, макс ~650
+ S("geran3", "drone", "Реактивний Шахед (Герань-3)",
+   r"реактивн\w*\s+(?:шахед|шахид|герань|геран|мопед|бпла|бла|дрон|безпілот)\w*|(?:шахед|шахид|герань|геран)\w*[-–]\s?(?:3|238)\b|реактив(?!н\w*\s+(?:систем|залп))",
+   550, 80, 1200, "jet", "#ff6b3d"),                                                                               # ~400–600
+ S("geran2", "drone", "Шахед (Герань-2)", r"шахед\w*|шахид\w*|герань\w*|геран\w*|мопед\w*", 170, 35, 1800, "delta", "#e3b341"),   # ~150–185
+ S("gerbera", "drone", "Гербера (імітатор)", r"гербер\w*", 170, 35, 1800, "decoy", "#c9a227"),
+ S("italmas", "drone", "Італмас", r"італмас\w*|итальмас\w*", 150, 35, 1800, "decoy", "#c9a227"),                  # оценка
+ S("orion", "drone", "Оріон (ударний)", r"оріон\w*|орион\w*", 200, 60, 1200, "plane", "#ff9f1c"),
+ # --- тактические / FPV ---
+ S("lancet", "drone", "Ланцет", r"ланцет\w*", 110, 20, 600, "xwing", "#3dd6c6"),                                   # 80–110, в пикировании до ~300
+ S("molniya", "drone", "Молния", r"молні\w*|молни\w*", 100, 20, 600, "flywing", "#7ee787"),
+ S("fpv", "drone", "FPV", r"\bфпв\w*|\bfpv\b", 110, 10, 600, "quad", "#f2cc60"),
+ S("orlan", "drone", "Орлан-10", r"орлан\w*", 110, 25, 900, "plane", "#9aa7b8"),
+ S("recon", "drone", "Розвідувальний БпЛА", r"суперкам\w*|supercam|\bzala\b|\bзала\b|елерон\w*|\beleron|розвідувальн\w*\s+(?:бпла|дрон|бла)\w*", 95, 25, 900, "plane", "#9aa7b8"),
+ S("drone", "drone", "БпЛА", r"бпла|\bбла\b|дрон\w*|безпілотн\w*|камікадзе|камикадзе|\bуав\b|\bбпак\b", 160, 35, 1800, "delta", None, True),
+ # --- авиабомбы ---
+ S("kab_big", "kab", "ФАБ-1500/3000", r"(?:фаб|каб)-?(?:1500|3000)", 600, 25, 600, "kab", None),
+ S("kab", "kab", "КАБ", r"\bкаб(?:и|ів|ах|ам|ом|у|а)?\b|авіабомб\w*|авиабомб\w*|умпк|умпб|\bфаб\w*|\bодаб", 650, 25, 600, "kab", None),
+ # --- ракеты ---
+ S("kinzhal", "missile", "Х-47М2 Кинджал", r"кинджал\w*|кінжал\w*|\b[xх]-?47", 4000, 120, 300, "dart", "#ff2d55"),
+ S("iskander_m", "missile", "Іскандер-М (балістика)", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)", 5500, 120, 300, "ballistic", "#ff453a"),
+ S("iskander_k", "missile", "Іскандер-К (крилата)", r"[іи]скандер-?к|9м72[89]", 800, 100, 900, "cruise", "#ff8a3d"),
+ S("ballistic", "missile", "Балістична ракета", r"баліст\w*|балист\w*", 5500, 120, 300, "ballistic", "#ff453a"),
+ S("s300", "missile", "С-300/С-400 (по землі)", r"\bс-?(?:300|400)\b", 3500, 60, 300, "dart", "#ff453a"),
+ S("kh22", "missile", "Х-22/Х-32", r"\b[xх]-?(?:22|32)\b", 3500, 120, 300, "dart", "#ff453a"),
+ S("onyx", "missile", "П-800 Онікс", r"онікс\w*|оникс\w*|\bп-?800", 2600, 100, 300, "dart", "#ff453a"),
+ S("kh101", "missile", "Х-101/Х-555", r"\b[xх]-?(?:101|102|555|55)\b", 780, 100, 900, "cruise", "#ff8a3d"),
+ S("kalibr", "missile", "Калібр", r"калібр\w*|калибр\w*|3м-?14|3м-?54", 850, 100, 900, "cruise", "#ff8a3d"),
+ S("kh59", "missile", "Х-35/Х-59/Х-69", r"\b[xх]-?(?:35|59|69)\b", 850, 100, 900, "cruise", "#ff8a3d"),
+ S("missile", "missile", "Ракета", r"ракет\w*|\bкр\b|крилат\w*", 800, 100, 900, "missile", None, True),
+ # --- пилотируемая авиация ---
+ S("bomber", "aircraft", "Ракетоносій (Ту-95/160/22)", r"\bту-?(?:95|160|22)\w*|ракетоносц\w*|ракетоносн\w*|стратегічн\w*\s+авіац\w*", 700, 40, 1200, "bomber", None),
+ S("heli", "aircraft", "Гелікоптер", r"вертол\w*|гелікоптер\w*|\bка-?52|\bмі-?(?:8|24|28|35)\b", 220, 20, 900, "heli", "#79c0ff"),
+ S("aircraft", "aircraft", "Літак", r"\bборт\w*|літак\w*|самол[её]т\w*|\bсу-?\d\d\w*|\bміг-?\d\d\w*|тактичн\w*\s+авіац\w*|авіаці\w*|авиаци\w*", 650, 20, 900, "plane2", None, True),
+ # --- обстрелы (скорость 0, не двигаются) ---
+ S("mlrs", "strike", "РСЗО", r"рсзо|реактивн\w*\s+систем\w*|\bград(?:и|ів|у|ом|ами)?\b|ураган\w*|смерч\w*|торнадо", 0, 10, 600, "star", None),
+ S("arty", "strike", "Обстріл", r"артобстр\w*|артилер\w*|обстріл\w*|обстрел\w*|приліт\w*|прилет\w*|мінометн\w*", 0, 10, 600, "star", None, True),
+]
+SUB = {s["id"]: s for s in SUBS}
+KIND_COL = {"drone": "#e3b341", "kab": "#f85149", "missile": "#ff8a3d", "aircraft": "#58a6ff", "strike": "#d2a8ff"}
+
+CNT = re.compile(r"(?<![\d:.,/])(\d{1,2})(?:\s*[-–—]\s*(\d{1,2}))?\s*(?:шт\.?\s*)?(?:[xх×]\s*)?(?:ударн\w*\s+|нов\w*\s+)?$")
+
+def count_before(tl, st):
+    """«2-3 шахеди», «3х бандеролі» → '2-3' / '3'."""
+    m = CNT.search(tl[max(0, st - 24):st])
+    return (m.group(1) + ("-" + m.group(2) if m.group(2) else "")) if m else None
+
+def detect(tl):
+    """Находит ВСЕ типы целей в тексте. Более длинное/конкретное совпадение побеждает пересекающееся
+    («реактивних шахедів» → Герань-3, а не Герань-2 + «реактив»); общие слова (БпЛА, ракета) отбрасываются,
+    если рядом есть конкретный тип той же группы."""
+    hits = [(m.start(), m.end(), i) for i, s in enumerate(SUBS) for m in re.finditer(s["rx"], tl)]
+    hits.sort(key=lambda h: (-(h[1] - h[0]), h[2]))
+    keep = []
+    for h in hits:
+        if all(h[1] <= c[0] or h[0] >= c[1] for c in keep):
+            keep.append(h)
+    keep.sort()
+    specific = {SUBS[i]["kind"] for _, _, i in keep if not SUBS[i]["generic"]}
+    out, done = [], set()
+    for st, en, i in keep:
+        s = SUBS[i]
+        if (s["generic"] and s["kind"] in specific) or s["id"] in done:
+            continue
+        done.add(s["id"]); out.append((s, count_before(tl, st)))
+    return out
+
 TGT = re.compile(r"(?:\bна|\bпо|\bк|\bдо|напрям\w*|направ\w*|бік|сторон\w*|курс\w*)\s*$")
 CLEAR = re.compile(r"відбій|отбой|збит|сбит|знищен|минус|мінус|чисто")
 
@@ -80,36 +150,41 @@ def view(t, now):
     r = dict(id=t["id"], kind=t["kind"], lat=la, lon=lo, o=t["o"], to=t["goal"][0], goal=t["goal"][1:],
              v=t["v"], hdg=round(brg(la, lo, *t["goal"][1:])), age=int(now - t["seen"]), text=t["text"][:140],
              eta=int((lim - d) / t["v"] * 3600) if t["v"] else None, ended=ended,
-             home=round(hav(la, lo, HOME[1], HOME[2]), 1), short=lim < tot - 0.5, frm=t["frm"])
+             home=round(hav(la, lo, HOME[1], HOME[2]), 1), short=lim < tot - 0.5, frm=t["frm"],
+             sub=t["sub"], name=SUB[t["sub"]]["name"], ico=SUB[t["sub"]]["ico"],
+             col=SUB[t["sub"]]["col"] or KIND_COL[t["kind"]], cnt=t.get("cnt"))
     if t["kind"] == "kab":
         r["alt"] = round(max(0, KAB_H0 * (1 - hav(*t["o"], la, lo) / KAB_RANGE)))
     return r
 
-def upsert(kind, pos, tgt, ts, text, kmax=None):
-    now = time.time()
-    live = [t for t in tracks.values() if t["kind"] == kind and now - t["seen"] < TTL[kind]]
+def upsert(sub, pos, tgt, ts, text, kmax=None, cnt=None):
+    now, kind = time.time(), sub["kind"]
+    live = [t for t in tracks.values() if t["sub"] == sub["id"] and now - t["seen"] < t["ttl"]]
     t = None
     if pos:
         if live:
             n = min(live, key=lambda x: hav(*calc(x, now)[:2], pos[1], pos[2]))
-            if hav(*calc(n, now)[:2], pos[1], pos[2]) < (kmax or MERGE_KM[kind]):
+            if hav(*calc(n, now)[:2], pos[1], pos[2]) < (kmax or sub["merge"]):
                 t = n
     elif live:
         t = max(live, key=lambda x: x["seen"])
     if t is None:
         if not pos: return
         i = next(ids)
-        t = tracks[i] = dict(id=i, kind=kind, o=(pos[1], pos[2]), frm=pos[0], goal=tgt or (pos if kind in ("aircraft", "strike") else HOME))
+        t = tracks[i] = dict(id=i, kind=kind, sub=sub["id"], ttl=sub["ttl"], o=(pos[1], pos[2]), frm=pos[0],
+                             goal=tgt or (pos if kind in ("aircraft", "strike") else HOME))
     if pos:
         t["lat"], t["lon"], t["t0"] = pos[1], pos[2], ts
     if tgt:
         if "v" in t:                                    # зафиксировать текущую точку, потом сменить курс
             t["lat"], t["lon"] = calc(t, now)[:2]; t["t0"] = now
         t["goal"] = tgt
-    t["v"] = (600 if tgt else 0) if kind == "aircraft" else SPEED[kind]
+    t["v"] = (sub["v"] if tgt else 0) if kind == "aircraft" else sub["v"]   # реальная скорость ЭТОГО типа
+    if cnt: t["cnt"] = cnt
     t["seen"], t["text"] = now, text
 
 log, GEO_CACHE, geo_lock = [], {}, asyncio.Lock()
+feed = []
 SKIP = re.compile(r"^(курс|курсом|напрям|балістик|групи|група|рухаєть|також|увага|реактив)")
 
 def note(m):
@@ -119,7 +194,7 @@ async def geo(s, text):
     """Неизвестные названия (с заглавной буквы) ищем в OpenStreetMap Nominatim и запоминаем."""
     for w in set(re.findall(r"[А-ЯІЇЄҐ][а-яіїєґ'’\-]{4,}", text)):
         lw = w.lower()
-        if lw in GEO_CACHE or SKIP.match(lw) or any(re.match(rx, lw) for *_, rx in PLACES) or any(re.search(rx, lw) for _, rx in KINDS):
+        if lw in GEO_CACHE or SKIP.match(lw) or any(re.match(rx, lw) for *_, rx in PLACES) or any(re.search(sb["rx"], lw) for sb in SUBS):
             continue
         GEO_CACHE[lw] = None
         async with geo_lock:
@@ -144,7 +219,8 @@ def ingest(ts, text, ch=""):
     tl, now = text.lower(), time.time()
     if NEWS.search(tl) or len(text) > 280:        # новости, итоги, реклама — не сводка
         return note(f"{ch}: «{text[:50]}» → новость/не сводка, пропуск")
-    kinds = [k for k, rx in KINDS if re.search(rx, tl)]
+    subs = detect(tl)
+    kinds = list(dict.fromkeys(sb["kind"] for sb, _ in subs))
     best = {}                                      # одно место на позицию, берём самое длинное совпадение
     for n, la, lo, rx in PLACES:
         for m in re.finditer(r"(?<![а-яіїєґ'’])(?:" + rx + r")\w*", tl):
@@ -161,19 +237,22 @@ def ingest(ts, text, ch=""):
                 tracks.pop(t["id"])
         return note(f"{ch}: «{text[:50]}» → отбой")
     kmax = None
-    if not kinds:                                  # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
+    if not subs:                                   # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
         ref = pos or tgt
-        live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < TTL[t["kind"]]]
+        live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < t["ttl"]]
         if not live or len(text) > 160:
             return note(f"{ch}: «{text[:50]}» → без типа цели и нет активных целей, пропуск")
-        kinds, kmax = [min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))["kind"]], 200
-    for k in kinds:
-        if k == "strike": upsert(k, pos or tgt, None, ts, text)
-        else: upsert(k, pos, tgt, ts, text, kmax)
-    note(f"{ch}: «{text[:50]}» → {kinds} поз={pos and pos[0]} цель={tgt and tgt[0]}")
+        near = min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))
+        subs, kmax, kinds = [(SUB[near["sub"]], None)], 200, [near["kind"]]
+    for sb, cnt in subs:
+        if sb["kind"] == "strike": upsert(sb, pos or tgt, None, ts, text, None, cnt)
+        else: upsert(sb, pos, tgt, ts, text, kmax, cnt)
+    feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
+    del feed[30:]
+    note(f"{ch}: «{text[:50]}» → {[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} цель={tgt and tgt[0]}")
 
 def snap(now):
-    return {"now": now, "home": HOME, "tracks": [view(t, now) for t in tracks.values()]}
+    return {"now": now, "home": HOME, "tracks": [view(t, now) for t in tracks.values()], "feed": feed}
 
 async def send(payload, event=None):
     msg = (f"event: {event}\n" if event else "") + f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -187,7 +266,7 @@ async def tick(s):
     while True:
         now = time.time()
         for i, t in list(tracks.items()):
-            if now - t["seen"] > TTL[t["kind"]] or (view(t, now)["ended"] and now - t["seen"] > 120):
+            if now - t["seen"] > t["ttl"] or (view(t, now)["ended"] and now - t["seen"] > 120):
                 tracks.pop(i)
         for t in tracks.values():                       # ТРЕВОГА только по КАБ на Запорожье
             v = view(t, now)
@@ -257,4 +336,5 @@ async def main():
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()
     print("http://localhost:8080"); await asyncio.Event().wait()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

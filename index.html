@@ -48,6 +48,24 @@ const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,
 const K={drone:{n:'БпЛА',c:'#e3b341',p:'M0-8L8 0L0 8L-8 0Z'},kab:{n:'КАБ',c:'#f85149',p:'M0-10L7 8L0 4L-7 8Z'},missile:{n:'Ракета',c:'#ff8a3d',p:'M0-12L3.5 8L0 5L-3.5 8Z'},
  aircraft:{n:'Борт',c:'#58a6ff',p:'M0-10L2-3L9 3L9 5L2 3L1 8L4 10L4 11L0 10L-4 11L-4 10L-1 8L-2 3L-9 5L-9 3L-2-3Z'},
  strike:{n:'РСЗО/обстріл',c:'#d2a8ff',p:'M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z'}};
+const ICONS={
+ delta:c=>'<path d="M0-11L10 9L4 7L0 10L-4 7L-10 9Z"/>',
+ decoy:c=>'<path d="M0-10L9 8L0 5L-9 8Z" fill-opacity=".45" stroke-dasharray="2 2"/>',
+ jet:c=>'<path d="M0-12L1.8-5L11 8L11 10L2 7L1.2 10L3.5 12L-3.5 12L-1.2 10L-2 7L-11 10L-11 8L-1.8-5Z"/>',
+ cruise:c=>'<path d="M0-12L1.6-7L1.6-2L10 3L10 5.5L1.6 3.5L1.6 8L4.5 10.5L4.5 12L0 11L-4.5 12L-4.5 10.5L-1.6 8L-1.6 3.5L-10 5.5L-10 3L-1.6-2L-1.6-7Z"/>',
+ xwing:c=>'<path d="M-10-10L-6-10L0-4L6-10L10-10L10-6L4 0L10 6L10 10L6 10L0 4L-6 10L-10 10L-10 6L-4 0L-10-6Z"/>',
+ flywing:c=>'<path d="M0-7L11 7L0 4L-11 7Z"/>',
+ plane:c=>'<path d="M0-10L1.6-4L10-1.5L10 1.5L1.6 .5L1.2 6L5 8L5 10L0 9L-5 10L-5 8L-1.2 6L-1.6 .5L-10 1.5L-10-1.5L-1.6-4Z"/>',
+ quad:c=>`<path d="M-6-6L6 6M6-6L-6 6" fill="none" stroke="${c}" stroke-width="2.2"/><circle cx="-7" cy="-7" r="3"/><circle cx="7" cy="-7" r="3"/><circle cx="-7" cy="7" r="3"/><circle cx="7" cy="7" r="3"/>`,
+ kab:c=>'<path d="M0-10L7 8L0 4L-7 8Z"/>',
+ missile:c=>'<path d="M0-12L3.5 8L0 5L-3.5 8Z"/>',
+ dart:c=>'<path d="M0-13L2.5 4L0 2L-2.5 4Z"/><path d="M0 5L1.8 11L0 9.5L-1.8 11Z" fill-opacity=".6"/>',
+ ballistic:c=>'<path d="M0-12L3 5L0 3L-3 5Z"/><path d="M0 6L2.2 12L0 10L-2.2 12Z" fill-opacity=".55"/>',
+ bomber:c=>'<path d="M0-11L2-4L12 2L12 5L2 3L1.5 8L5 10.5L5 12L0 11L-5 12L-5 10.5L-1.5 8L-2 3L-12 5L-12 2L-2-4Z"/>',
+ heli:c=>`<ellipse cx="0" cy="-1" rx="3" ry="6"/><path d="M-10-1H10M0 5V11M-3 11H3" fill="none" stroke="${c}" stroke-width="1.6"/>`,
+ plane2:c=>'<path d="M0-10L2-3L9 3L9 5L2 3L1 8L4 10L4 11L0 10L-4 11L-4 10L-1 8L-2 3L-9 5L-9 3L-2-3Z"/>',
+ star:c=>'<path d="M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z"/>'};
+const NOROT=new Set(['star','quad','heli']);
 const map=L.map('m',{zoomControl:false}).fitBounds([[46.4,34.0],[48.6,37.3]]);
 const dk=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'dk',attribution:'© OpenStreetMap'});
 const st=L.layerGroup([L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,className:'st',attribution:'© Esri'}),
@@ -60,11 +78,12 @@ function ext(t,dt){if(!t.v||t.ended)return[t.lat,t.lon];const km=t.v*(t.eta!=nul
 function rings(h){[20,45,90].forEach(r=>{L.circle([h[1],h[2]],{radius:r*1000,color:'#3a4559',weight:1,dashArray:'4 6',fill:false,interactive:false}).addTo(map);
  L.marker([h[1]+r/111.2,h[2]],{interactive:false,icon:L.divIcon({className:'',html:`<span class="ring">${r} км</span>`,iconSize:[40,12],iconAnchor:[20,6]})}).addTo(map)});
  L.circleMarker([h[1],h[2]],{radius:6,color:'#3fb950',weight:2,fillOpacity:.9}).addTo(map).bindTooltip(h[0])}
-function icon(t){const k=K[t.kind],lab=[k.n,t.alt!=null?t.alt+' м':'',t.eta>0?fmt(t.eta):''].filter(Boolean).join(' · ');
- return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="mk" style="--c:${k.c};opacity:${Math.max(.5,1-t.age/600)}">${t.kind=='kab'?'<i class="pulse"></i>':''}<svg viewBox="-12 -12 24 24" style="transform:rotate(${t.kind=='strike'?0:t.hdg}deg)"><path d="${k.p}" fill="${k.c}" stroke="#000" stroke-width="1.2"/></svg><span class="lb">${esc(lab)}</span></div>`})}
+function icon(t){const c=t.col||K[t.kind].c,cnt=t.cnt?' ×'+t.cnt:'',lab=[(t.name||K[t.kind].n)+cnt,t.v?t.v+' км/г':'',t.alt!=null?t.alt+' м':'',t.eta>0?fmt(t.eta):''].filter(Boolean).join(' · ');
+ const g=(ICONS[t.ico]||ICONS.delta)(c),fast=t.kind=='kab'||t.v>=500;
+ return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="mk" style="--c:${c};opacity:${Math.max(.5,1-t.age/600)}">${fast?'<i class="pulse"></i>':''}<svg viewBox="-12 -12 24 24" style="transform:rotate(${NOROT.has(t.ico)?0:t.hdg}deg)"><g fill="${c}" stroke="#000" stroke-width="1.2" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`})}
 function render(d){D=d;snapT=performance.now();if(!ringsOk&&d.home){rings(d.home);ringsOk=1}
  const ids=new Set();
- for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=K[t.kind].c;
+ for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=t.col||K[t.kind].c;
   if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t)}),tr:L.polyline([],{color:c,weight:2,opacity:.45}),ln:L.polyline([],{color:c,weight:1.5,opacity:.7,dashArray:'6 6'}),un:L.circle([t.lat,t.lon],{radius:0,color:c,weight:1,opacity:.35,fillOpacity:.05,interactive:false})};
    o.g.addLayer(o.un).addLayer(o.tr).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
   o.t=t;o.mk.setIcon(icon(t))}
@@ -80,10 +99,10 @@ $('chips').onclick=e=>{const k=e.target.dataset.k;if(k){hidden.has(k)?hidden.del
 function banner(){const b=$('ban'),h=D.home,kabs=D.tracks.filter(t=>t.kind=='kab'&&!t.ended&&!t.short&&hav(t.goal[0],t.goal[1],h[1],h[2])<25);
  if(kabs.length){const t=kabs.sort((a,b)=>(a.eta??1e9)-(b.eta??1e9))[0];b.className='rd';b.textContent=`⚠️ КАБ на ${h[0]} · ${t.home} км${t.eta!=null?' · ~'+fmt(t.eta):''} · ${t.alt} м`;return}
  const dr=D.tracks.filter(t=>t.kind!='strike'&&t.kind!='aircraft');
- if(dr.length){const n=dr.slice().sort((a,b)=>a.home-b.home)[0];b.className='am';b.textContent=`Цілей: ${dr.length} · найближча ${K[n.kind].n} — ${n.home} км до ${h[0]}`}
+ if(dr.length){const n=dr.slice().sort((a,b)=>a.home-b.home)[0];b.className='am';b.textContent=`Цілей: ${dr.length} · найближча ${n.name}${n.cnt?' ×'+n.cnt:''} — ${n.home} км до ${h[0]}`}
  else{b.className='';b.textContent='🟢 Спокійно: активних цілей немає'}}
 function list(){const rows=D.tracks.filter(t=>!hidden.has(t.kind)).sort((a,b)=>(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||a.home-b.home);
- $('list').innerHTML=rows.map(t=>{const k=K[t.kind];return`<div class="r" data-id="${t.id}"><b style="color:${k.c}">${k.n}</b> ${esc(t.frm)} → ${esc(t.to)}${t.short?' <i>(не долетить)</i>':''}
+ $('list').innerHTML=rows.map(t=>{return`<div class="r" data-id="${t.id}"><b style="color:${t.col}">${esc(t.name)}${t.cnt?' ×'+t.cnt:''}</b> ${esc(t.frm)} → ${esc(t.to)}${t.short?' <i>(не долетить)</i>':''}
  <small>${t.v?t.v+' км/год · курс '+t.hdg+'° · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}до ${esc(D.home[0])}: ${t.home} км${t.eta>0?' · ~'+fmt(t.eta):''}${me?' · до вас '+hav(me[0],me[1],t.lat,t.lon).toFixed(0)+' км':''} · звіт ${t.age} с тому</small>
  <small class="tx">${esc(t.text)}</small></div>`}).join('')||'<div class="r">Цілей немає</div>'}
 $('list').onclick=e=>{const r=e.target.closest('.r');if(r&&objs[r.dataset.id])map.flyTo(objs[r.dataset.id].mk.getLatLng(),11)};
