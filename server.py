@@ -49,7 +49,7 @@ def brg(a, b, c, d):
     x = math.cos(a * p) * math.sin(c * p) - math.sin(a * p) * math.cos(c * p) * math.cos((d - b) * p)
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
-tracks, ids, seen, clients, alerted = {}, itertools.count(1), set(), set(), set()
+tracks, ids, seen, clients, alerted, stats = {}, itertools.count(1), set(), set(), set(), {}
 
 def calc(t, now):
     """Позиция по «счислению пути»: от последней точки к цели со средней скоростью."""
@@ -151,20 +151,24 @@ async def poll(s, ch):
     while True:
         try:
             async with s.get(f"https://t.me/s/{ch}", headers={"User-Agent": "Mozilla/5.0"}, timeout=aiohttp.ClientTimeout(total=8)) as r:
-                html = await r.text()
+                html, code = await r.text(), r.status
             new = []
-            for w in BeautifulSoup(html, "html.parser").select(".tgme_widget_message"):
+            ws = BeautifulSoup(html, "html.parser").select(".tgme_widget_message")
+            lt = ws[-1].select_one(".tgme_widget_message_text") if ws else None
+            stats[ch] = {"http": code, "html_len": len(html), "messages_on_page": len(ws),
+                         "last_post": lt.get_text(" ", strip=True)[:200] if lt else None, "checked": time.strftime("%H:%M:%S")}
+            for w in ws:
                 pid, tx, tm = w.get("data-post"), w.select_one(".tgme_widget_message_text"), w.select_one("time")
                 if not (pid and tx and tm) or pid in seen: continue
                 seen.add(pid)
                 ts = datetime.fromisoformat(tm["datetime"]).timestamp()
-                if not first or time.time() - ts < 600:   # при старте берём только последние 10 минут
+                if not first or time.time() - ts < 900:   # при старте берём только последние 15 минут
                     new.append((ts, tx.get_text(" ", strip=True)))
             first = False
             for ts, text in sorted(new): ingest(ts, text)
             if new: await push()
         except Exception as e:
-            print(ch, e)
+            print(ch, e); stats[ch] = {"error": str(e)}
         await asyncio.sleep(POLL)
 
 async def events(req):
@@ -185,7 +189,8 @@ async def main():
     app.add_routes([web.get("/", f("index.html")), web.get("/events", events),
                     web.get("/manifest.json", f("manifest.json")), web.get("/sw.js", f("sw.js")),
                     web.get("/icon-192.png", f("icon-192.png")), web.get("/icon-512.png", f("icon-512.png")),
-                    web.get("/health", lambda r: web.Response(text="ok"))])
+                    web.get("/health", lambda r: web.Response(text="ok")),
+                    web.get("/debug", lambda r: web.json_response({"channels": stats, "tracks": len(tracks)}, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))])
     for ch in CHANNELS: asyncio.create_task(poll(s, ch))
     asyncio.create_task(tick(s))
     run = web.AppRunner(app); await run.setup()
