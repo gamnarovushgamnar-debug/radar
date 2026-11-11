@@ -86,8 +86,9 @@ SUBS = [
  S("mlrs", "strike", "РСЗО", r"рсзо|реактивн\w*\s+систем\w*|\bград(?:и|ів|у|ом|ами)?\b|ураган\w*|смерч\w*|торнадо", 0, 10, 600, "star", None),
  S("arty", "strike", "Обстріл", r"артобстр\w*|артилер\w*|обстріл\w*|обстрел\w*|приліт\w*|прилет\w*|мінометн\w*", 0, 10, 600, "star", None, True),
 ]
+SUBS.append(S("impact", "impact", "Приліт", r"(?!x)x", 0, 1, 900, "star", "#ff5c5c"))   # создаётся только логикой «упало/влучило», по regex не ловится
 SUB = {s["id"]: s for s in SUBS}
-KIND_COL = {"drone": "#e3b341", "kab": "#f85149", "missile": "#ff8a3d", "aircraft": "#58a6ff", "strike": "#d2a8ff"}
+KIND_COL = {"drone": "#e3b341", "kab": "#f85149", "missile": "#ff8a3d", "aircraft": "#58a6ff", "strike": "#d2a8ff", "impact": "#ff5c5c"}
 
 CNT = re.compile(r"(?<![\d:.,/])(\d{1,2})(?:\s*[-–—]\s*(\d{1,2}))?\s*(?:шт\.?\s*)?(?:[xх×]\s*)?(?:ударн\w*\s+|нов\w*\s+)?$")
 
@@ -118,6 +119,13 @@ def detect(tl):
 
 TGT = re.compile(r"(?:\bна|\bпо|\bк|\bдо|напрям\w*|направ\w*|бік|сторон\w*|курс\w*)\s*$")
 CLEAR = re.compile(r"відбій|отбой|збит|сбит|знищен|минус|мінус|чисто")
+# «упало / влучило / вибухи» — событие УЖЕ произошло: рисуем место прильота, а не полёт
+IMPACT = re.compile(r"(?:упал|впал|падал|падінн|падіння|падение|влуч|попад|приліт|прилет|прильот|вибух|взрыв|бахн|бахк|гучн|вдарил|вдарив|накрил|ударил|уражен)\w*")
+FLIGHT = re.compile(r"летить|летят|летит|курс|напрям|рухаєть|движ|в бік|у бік|підлітає|заходить|заходят|прямує|прямують")
+def intent_of(tl):
+    if CLEAR.search(tl): return "clear"
+    if IMPACT.search(tl) and not FLIGHT.search(tl): return "impact"
+    return "flight"
 
 def hav(a, b, c, d):
     p = math.pi / 180
@@ -174,7 +182,7 @@ def sigma_of(name): return max(2.5, RAD.get(name, 4.0))
 # ── ТРЕКЕР ────────────────────────────────────────────────────────────────────
 REPORT_LAG = 20          # сек: пока увидели → написали → канал опубликовал. Цель за это время уже улетела дальше
 CORR_TAU = 8.0           # сек: поправка позиции по новому сообщению «вливается» плавно, без телепорта
-TURN_KIND = {"drone": 4, "kab": 6, "missile": 8, "aircraft": 3, "strike": 0}          # макс. скорость поворота, °/с
+TURN_KIND = {"drone": 4, "kab": 6, "missile": 8, "aircraft": 3, "strike": 0, "impact": 0}          # макс. скорость поворота, °/с
 TURN_SUB = {"geran2": 2.5, "gerbera": 2.5, "italmas": 2.5, "banderol": 4, "geran3": 4, "fpv": 40, "lancet": 25, "molniya": 25,
             "orlan": 6, "recon": 6, "ballistic": 30, "kinzhal": 30, "iskander_m": 30, "heli": 10}
 ATTACK_END = {"kab", "missile"}                    # долетел до цели → «завершено» (+ударные БпЛА, кроме разведчиков)
@@ -287,7 +295,7 @@ def view(t, now):
     r = dict(id=t["id"], kind=t["kind"], lat=la, lon=lo, unc=round(t["unc"], 1), v=v, hdg=None if t["hdg"] is None else round(t["hdg"]),
              goal=g[1:] if g else None, to=g[0] if g else None, frm=t["frm"], fx=[[x[1], x[2]] for x in t["fx"]], fs=round(t["fx"][-1][3], 1),
              n=t["n"], age=int(now - t["seen"]), text=t["text"][:140], eta=eta, etah=etah, ended=bool(t.get("ended")),
-             home=round(home, 1), short=short, sub=t["sub"], name=sb["name"], ico=sb["ico"], col=sb["col"] or KIND_COL[t["kind"]], cnt=t.get("cnt"))
+             home=round(home, 1), short=short, sub=t["sub"], name=t.get("label") or sb["name"], ico=sb["ico"], col=sb["col"] or KIND_COL[t["kind"]], cnt=t.get("cnt"))
     if t["kind"] == "kab":
         r["alt"] = round(max(0, KAB_H0 * (1 - hav(*t["o"], la, lo) / KAB_RANGE)))
     return r
@@ -325,6 +333,7 @@ def upsert(sub, pos, tgt, ts, text, kmax=None, cnt=None):
         t["seen"] = max(t["seen"], te)
     if cnt: t["cnt"] = cnt
     t["text"] = text
+    return t
 
 log, GEO_CACHE, geo_lock = [], {}, asyncio.Lock()
 feed, fed = [], set()
@@ -350,7 +359,8 @@ async def geo_one(s, w):
     """Ищет одно название в Nominatim; из нескольких одноимённых сёл берёт ближайшее к Запорожью (внутри области)."""
     lw = w.lower()
     GEO_CACHE[lw] = None
-    for q in dict.fromkeys([w, w[:-1] + "а", w[:-1] + "я"]):
+    async with GEO_LOCK:
+      for q in dict.fromkeys([w, w[:-1] + "а", w[:-1] + "я"]):
         try:
             async with s.get(NOMI, headers={"User-Agent": "radar-app/1.0"},
                              params={"q": q, "format": "json", "countrycodes": "ua", "limit": 8, "accept-language": "uk",
@@ -384,13 +394,65 @@ async def geo_worker(s):
 
 NEWS = re.compile(r"https?://|t\.me|підписуй|подпиш|читайте|джерело|реклам|донат|загинул|загинув|поранен|постраждал|внаслідок|наслідк|зведення|за добу|минулої|вчора|заявив|повідомив|міністр|командув|генштаб|збито \d|знищено \d|втрат")
 
+def feed_add(ts, ch, text, kinds, pos, tgt):
+    if (ts, text[:60]) in fed or not any(in_oblast(p[1], p[2], 8) for p in (pos, tgt) if p): return
+    fed.add((ts, text[:60]))                       # в ленту — только то, что касается области
+    feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
+    del feed[30:]
+
+def do_clear(kinds, loc, one=False):
+    """Отбой/сбит: убираем цели нужных типов рядом с местом (one=True — только ближайшую каждого типа)."""
+    cand = [t for t in tracks.values() if (not kinds or t["kind"] in kinds) and (not loc or hav(t["lat"], t["lon"], loc[1], loc[2]) < 40)]
+    if one and loc:
+        cand = [min([t for t in cand if t["kind"] == k], key=lambda t: hav(t["lat"], t["lon"], loc[1], loc[2])) for k in {t["kind"] for t in cand}]
+    for t in cand: tracks.pop(t["id"], None)
+
+def do_impact(subs, loc, ts, text):
+    """Упало: ближайшая летящая цель этого типа «долетела» (завершается в точке прилёта) + маркер прилёта на карте."""
+    for k in {sb["kind"] for sb, _ in subs} & {"kab", "missile", "drone", "aircraft"}:
+        cand = [t for t in tracks.values() if t["kind"] == k and not t.get("ended")]
+        if not cand: continue
+        t = min(cand, key=lambda t: hav(t["lat"], t["lon"], loc[1], loc[2]))
+        if hav(t["lat"], t["lon"], loc[1], loc[2]) < 45 or (t["goal"] and hav(t["goal"][1], t["goal"][2], loc[1], loc[2]) < 15):
+            t["ended"] = True; t["lat"], t["lon"], t["corr"] = loc[1], loc[2], (0.0, 0.0); t["seen"] = max(t["seen"], time.time())
+    names = list(dict.fromkeys(sb["name"] for sb, _ in subs if sb["kind"] not in ("strike", "impact")))
+    m = upsert(SUB["impact"], loc, None, ts, text, None, next((c for _, c in subs if c), None))
+    if m: m["label"] = ("Приліт: " + ", ".join(names)) if names else "Приліт/вибух"
+
+def act(intent, subs, pos, tgt, ts, text, ch, how=""):
+    """Единая логика для regex-разбора и для ШІ: что делать с сообщением."""
+    now, loc = time.time(), pos or tgt
+    kinds = list(dict.fromkeys(sb["kind"] for sb, _ in subs))
+    tag = f"{ch}{how}: «{text[:50]}» → "
+    if intent in ("clear", "downed"):
+        do_clear(kinds, loc, one=(intent == "downed"))
+        return note(tag + ("збито" if intent == "downed" else "відбій"))
+    if intent == "impact":
+        if not loc: return note(tag + "приліт, але місця немає")
+        do_impact(subs, loc, ts, text)
+        feed_add(ts, ch, text, ["impact"] + [k for k in kinds if k != "impact"], pos, tgt)
+        return note(tag + f"ПРИЛІТ {[sb['id'] for sb, _ in subs]} у {loc[0]}")
+    kmax = None
+    if not subs:                                   # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
+        ref = loc
+        live = [t for t in tracks.values() if t["kind"] not in ("strike", "impact") and now - t["seen"] < t["ttl"]]
+        if not ref or not live or len(text) > 160:
+            return note(tag + "без типа цели и нет активных целей, пропуск")
+        near = min(live, key=lambda t: hav(t["lat"], t["lon"], ref[1], ref[2]))
+        subs, kmax, kinds = [(SUB[near["sub"]], None)], 200, [near["kind"]]
+    for sb, cnt in subs:
+        if sb["kind"] == "strike": upsert(sb, loc, None, ts, text, None, cnt)
+        else: upsert(sb, pos, tgt, ts, text, kmax, cnt)
+    feed_add(ts, ch, text, kinds, pos, tgt)
+    note(tag + f"{[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} цель={tgt and tgt[0]}")
+
 def ingest(ts, text, ch=""):
+    """Запасной разбор без ШІ: по ключевым словам."""
     tl, now = text.lower(), time.time()
     for t in tracks.values(): step(t, now)
     if NEWS.search(tl) or len(text) > 280:        # новости, итоги, реклама — не сводка
         return note(f"{ch}: «{text[:50]}» → новость/не сводка, пропуск")
     subs = detect(tl)
-    kinds = list(dict.fromkeys(sb["kind"] for sb, _ in subs))
     best = {}                                      # одно место на позицию, берём самое длинное совпадение
     for n, la, lo, rx in PLACES:
         for m in re.finditer(r"(?<![а-яіїєґ'’])(?:" + rx + r")\w*", tl):
@@ -401,27 +463,107 @@ def ingest(ts, text, ch=""):
     tgt = next(((n, la, lo) for _, n, la, lo, pre in pl if TGT.search(pre)), None)
     if not pl:
         return note(f"{ch}: «{text[:50]}» → места не найдены")
-    if CLEAR.search(tl):
-        for t in list(tracks.values()):
-            if (not kinds or t["kind"] in kinds) and (not pos or hav(t["lat"], t["lon"], pos[1], pos[2]) < 40):
-                tracks.pop(t["id"])
-        return note(f"{ch}: «{text[:50]}» → отбой")
-    kmax = None
-    if not subs:                                   # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
-        ref = pos or tgt
-        live = [t for t in tracks.values() if t["kind"] != "strike" and now - t["seen"] < t["ttl"]]
-        if not live or len(text) > 160:
-            return note(f"{ch}: «{text[:50]}» → без типа цели и нет активных целей, пропуск")
-        near = min(live, key=lambda t: hav(t["lat"], t["lon"], ref[1], ref[2]))
-        subs, kmax, kinds = [(SUB[near["sub"]], None)], 200, [near["kind"]]
-    for sb, cnt in subs:
-        if sb["kind"] == "strike": upsert(sb, pos or tgt, None, ts, text, None, cnt)
-        else: upsert(sb, pos, tgt, ts, text, kmax, cnt)
-    if (ts, text[:60]) not in fed and any(in_oblast(p[1], p[2], 8) for p in (pos, tgt) if p):
-        fed.add((ts, text[:60]))      # в ленту — только то, что касается области
-        feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
-        del feed[30:]
-    note(f"{ch}: «{text[:50]}» → {[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} цель={tgt and tgt[0]}")
+    intent = intent_of(tl)
+    if intent == "impact" and not [1 for sb, _ in subs if sb["kind"] != "strike"]:
+        subs = [x for x in subs if x[0]["id"] != "arty"]         # «приліт» сам по себе — не отдельный тип цели
+    act(intent, subs, pos, tgt, ts, text, ch)
+
+# ── ШІ-РАЗБОР (Claude API, по желанию) ────────────────────────────────────────
+# Включается переменной окружения ANTHROPIC_API_KEY. Без ключа или при ошибке работает разбор по ключевым словам выше.
+# ШІ понимает СМЫСЛ сообщения (летит / упало / сбито / отбой / не про цели), типы целей и названия в именительном падеже.
+# Координаты ШІ не придумывает: названия превращаются в точки через справочник мест и Nominatim.
+ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
+LLM_MODEL = os.getenv("LLM_MODEL", "claude-haiku-5-5")
+LLM_CACHE, LLM_SEM, GEO_LOCK = {}, None, None
+INTENTS = {"flight", "impact", "downed", "clear", "other"}
+
+def llm_system():
+    types = "\n".join(f"- {k}: {v['name']}" for k, v in SUB.items() if k != "impact")
+    return f"""Ти аналізуєш повідомлення з українських Telegram-каналів про повітряні загрози в Запорізькій області та поруч. Поверни ЛИШЕ один JSON-об'єкт без пояснень:
+{{"intent": "flight|impact|downed|clear|other", "threats": [{{"type": "<id>", "count": <число або null>}}], "at": <назва або null>, "to": <назва або null>, "from": <назва або null>}}
+
+intent:
+- flight: ціль зараз у русі / помічена / курс (летить, курсом на, у напрямку, рухається, над X, біля X).
+- impact: УЖЕ сталося: впали, упали, влучили, приліт, вибухи, гучно, накрило. Це місце події, а не політ.
+- downed: збито/знищено конкретну ціль.
+- clear: відбій, чисто, загроза минула.
+- other: новини, підсумки, статистика, втрати, реклама, коментарі, не про конкретну ціль.
+Коротке повідомлення лише з місцем без типу цілі («Вже біля Новомиколаївки») = flight з порожнім threats.
+
+Назви: at = де ціль ЗАРАЗ або де сталося; to = куди летить («на X», «у бік X», «курсом на X»); from = звідки («з X», «від X»). Усі назви — населений пункт у називному відмінку українською, без слів «район», «околиці». Не вигадуй: якщо немає — null.
+type — тільки id зі списку:
+{types}
+Якщо тип невідомий, але це дрон — "drone", ракета — "missile", авіабомба — "kab", літак — "aircraft".
+
+Приклади:
+«КАБи впали на Запоріжжя» → {{"intent":"impact","threats":[{{"type":"kab","count":null}}],"at":"Запоріжжя","to":null,"from":null}}
+«2 шахеди з Оріхова курсом на Запоріжжя» → {{"intent":"flight","threats":[{{"type":"geran2","count":2}}],"at":"Оріхів","to":"Запоріжжя","from":null}}
+«Відбій по БпЛА у Токмаку» → {{"intent":"clear","threats":[{{"type":"drone","count":null}}],"at":"Токмак","to":null,"from":null}}"""
+
+async def llm_parse(s, text):
+    if not ANTHROPIC_KEY: return None
+    if text in LLM_CACHE: return LLM_CACHE[text]
+    async with LLM_SEM:
+        try:
+            async with s.post("https://api.anthropic.com/v1/messages",
+                              headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                              json={"model": LLM_MODEL, "max_tokens": 300, "system": llm_system(), "messages": [{"role": "user", "content": text[:700]}]},
+                              timeout=aiohttp.ClientTimeout(total=10)) as r:
+                j = await r.json()
+            raw = "".join(b.get("text", "") for b in j["content"] if b.get("type") == "text")
+            info = json.loads(re.search(r"\{.*\}", raw, re.S).group(0))
+            assert info.get("intent") in INTENTS
+        except Exception as e:
+            note(f"ШІ: помилка ({str(e)[:60]}) → розбір за ключовими словами"); return None
+    LLM_CACHE[text] = info
+    if len(LLM_CACHE) > 500: LLM_CACHE.pop(next(iter(LLM_CACHE)))
+    return info
+
+def find_place(name):
+    if not name or not isinstance(name, str): return None
+    n = name.lower().strip()
+    best = None
+    for pn, la, lo, rx in PLACES:
+        if pn.lower() == n or re.match(r"(?:" + rx + r")", n):
+            if best is None or len(rx) > best[0]: best = (len(rx), (pn, la, lo))
+    return best and best[1]
+
+async def resolve(s, name):
+    p = find_place(name)
+    if p or not isinstance(name, str) or len(name.strip()) < 4: return p
+    w = name.strip()
+    if w.lower() not in GEO_CACHE and await geo_one(s, w[0].upper() + w[1:]): return find_place(name)
+    return None
+
+async def apply_llm(s, info, ts, text, ch):
+    tl, now = text.lower(), time.time()
+    for t in tracks.values(): step(t, now)
+    intent = info["intent"]
+    if intent == "other": return note(f"{ch} ШІ: «{text[:50]}» → не про цілі")
+    cur, to, org = await resolve(s, info.get("at")), await resolve(s, info.get("to")), await resolve(s, info.get("from"))
+    subs = []
+    for x in info.get("threats") or []:
+        sb = SUB.get(str(x.get("type"))) if isinstance(x, dict) else None
+        if sb and sb["id"] != "impact":
+            c = x.get("count"); subs.append((sb, str(c) if c else None))
+    if not subs: subs = [x for x in detect(tl) if x[0]["id"] != "arty" or intent != "impact"]
+    pos, tgt = cur or org, to
+    if not (pos or tgt): return note(f"{ch} ШІ: «{text[:50]}» → {intent}, але місця не знайдено ({info.get('at')}/{info.get('to')}/{info.get('from')})")
+    act(intent, subs, pos, tgt, ts, text, ch, " ШІ")
+
+async def process(s, ts, text, ch):
+    try:
+        tl = text.lower()
+        if NEWS.search(tl) or len(text) > 280:
+            return note(f"{ch}: «{text[:50]}» → новость/не сводка, пропуск")
+        info = await llm_parse(s, text)
+        if info: await apply_llm(s, info, ts, text, ch)
+        else:
+            ingest(ts, text, ch)
+            if geo_words(text): GEO_Q.put_nowait((ts, text, ch))
+        await push()
+    except Exception as e:
+        print("process", e)
 
 def snap(now):
     vis = []
@@ -482,8 +624,7 @@ async def poll(s, ch):
                     new.append((ts, tx.get_text(" ", strip=True)))
             first = False
             for ts, text in sorted(new):
-                ingest(ts, text, ch)
-                if geo_words(text): GEO_Q.put_nowait((ts, text, ch))
+                asyncio.create_task(process(s, ts, text, ch))
             if new: await push()
         except Exception as e:
             print(ch, e); stats[ch] = {"error": str(e)}
@@ -500,7 +641,8 @@ async def events(req):
         clients.discard(r)
 
 async def main():
-    global GEO_Q
+    global GEO_Q, LLM_SEM, GEO_LOCK
+    LLM_SEM, GEO_LOCK = asyncio.Semaphore(4), asyncio.Lock()
     s = aiohttp.ClientSession()
     GEO_Q = asyncio.Queue()
     asyncio.create_task(geo_worker(s))

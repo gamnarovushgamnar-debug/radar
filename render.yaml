@@ -9,3 +9,5 @@ services:
     envVars:
       - key: NTFY_TOPIC
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
