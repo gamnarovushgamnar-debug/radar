@@ -132,56 +132,199 @@ def brg(a, b, c, d):
 
 tracks, ids, seen, clients, alerted, stats = {}, itertools.count(1), set(), set(), set(), {}
 
-def calc(t, now):
-    """Позиция по «счислению пути»: от последней точки к цели со средней скоростью."""
-    _, gla, glo = t["goal"]
-    tot = hav(t["lat"], t["lon"], gla, glo)
-    lim = tot
-    if t["kind"] == "kab":
-        lim = min(tot, max(0, KAB_RANGE - hav(*t["o"], t["lat"], t["lon"])))
-    d = min(lim, t["v"] * (now - t["t0"]) / 3600)
-    f = d / tot if tot > 0.05 else 1
-    la, lo = t["lat"] + (gla - t["lat"]) * f, t["lon"] + (glo - t["lon"]) * f
-    return la, lo, d, lim, tot
+# ── ОБЛАСТЬ: показываем только Запорізьку обл. ───────────────────────────────
+# Грубый контур (lon, lat). Цели вне контура (+OBL_MARGIN км) трекаются внутри, но на карту не отдаются —
+# так дрон, летящий с Днепропетровщины, появится сам, как только пересечёт границу.
+OBLAST = [(34.30, 47.40), (34.46, 47.56), (34.80, 47.72), (35.02, 47.98), (35.20, 48.14), (35.50, 48.10), (35.80, 47.98),
+          (36.20, 48.02), (36.50, 47.95), (36.78, 47.72), (36.96, 47.40), (37.05, 47.05), (36.95, 46.80), (36.55, 46.58),
+          (36.00, 46.52), (35.45, 46.42), (35.00, 46.38), (34.75, 46.55), (34.78, 46.90), (34.50, 47.15)]
+OBL_MARGIN = 4.0                                   # км допуска (контур приблизительный, а координаты из сводок — ещё приблизительнее)
+
+def _pip(x, y, poly):
+    ins, j = False, len(poly) - 1
+    for i in range(len(poly)):
+        xi, yi = poly[i]; xj, yj = poly[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            ins = not ins
+        j = i
+    return ins
+
+def _segd(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    u = 0 if L == 0 else max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / L))
+    return math.hypot(px - (ax + u * dx), py - (ay + u * dy))
+
+def in_oblast(la, lo, margin=OBL_MARGIN):
+    if _pip(lo, la, OBLAST): return True
+    if margin <= 0: return False
+    k = 111.2 * math.cos(math.radians(la))
+    pts = [(x * k, y * 111.2) for x, y in OBLAST]
+    px, py = lo * k, la * 111.2
+    return any(_segd(px, py, *pts[i - 1], *pts[i]) <= margin for i in range(len(pts)))
+
+# ── НЕТОЧНОСТЬ МЕСТ ───────────────────────────────────────────────────────────
+# «Шахед над Зеленим» ≠ ровно в центре Зеленого: это может быть окраина или стык с соседним районом.
+# Поэтому каждое место = пятно с радиусом (км), а не точка. Неизвестные нас. пункты берём из bbox Nominatim.
+RAD = {"Запоріжжя": 8, "Балабино": 3.5, "Вільнянськ": 4, "Василівка": 4.5, "Кам'янка-Дніпровська": 4.5, "Енергодар": 5, "Оріхів": 4.5,
+       "Гуляйполе": 4.5, "Пологи": 5, "Токмак": 5, "Молочанськ": 4, "Мелітополь": 6.5, "Приазовське": 4, "Кирилівка": 4,
+       "Бердянськ": 6, "Дніпро": 15, "Нікополь": 7, "Павлоград": 7, "Дніпропетровщина (край біля Запоріжжя)": 25, "Запорізька обл.": 45}
+def sigma_of(name): return max(2.5, RAD.get(name, 4.0))
+
+# ── ТРЕКЕР ────────────────────────────────────────────────────────────────────
+REPORT_LAG = 20          # сек: пока увидели → написали → канал опубликовал. Цель за это время уже улетела дальше
+CORR_TAU = 8.0           # сек: поправка позиции по новому сообщению «вливается» плавно, без телепорта
+TURN_KIND = {"drone": 4, "kab": 6, "missile": 8, "aircraft": 3, "strike": 0}          # макс. скорость поворота, °/с
+TURN_SUB = {"geran2": 2.5, "gerbera": 2.5, "italmas": 2.5, "banderol": 4, "geran3": 4, "fpv": 40, "lancet": 25, "molniya": 25,
+            "orlan": 6, "recon": 6, "ballistic": 30, "kinzhal": 30, "iskander_m": 30, "heli": 10}
+ATTACK_END = {"kab", "missile"}                    # долетел до цели → «завершено» (+ударные БпЛА, кроме разведчиков)
+
+def ang(a): return (a + 180) % 360 - 180
+def blend(a, b, w): return (a + ang(b - a) * w) % 360
+def fwd(la, lo, h, km):
+    r = math.radians(h)
+    return la + km * math.cos(r) / 111.2, lo + km * math.sin(r) / (111.2 * math.cos(math.radians(la)))
+
+def step(t, now):
+    """Двигаем цель до момента now: плавный разворот (с лимитом °/с) + движение по курсу + плавная поправка позиции."""
+    dt = min(now - t["ls"], 1800.0)
+    if dt <= 0: return
+    t["ls"] = now
+    if t.get("ended"): return
+    c = t["corr"]
+    if c[0] or c[1]:
+        f = 1 - math.exp(-dt / CORR_TAU)
+        t["lat"] += c[0] * f; t["lon"] += c[1] * f
+        t["corr"] = (c[0] * (1 - f), c[1] * (1 - f))
+    v = t["v"]
+    if not v: return
+    umax = 25.0 if v < 400 else 40.0
+    if t["hdg"] is None:                           # курс неизвестен: стоим на месте, пятно неопределённости растёт
+        t["unc"] = min(umax, t["unc"] + dt * v / 3600 * 0.25); return
+    rate, g = TURN_SUB.get(t["sub"], TURN_KIND.get(t["kind"], 3)), t["goal"]
+    n = int(dt / 4) + 1; h = dt / n
+    for _ in range(n):
+        if g: t["thdg"] = brg(t["lat"], t["lon"], g[1], g[2])
+        m = rate * h
+        t["hdg"] = (t["hdg"] + max(-m, min(m, ang(t["thdg"] - t["hdg"])))) % 360
+        t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], v * h / 3600)
+        if g and hav(t["lat"], t["lon"], g[1], g[2]) <= max(1.5, RAD.get(g[0], 4.0) * 0.5):
+            if t["kind"] in ATTACK_END or (t["kind"] == "drone" and t["sub"] not in ("recon", "orlan")):
+                t["ended"] = True; break
+            t["goal"] = g = None
+        if t["kind"] == "kab" and hav(*t["o"], t["lat"], t["lon"]) >= KAB_RANGE:
+            t["ended"] = True; break
+    t["unc"] = min(umax, t["unc"] + dt * v / 3600 * (0.05 + 0.3 * (1 - t["hq"])))   # чем хуже знаем курс, тем быстрее «расплывается»
+
+def set_goal(t, tgt, te):
+    if not tgt or not t["v"] or hav(t["lat"], t["lon"], tgt[1], tgt[2]) < 1.0: return
+    t["goal"] = tgt
+    b = brg(t["lat"], t["lon"], tgt[1], tgt[2])
+    t["thdg"] = b
+    if t["hdg"] is None: t["hdg"] = b; t["hq"] = max(t["hq"], 0.4)
+
+def new_track(sub, pos, sg, tgt, te, cnt, text):
+    i = next(ids)
+    t = tracks[i] = dict(id=i, kind=sub["kind"], sub=sub["id"], ttl=sub["ttl"], v=sub["v"], o=(pos[1], pos[2]), frm=pos[0],
+                         lat=pos[1], lon=pos[2], hdg=None, thdg=None, hq=0.0, unc=sg, goal=None, corr=(0.0, 0.0),
+                         ls=te, seen=te, n=1, fx=[(te, pos[1], pos[2], sg)], text=text, cnt=cnt)
+    set_goal(t, tgt, te)
+    return t
+
+def observe(t, pos, sg, m, te):
+    """Новая фиксация: позиция сливается с прогнозом по весам (Калман-подобно), курс уточняется мягко."""
+    t["seen"] = max(t["seen"], te)
+    v = t["v"]
+    if not v:                                      # обстрел/прилёт — просто точка
+        t["lat"], t["lon"], t["unc"] = pos[1], pos[2], sg
+        t["fx"] = [(te, pos[1], pos[2], sg)]; t["n"] += 1; return
+    gap = max(0.0, t["ls"] - te)
+    sm = sg + 0.1 * v * gap / 3600                 # + неопределённость из-за возраста сообщения
+    sp = t["unc"]
+    K = min(0.85, max(0.12, sp * sp / (sp * sp + sm * sm)))
+    c = t["corr"]
+    t["corr"] = (c[0] + K * (m[0] - (t["lat"] + c[0])), c[1] + K * (m[1] - (t["lon"] + c[1])))
+    t["unc"] = max(0.6 * sg, 1.5, (sp * sp * sm * sm / (sp * sp + sm * sm)) ** 0.5)
+    prev = t["fx"][-1]
+    d, dtf = hav(prev[1], prev[2], pos[1], pos[2]), te - prev[0]
+    if d > 0.3 and dtf > 0 and d <= v * dtf / 3600 * 2.5 + sg + prev[3] + 2:      # отсекаем «телепорты»
+        w = d / (d + 0.8 * (sg + prev[3]))         # доверие к курсу: чем больше сдвиг относительно «пятен», тем выше
+        b = brg(prev[1], prev[2], pos[1], pos[2])
+        g = t["goal"]
+        if g:
+            if abs(ang(b - brg(t["lat"], t["lon"], g[1], g[2]))) > 75 and w > 0.45:
+                t["goal"] = None                   # фиксации ясно показывают: летит не туда, куда считали
+                t["thdg"] = blend(t["hdg"], b, w)
+            else:
+                t["hq"] = min(1.0, t["hq"] + 0.1)
+        elif t["hdg"] is None:
+            t["hdg"] = t["thdg"] = b; t["hq"] = w
+        else:
+            dev = abs(ang(b - t["hdg"]))
+            if dev > 130 and not t.get("rev"):     # разворот на 180° по одной неточной фиксации — шум/другой борт; нужно 2 подряд
+                t["rev"] = True
+            else:
+                t["rev"] = False
+                t["thdg"] = blend(t["thdg"], b, w) # целевой курс сдвигается частично; сам курс довернётся с лимитом °/с
+                t["hq"] = max(0.0, min(1.0, t["hq"] + (0.2 if dev < 35 else -0.1)))
+    t["fx"] = (t["fx"] + [(te, pos[1], pos[2], sg)])[-8:]
+    t["n"] += 1
 
 def view(t, now):
-    la, lo, d, lim, tot = calc(t, now)
-    ended = d >= lim - 0.01 and t["v"] > 0
-    r = dict(id=t["id"], kind=t["kind"], lat=la, lon=lo, o=t["o"], to=t["goal"][0], goal=t["goal"][1:],
-             v=t["v"], hdg=round(brg(la, lo, *t["goal"][1:])), age=int(now - t["seen"]), text=t["text"][:140],
-             eta=int((lim - d) / t["v"] * 3600) if t["v"] else None, ended=ended,
-             home=round(hav(la, lo, HOME[1], HOME[2]), 1), short=lim < tot - 0.5, frm=t["frm"],
-             sub=t["sub"], name=SUB[t["sub"]]["name"], ico=SUB[t["sub"]]["ico"],
-             col=SUB[t["sub"]]["col"] or KIND_COL[t["kind"]], cnt=t.get("cnt"))
+    la, lo, v, g = t["lat"], t["lon"], t["v"], t["goal"]
+    home = hav(la, lo, HOME[1], HOME[2])
+    eta, short = None, False
+    if v and g and not t.get("ended"):
+        dg = hav(la, lo, g[1], g[2]); lim = dg
+        if t["kind"] == "kab":
+            rem = max(0, KAB_RANGE - hav(*t["o"], la, lo)); lim = min(dg, rem); short = rem < dg - 0.5
+        eta = int(lim / v * 3600)
+    etah = None                                    # ETA до Запорожья «по курсу», даже если цель его не называли
+    if v and t["hdg"] is not None and not t.get("ended"):
+        tol = 20 + math.degrees(math.atan2(t["unc"], max(home, 1)))
+        if abs(ang(brg(la, lo, HOME[1], HOME[2]) - t["hdg"])) <= tol: etah = int(home / v * 3600)
+    sb = SUB[t["sub"]]
+    r = dict(id=t["id"], kind=t["kind"], lat=la, lon=lo, unc=round(t["unc"], 1), v=v, hdg=None if t["hdg"] is None else round(t["hdg"]),
+             goal=g[1:] if g else None, to=g[0] if g else None, frm=t["frm"], fx=[[x[1], x[2]] for x in t["fx"]], fs=round(t["fx"][-1][3], 1),
+             n=t["n"], age=int(now - t["seen"]), text=t["text"][:140], eta=eta, etah=etah, ended=bool(t.get("ended")),
+             home=round(home, 1), short=short, sub=t["sub"], name=sb["name"], ico=sb["ico"], col=sb["col"] or KIND_COL[t["kind"]], cnt=t.get("cnt"))
     if t["kind"] == "kab":
         r["alt"] = round(max(0, KAB_H0 * (1 - hav(*t["o"], la, lo) / KAB_RANGE)))
     return r
 
 def upsert(sub, pos, tgt, ts, text, kmax=None, cnt=None):
-    now, kind = time.time(), sub["kind"]
-    live = [t for t in tracks.values() if t["sub"] == sub["id"] and now - t["seen"] < t["ttl"]]
-    t = None
-    if pos:
-        if live:
-            n = min(live, key=lambda x: hav(*calc(x, now)[:2], pos[1], pos[2]))
-            if hav(*calc(n, now)[:2], pos[1], pos[2]) < (kmax or sub["merge"]):
-                t = n
+    te = min(ts + REPORT_LAG, time.time())         # момент, к которому относится фиксация
+    v = sub["v"]
+    live = [t for t in tracks.values() if t["sub"] == sub["id"] and not t.get("ended") and te - t["seen"] < t["ttl"]]
+    for c in live: step(c, te)
+    sg = sigma_of(pos[0]) if pos else 0.0
+    t = tm = None
+    if pos:                                        # привязка к треку: расстояние до прогноза с учётом пятен + согласованность с курсом
+        best = 1.0
+        for c in live:
+            gap = max(0.0, c["ls"] - te)           # трек уже «уехал» вперёд относительно момента сообщения
+            dirn = c["hdg"] if c["hdg"] is not None else (brg(pos[1], pos[2], tgt[1], tgt[2]) if tgt else None)
+            m = fwd(pos[1], pos[2], dirn, v * gap / 3600) if (dirn is not None and v and gap) else (pos[1], pos[2])
+            dist = hav(m[0], m[1], c["lat"], c["lon"])
+            cost = dist / ((kmax or sub["merge"]) + c["unc"] + sg)
+            if c["hdg"] is not None and dist > 2:
+                cost += 0.25 * abs(ang(brg(c["lat"], c["lon"], m[0], m[1]) - c["hdg"])) / 180
+            if cost < best: best, t, tm = cost, c, m
     elif live:
-        t = max(live, key=lambda x: x["seen"])
+        if tgt and v:
+            t = min(live, key=lambda c: abs(ang(brg(c["lat"], c["lon"], tgt[1], tgt[2]) - c["hdg"])) if c["hdg"] is not None
+                    else 90 + hav(c["lat"], c["lon"], tgt[1], tgt[2]) / 10)
+        else:
+            t = max(live, key=lambda c: c["seen"])
     if t is None:
         if not pos: return
-        i = next(ids)
-        t = tracks[i] = dict(id=i, kind=kind, sub=sub["id"], ttl=sub["ttl"], o=(pos[1], pos[2]), frm=pos[0],
-                             goal=tgt or (pos if kind in ("aircraft", "strike") else HOME))
-    if pos:
-        t["lat"], t["lon"], t["t0"] = pos[1], pos[2], ts
-    if tgt:
-        if "v" in t:                                    # зафиксировать текущую точку, потом сменить курс
-            t["lat"], t["lon"] = calc(t, now)[:2]; t["t0"] = now
-        t["goal"] = tgt
-    t["v"] = (sub["v"] if tgt else 0) if kind == "aircraft" else sub["v"]   # реальная скорость ЭТОГО типа
+        t = new_track(sub, pos, sg, tgt, te, cnt, text)
+    else:
+        if pos: observe(t, pos, sg, tm, te)
+        if tgt: set_goal(t, tgt, te)
+        t["seen"] = max(t["seen"], te)
     if cnt: t["cnt"] = cnt
-    t["seen"], t["text"] = now, text
+    t["text"] = text
 
 log, GEO_CACHE, geo_lock = [], {}, asyncio.Lock()
 feed = []
@@ -211,12 +354,17 @@ async def geo(s, text):
                     PLACES.append((j[0]["display_name"].split(",")[0], float(j[0]["lat"]), float(j[0]["lon"]),
                                    re.escape(lw[:-2] if len(lw) > 6 else lw[:-1])))
                     GEO_CACHE[lw] = True
+                    try:
+                        bb = [float(x) for x in j[0]["boundingbox"]]
+                        RAD[j[0]["display_name"].split(",")[0]] = max(2.5, min(25.0, max((bb[1] - bb[0]) * 111.2, (bb[3] - bb[2]) * 111.2 * math.cos(math.radians(bb[0]))) / 2))
+                    except Exception: pass
                     break
 
 NEWS = re.compile(r"https?://|t\.me|підписуй|подпиш|читайте|джерело|реклам|донат|загинул|загинув|поранен|постраждал|внаслідок|наслідк|зведення|за добу|минулої|вчора|заявив|повідомив|міністр|командув|генштаб|збито \d|знищено \d|втрат")
 
 def ingest(ts, text, ch=""):
     tl, now = text.lower(), time.time()
+    for t in tracks.values(): step(t, now)
     if NEWS.search(tl) or len(text) > 280:        # новости, итоги, реклама — не сводка
         return note(f"{ch}: «{text[:50]}» → новость/не сводка, пропуск")
     subs = detect(tl)
@@ -233,7 +381,7 @@ def ingest(ts, text, ch=""):
         return note(f"{ch}: «{text[:50]}» → места не найдены")
     if CLEAR.search(tl):
         for t in list(tracks.values()):
-            if (not kinds or t["kind"] in kinds) and (not pos or hav(*calc(t, now)[:2], pos[1], pos[2]) < 40):
+            if (not kinds or t["kind"] in kinds) and (not pos or hav(t["lat"], t["lon"], pos[1], pos[2]) < 40):
                 tracks.pop(t["id"])
         return note(f"{ch}: «{text[:50]}» → отбой")
     kmax = None
@@ -242,17 +390,22 @@ def ingest(ts, text, ch=""):
         live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < t["ttl"]]
         if not live or len(text) > 160:
             return note(f"{ch}: «{text[:50]}» → без типа цели и нет активных целей, пропуск")
-        near = min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))
+        near = min(live, key=lambda t: hav(t["lat"], t["lon"], ref[1], ref[2]))
         subs, kmax, kinds = [(SUB[near["sub"]], None)], 200, [near["kind"]]
     for sb, cnt in subs:
         if sb["kind"] == "strike": upsert(sb, pos or tgt, None, ts, text, None, cnt)
         else: upsert(sb, pos, tgt, ts, text, kmax, cnt)
-    feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
-    del feed[30:]
+    if any(in_oblast(p[1], p[2], 8) for p in (pos, tgt) if p):      # в ленту — только то, что касается области
+        feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
+        del feed[30:]
     note(f"{ch}: «{text[:50]}» → {[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} цель={tgt and tgt[0]}")
 
 def snap(now):
-    return {"now": now, "home": HOME, "tracks": [view(t, now) for t in tracks.values()], "feed": feed}
+    vis = []
+    for t in tracks.values():
+        step(t, now)
+        if in_oblast(t["lat"], t["lon"]): vis.append(view(t, now))
+    return {"now": now, "home": HOME, "tracks": vis, "feed": feed, "oblast": [[la, lo] for lo, la in OBLAST]}
 
 async def send(payload, event=None):
     msg = (f"event: {event}\n" if event else "") + f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -266,11 +419,14 @@ async def tick(s):
     while True:
         now = time.time()
         for i, t in list(tracks.items()):
-            if now - t["seen"] > t["ttl"] or (view(t, now)["ended"] and now - t["seen"] > 120):
+            if now - t["seen"] > t["ttl"] or (t.get("ended") and now - t["seen"] > 120):
                 tracks.pop(i)
-        for t in tracks.values():                       # ТРЕВОГА только по КАБ на Запорожье
+        for t in list(tracks.values()):                 # ТРЕВОГА только по КАБ на Запорожье
+            step(t, now)
+            if t["kind"] != "kab" or t.get("ended") or not t["goal"] or hav(*t["goal"][1:], HOME[1], HOME[2]) > 25:
+                continue
             v = view(t, now)
-            if t["kind"] != "kab" or v["ended"] or hav(*t["goal"][1:], HOME[1], HOME[2]) > 25 or v["short"]:
+            if v["short"]:
                 continue
             lvl = 2 if v["eta"] is not None and v["eta"] <= ALERT_ETA2 else 1
             if (t["id"], lvl) not in alerted:
@@ -329,7 +485,7 @@ async def main():
                     web.get("/manifest.json", f("manifest.json")), web.get("/sw.js", f("sw.js")),
                     web.get("/icon-192.png", f("icon-192.png")), web.get("/icon-512.png", f("icon-512.png")),
                     web.get("/health", lambda r: web.Response(text="ok")),
-                    web.get("/debug", lambda r: web.json_response({"channels": stats, "tracks": len(tracks), "log": log, "geo": [k for k, v in GEO_CACHE.items() if v]}, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))])
+                    web.get("/debug", lambda r: web.json_response({"channels": stats, "tracks": [dict(id=t["id"], sub=t["sub"], hdg=t["hdg"] and round(t["hdg"]), unc=round(t["unc"], 1), n=t["n"], pos=[round(t["lat"], 3), round(t["lon"], 3)], shown=in_oblast(t["lat"], t["lon"])) for t in tracks.values()], "log": log, "geo": [k for k, v in GEO_CACHE.items() if v]}, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))])
     for ch in CHANNELS: asyncio.create_task(poll(s, ch))
     asyncio.create_task(tick(s))
     run = web.AppRunner(app); await run.setup()
