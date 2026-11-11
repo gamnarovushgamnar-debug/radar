@@ -31,10 +31,14 @@ PLACES = [(n, la, lo, rx) for n, la, lo, rx in [
  ("Одеса", 46.482, 30.723, r"одес"), ("Харків", 49.994, 36.23, r"харків|харьков"),
  ("Джанкой", 45.712, 34.391, r"джанко"), ("Сімферополь", 44.952, 34.102, r"сімферополь|симферополь"),
 ]]
+PLACES += [("Дніпропетровщина", 48.5, 35.0, r"дніпропетровщин|днепропетровщин"), ("Донеччина", 48.0, 37.8, r"донеччин|донетчин"),
+           ("Харківщина", 49.6, 36.4, r"харківщин|харьковщин"), ("Херсонщина", 46.7, 33.0, r"херсонщин"),
+           ("Запорізька обл.", 47.5, 35.6, r"запоріжчин|запорожчин|запорізьк\w+ обл"), ("Полтавщина", 49.6, 34.5, r"полтавщин"),
+           ("Миколаївщина", 47.2, 31.9, r"миколаївщин|николаевщин"), ("Одещина", 46.6, 30.5, r"одещин|одесчин")]
 KINDS = [("kab", r"\bкаб|авіабомб|авиабомб|умпк|\bфаб"),
          ("missile", r"ракет|іскандер|искандер|калібр|калибр|кинджал|кінжал"),
          ("aircraft", r"\bборт|літак|самол[её]т|\bсу-?\d\d|\bту-?\d+|авіаці|авиаци"),
-         ("drone", r"бпла|шахед|шахид|герань|дрон|\bбла\b")]
+         ("drone", r"бпла|шахед|шахид|герань|реактив|мопед|дрон|\bбла\b")]
 TGT = re.compile(r"(?:\bна|\bк|\bдо|напрям\w*|направ\w*|бік|сторон\w*|курс\w*)\s*$")
 CLEAR = re.compile(r"відбій|отбой|збит|сбит|знищен|минус|мінус|чисто")
 
@@ -74,14 +78,14 @@ def view(t, now):
         r["alt"] = round(max(0, KAB_H0 * (1 - hav(*t["o"], la, lo) / KAB_RANGE)))
     return r
 
-def upsert(kind, pos, tgt, ts, text):
+def upsert(kind, pos, tgt, ts, text, kmax=None):
     now = time.time()
     live = [t for t in tracks.values() if t["kind"] == kind and now - t["seen"] < TTL[kind]]
     t = None
     if pos:
         if live:
             n = min(live, key=lambda x: hav(*calc(x, now)[:2], pos[1], pos[2]))
-            if hav(*calc(n, now)[:2], pos[1], pos[2]) < MERGE_KM[kind]:
+            if hav(*calc(n, now)[:2], pos[1], pos[2]) < (kmax or MERGE_KM[kind]):
                 t = n
     elif live:
         t = max(live, key=lambda x: x["seen"])
@@ -98,21 +102,66 @@ def upsert(kind, pos, tgt, ts, text):
     t["v"] = (600 if tgt else 0) if kind == "aircraft" else SPEED[kind]
     t["seen"], t["text"] = now, text
 
-def ingest(ts, text):
-    tl = text.lower()
+log, GEO_CACHE, geo_lock = [], {}, asyncio.Lock()
+SKIP = re.compile(r"^(курс|курсом|напрям|балістик|групи|група|рухаєть|також|увага|реактив)")
+
+def note(m):
+    log.append(m[:160]); del log[:-25]
+
+async def geo(s, text):
+    """Неизвестные названия (с заглавной буквы) ищем в OpenStreetMap Nominatim и запоминаем."""
+    for w in set(re.findall(r"[А-ЯІЇЄҐ][а-яіїєґ'’\-]{4,}", text)):
+        lw = w.lower()
+        if lw in GEO_CACHE or SKIP.match(lw) or any(re.match(rx, lw) for *_, rx in PLACES) or any(re.search(rx, lw) for _, rx in KINDS):
+            continue
+        GEO_CACHE[lw] = None
+        async with geo_lock:
+            for q in dict.fromkeys([w, w[:-1] + "а", w[:-1] + "я", w[:-1] + "е"]):
+                try:
+                    async with s.get("https://nominatim.openstreetmap.org/search", headers={"User-Agent": "radar-app/1.0"},
+                                     params={"q": q, "format": "json", "countrycodes": "ua", "limit": 1, "accept-language": "uk",
+                                             "viewbox": "30,51,40.5,44", "bounded": 1}, timeout=aiohttp.ClientTimeout(total=6)) as r:
+                        j = await r.json()
+                except Exception:
+                    j = []
+                await asyncio.sleep(1.1)
+                if j:
+                    PLACES.append((j[0]["display_name"].split(",")[0], float(j[0]["lat"]), float(j[0]["lon"]),
+                                   re.escape(lw[:-2] if len(lw) > 6 else lw[:-1])))
+                    GEO_CACHE[lw] = True
+                    break
+
+def ingest(ts, text, ch=""):
+    tl, now = text.lower(), time.time()
     kinds = [k for k, rx in KINDS if re.search(rx, tl)]
-    pl = sorted((m.start(), n, la, lo, tl[max(0, m.start() - 20):m.start()])
-                for n, la, lo, rx in PLACES for m in re.finditer(rx, tl))
-    if not kinds or not pl: return
+    best = {}                                      # одно место на позицию, берём самое длинное совпадение
+    for n, la, lo, rx in PLACES:
+        for m in re.finditer(r"(?<![а-яіїєґ'’])(?:" + rx + r")\w*", tl):
+            if m.start() not in best or (m.end(), len(rx)) > best[m.start()][:2]:
+                best[m.start()] = (m.end(), len(rx), n, la, lo)
+    pl = [(st, n, la, lo, tl[max(0, st - 20):st]) for st, (_, _, n, la, lo) in sorted(best.items())]
     pos = next(((n, la, lo) for _, n, la, lo, pre in pl if not TGT.search(pre)), None)
     tgt = next(((n, la, lo) for _, n, la, lo, pre in pl if TGT.search(pre)), None)
+    if not pl:
+        return note(f"{ch}: «{text[:50]}» → места не найдены")
     if CLEAR.search(tl):
         for t in list(tracks.values()):
-            if t["kind"] in kinds and (not pos or hav(*calc(t, time.time())[:2], pos[1], pos[2]) < 40):
+            if (not kinds or t["kind"] in kinds) and (not pos or hav(*calc(t, now)[:2], pos[1], pos[2]) < 40):
                 tracks.pop(t["id"])
-        return
+        return note(f"{ch}: «{text[:50]}» → отбой")
+    kmax = None
+    if not kinds:                                  # короткие посты вида «До Новомиколаївки» без типа цели
+        if len(text) > 160:
+            return note(f"{ch}: «{text[:50]}» → длинный пост без типа")
+        ref = pos or tgt
+        live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < TTL[t["kind"]]]
+        if live:
+            kinds, kmax = [min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))["kind"]], 200
+        else:
+            kinds = ["drone"]
     for k in kinds:
-        upsert(k, pos, tgt, ts, text)
+        upsert(k, pos, tgt, ts, text, kmax)
+    note(f"{ch}: «{text[:50]}» → {kinds} поз={pos and pos[0]} цель={tgt and tgt[0]}")
 
 def snap(now):
     return {"now": now, "home": HOME, "tracks": [view(t, now) for t in tracks.values()]}
@@ -165,7 +214,9 @@ async def poll(s, ch):
                 if not first or time.time() - ts < 900:   # при старте берём только последние 15 минут
                     new.append((ts, tx.get_text(" ", strip=True)))
             first = False
-            for ts, text in sorted(new): ingest(ts, text)
+            for ts, text in sorted(new):
+                await geo(s, text)
+                ingest(ts, text, ch)
             if new: await push()
         except Exception as e:
             print(ch, e); stats[ch] = {"error": str(e)}
@@ -190,7 +241,7 @@ async def main():
                     web.get("/manifest.json", f("manifest.json")), web.get("/sw.js", f("sw.js")),
                     web.get("/icon-192.png", f("icon-192.png")), web.get("/icon-512.png", f("icon-512.png")),
                     web.get("/health", lambda r: web.Response(text="ok")),
-                    web.get("/debug", lambda r: web.json_response({"channels": stats, "tracks": len(tracks)}, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))])
+                    web.get("/debug", lambda r: web.json_response({"channels": stats, "tracks": len(tracks), "log": log, "geo": [k for k, v in GEO_CACHE.items() if v]}, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))])
     for ch in CHANNELS: asyncio.create_task(poll(s, ch))
     asyncio.create_task(tick(s))
     run = web.AppRunner(app); await run.setup()
