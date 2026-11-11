@@ -2,76 +2,109 @@
 <html lang="uk"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Радар цілей</title>
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0e1116">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
-html,body{margin:0;height:100%;background:#0b0f14;color:#e6edf3;font:14px system-ui,sans-serif}
-#m{position:absolute;inset:0 0 38% 0}
-.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
-#p{position:absolute;left:0;right:0;bottom:0;height:38%;overflow:auto;background:#111820;border-top:1px solid #243040;padding:6px 10px calc(6px + env(safe-area-inset-bottom))}
-.r{padding:6px 0;border-bottom:1px solid #1c2733}.r b{font-size:15px}.r small{color:#8b9bb0;display:block}
-.kab{color:#ff5a5a}.drone{color:#fbbf24}.missile{color:#fb923c}.aircraft{color:#60a5fa}
-.ic{font-size:22px;text-shadow:0 0 4px #000;text-align:center;line-height:24px}
-#bar{position:absolute;z-index:999;top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;display:flex;gap:8px;align-items:center}
-button{background:#1f6feb;color:#fff;border:0;border-radius:8px;padding:9px 12px;font-size:14px}
-#st{background:#000a;padding:6px 9px;border-radius:8px}
-#al{position:absolute;z-index:1000;inset:0;display:none;background:#b00020ee;color:#fff;font-size:26px;font-weight:700;text-align:center;padding:30% 20px}
+:root{--bg:#0e1116;--p:#151a22;--l:#222a36;--t:#d7dee8;--m:#7f8b9c;--sh:40%}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:14px/1.35 system-ui,sans-serif;overflow:hidden}
+#m{position:absolute;inset:0 0 var(--sh) 0}
+.leaflet-container{background:#0e1116}
+.leaflet-layer.dk{filter:invert(1) hue-rotate(180deg) grayscale(.6) brightness(.6) contrast(.9)}
+.leaflet-layer.st{filter:grayscale(.5) brightness(.55) contrast(.9)}
+.leaflet-control-attribution{background:#0e1116aa!important;color:#667!important}.leaflet-control-attribution a{color:#778!important}
+#hud{position:absolute;z-index:900;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#hud>*{pointer-events:auto}
+#ban{padding:9px 12px;border-radius:10px;background:#12281a;border:1px solid #1f6f3a;font-weight:600}
+#ban.am{background:#33280d;border-color:#8a6a1b}#ban.rd{background:#3b1216;border-color:#b62324;animation:bl 1s infinite}
+@keyframes bl{50%{background:#5c171c}}
+#chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:4px 10px;border-radius:99px;background:#151a22ee;border:1px solid var(--l);font-size:13px;cursor:pointer;user-select:none}
+.chip.off{opacity:.38}
+#btns{position:absolute;z-index:900;right:8px;bottom:calc(var(--sh) + 10px);display:flex;flex-direction:column;gap:6px}
+.b{width:42px;height:42px;border-radius:12px;background:#151a22ee;border:1px solid var(--l);color:var(--t);font-size:18px;padding:0}
+#sheet{position:absolute;left:0;right:0;bottom:0;height:var(--sh);background:var(--p);border-top:1px solid var(--l);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+#grip{height:18px;display:flex;justify-content:center;align-items:center;cursor:pointer}#grip i{width:40px;height:4px;border-radius:4px;background:#2c3646}
+#tabs{display:flex;gap:16px;padding:0 14px 6px;color:var(--m);font-weight:600}#tabs b.on{color:var(--t);border-bottom:2px solid #58a6ff}
+#list,#feed{overflow:auto;flex:1;padding:0 14px}
+.r{padding:8px 0;border-bottom:1px solid var(--l)}.r small{display:block;color:var(--m)}.r .tx{color:#a9b4c4}
+.k{display:inline-block;padding:1px 7px;border-radius:99px;border:1px solid;font-size:12px;margin-right:4px}
+.mk{position:relative;width:24px;height:24px}.mk svg{width:24px;height:24px;filter:drop-shadow(0 0 3px #000)}
+.lb{position:absolute;left:20px;top:-1px;white-space:nowrap;font:600 11px system-ui;color:var(--c);text-shadow:0 0 3px #000,0 0 3px #000}
+.pulse{position:absolute;inset:-6px;border:2px solid var(--c);border-radius:50%;animation:pu 1.2s infinite}
+@keyframes pu{from{transform:scale(.5);opacity:1}to{transform:scale(1.5);opacity:0}}
+.ring{font:11px system-ui;color:#4b576a;white-space:nowrap}
+#al{position:absolute;z-index:1000;inset:0;display:none;background:radial-gradient(#7a0f1aee,#3a0509f2);text-align:center;padding:28% 24px;font-size:24px;font-weight:700}
+#al button{margin-top:28px;padding:12px 26px;border-radius:12px;border:0;font-size:17px;background:#fff;color:#400}
 </style></head><body>
 <div id="m"></div>
-<div id="bar"><button id="en">🔔 Увімкнути сирену</button><span id="st">з'єднання…</span></div>
-<div id="p"></div>
-<div id="al" onclick="stopAlarm()"></div>
+<div id="hud"><div id="ban">з'єднання…</div><div id="chips"></div></div>
+<div id="btns"><button class="b" id="bs" title="Сирена">🔔</button><button class="b" id="bm" title="Я">📍</button><button class="b" id="bh" title="До Запоріжжя">🎯</button><button class="b" id="bl" title="Карта">🗺</button></div>
+<div id="sheet"><div id="grip"><i></i></div><div id="tabs"><b class="on" data-t="list">Цілі</b><b data-t="feed">Стрічка</b></div><div id="list"></div><div id="feed" hidden></div></div>
+<div id="al"><div id="at"></div><button onclick="stopAlarm()">Зрозуміло</button></div>
 <script>
-const ICON={drone:'🛸',kab:'💣',missile:'🚀',aircraft:'✈️'},NAME={drone:'БпЛА',kab:'КАБ',missile:'Ракета',aircraft:'Борт'},
-COL={drone:'#fbbf24',kab:'#ff5a5a',missile:'#fb923c',aircraft:'#60a5fa'};
-const map=L.map('m',{zoomControl:false}).setView([47.6,35.4],8);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-const objs={};let homeMk,actx,alarmT,wake;
-
-function fmt(s){return s==null?'—':s>=60?Math.floor(s/60)+' хв '+s%60+' с':s+' с'}
-function render(d){
-  if(!homeMk)homeMk=L.circleMarker([d.home[1],d.home[2]],{radius:7,color:'#3fb950',fillOpacity:.9}).addTo(map).bindTooltip(d.home[0]);
-  const alive=new Set(d.tracks.map(t=>t.id));
-  for(const id in objs)if(!alive.has(+id)){map.removeLayer(objs[id].g);delete objs[id]}
-  d.tracks.sort((a,b)=>(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||(a.eta??1e9)-(b.eta??1e9));
-  d.tracks.forEach(t=>{
-    let o=objs[t.id];const p=[t.lat,t.lon];
-    if(!o){o={g:L.layerGroup().addTo(map),
-      mk:L.marker(p,{icon:L.divIcon({className:'',html:`<div class="ic">${ICON[t.kind]}</div>`,iconSize:[24,24]})}),
-      ln:L.polyline([],{color:COL[t.kind],dashArray:'6 6',weight:2}),
-      tr:L.polyline([[t.o[0],t.o[1]],p],{color:COL[t.kind],weight:2,opacity:.5})};
-      o.g.addLayer(o.tr).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
-    o.mk.setLatLng(p);o.ln.setLatLngs([p,t.goal]);o.tr.setLatLngs([[t.o[0],t.o[1]],p]);
-    o.mk.bindTooltip(`${NAME[t.kind]}${t.alt!=null?' '+t.alt+' м':''}`);
-  });
-  document.getElementById('p').innerHTML=d.tracks.map(t=>`<div class="r"><b class="${t.kind}">${ICON[t.kind]} ${NAME[t.kind]}</b> ${t.frm} → ${t.to}${t.short?' (не долетить)':''}
-  <small>${t.v?t.v+' км/год · курс '+t.hdg+'° · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}до ${d.home[0]}: ${t.home} км${t.eta!=null?' · ~'+fmt(t.eta):''} · звіт ${t.age} с тому</small>
-  <small>${t.text}</small></div>`).join('')||'<div class="r">Цілей немає</div>';
-}
-function beep(){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=900;
-  o.connect(g);g.connect(actx.destination);g.gain.value=.4;o.start();o.frequency.setValueAtTime(600,actx.currentTime+.25);o.stop(actx.currentTime+.5)}
-function alarm(a){
-  const el=document.getElementById('al');el.style.display='block';el.innerHTML='⚠️ '+a.text+'<br><small>торкніться щоб вимкнути</small>';
-  clearInterval(alarmT);beep();alarmT=setInterval(beep,700);
-  if(navigator.vibrate)navigator.vibrate([500,200,500,200,800]);
-  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance('Увага! КАБ летить на Запоріжжя. '+(a.lvl==2?'Негайно в укриття!':''));u.lang='uk-UA';u.rate=1.05;speechSynthesis.speak(u);
-  if(Notification.permission=='granted')new Notification('КАБ на Запоріжжя',{body:a.text,requireInteraction:true});
-}
-function stopAlarm(){clearInterval(alarmT);speechSynthesis.cancel();document.getElementById('al').style.display='none'}
-document.getElementById('en').onclick=async e=>{
-  actx=new (window.AudioContext||window.webkitAudioContext)();beep();
-  speechSynthesis.speak(new SpeechSynthesisUtterance(' '));
-  if('Notification' in window)Notification.requestPermission();
-  try{wake=await navigator.wakeLock.request('screen')}catch(_){}
-  e.target.textContent='🔔 Сирена увімкнена'};
-function connect(){
-  const es=new EventSource('/events');
-  es.onopen=()=>st.textContent='● онлайн';
-  es.onmessage=e=>{const d=JSON.parse(e.data);st.textContent='● онлайн · цілей: '+d.tracks.length;render(d)};
-  es.addEventListener('alert',e=>alarm(JSON.parse(e.data)));
-  es.onerror=()=>st.textContent='✖ немає зв\'язку…';
-}
-connect();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js');
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const K={drone:{n:'БпЛА',c:'#e3b341',p:'M0-8L8 0L0 8L-8 0Z'},kab:{n:'КАБ',c:'#f85149',p:'M0-10L7 8L0 4L-7 8Z'},missile:{n:'Ракета',c:'#ff8a3d',p:'M0-12L3.5 8L0 5L-3.5 8Z'},
+ aircraft:{n:'Борт',c:'#58a6ff',p:'M0-10L2-3L9 3L9 5L2 3L1 8L4 10L4 11L0 10L-4 11L-4 10L-1 8L-2 3L-9 5L-9 3L-2-3Z'},
+ strike:{n:'РСЗО/обстріл',c:'#d2a8ff',p:'M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z'}};
+const map=L.map('m',{zoomControl:false}).fitBounds([[46.4,34.0],[48.6,37.3]]);
+const dk=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'dk',attribution:'© OpenStreetMap'});
+const st=L.layerGroup([L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,className:'st',attribution:'© Esri'}),
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,className:'st'})]);
+let base=dk.addTo(map),D={tracks:[],feed:[],home:null},snapT=performance.now(),hidden=new Set(),objs={},ringsOk=0,me=null,meMk=null,actx,alarmT,soundOn=false;
+const fmt=s=>s>=60?Math.floor(s/60)+' хв':s+' с';
+function hav(a,b,c,d){const p=Math.PI/180,x=Math.sin((c-a)*p/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin((d-b)*p/2)**2;return 12742*Math.asin(Math.sqrt(x))}
+function ext(t,dt){if(!t.v||t.ended)return[t.lat,t.lon];const km=t.v*(t.eta!=null?Math.max(0,Math.min(dt,t.eta)):dt)/3600,h=t.hdg*Math.PI/180;
+ return[t.lat+km*Math.cos(h)/111.2,t.lon+km*Math.sin(h)/(111.2*Math.cos(t.lat*Math.PI/180))]}
+function rings(h){[20,45,90].forEach(r=>{L.circle([h[1],h[2]],{radius:r*1000,color:'#3a4559',weight:1,dashArray:'4 6',fill:false,interactive:false}).addTo(map);
+ L.marker([h[1]+r/111.2,h[2]],{interactive:false,icon:L.divIcon({className:'',html:`<span class="ring">${r} км</span>`,iconSize:[40,12],iconAnchor:[20,6]})}).addTo(map)});
+ L.circleMarker([h[1],h[2]],{radius:6,color:'#3fb950',weight:2,fillOpacity:.9}).addTo(map).bindTooltip(h[0])}
+function icon(t){const k=K[t.kind],lab=[k.n,t.alt!=null?t.alt+' м':'',t.eta>0?fmt(t.eta):''].filter(Boolean).join(' · ');
+ return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="mk" style="--c:${k.c};opacity:${Math.max(.5,1-t.age/600)}">${t.kind=='kab'?'<i class="pulse"></i>':''}<svg viewBox="-12 -12 24 24" style="transform:rotate(${t.kind=='strike'?0:t.hdg}deg)"><path d="${k.p}" fill="${k.c}" stroke="#000" stroke-width="1.2"/></svg><span class="lb">${esc(lab)}</span></div>`})}
+function render(d){D=d;snapT=performance.now();if(!ringsOk&&d.home){rings(d.home);ringsOk=1}
+ const ids=new Set();
+ for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=K[t.kind].c;
+  if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t)}),tr:L.polyline([],{color:c,weight:2,opacity:.45}),ln:L.polyline([],{color:c,weight:1.5,opacity:.7,dashArray:'6 6'}),un:L.circle([t.lat,t.lon],{radius:0,color:c,weight:1,opacity:.35,fillOpacity:.05,interactive:false})};
+   o.g.addLayer(o.un).addLayer(o.tr).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
+  o.t=t;o.mk.setIcon(icon(t))}
+ for(const id in objs)if(!ids.has(+id)){objs[id].g.remove();delete objs[id]}
+ chips();banner();list();feed();tick()}
+function tick(){const dt=(performance.now()-snapT)/1000;for(const id in objs){const o=objs[id],t=o.t,p=ext(t,dt);
+ o.mk.setLatLng(p);o.tr.setLatLngs([t.o,p]);o.ln.setLatLngs(t.kind=='strike'?[]:[p,t.goal]);o.un.setLatLng(p);
+ o.un.setRadius(t.v&&t.age>15?Math.min(25000,t.v*(t.age+dt)/3.6*.2):0)}}
+setInterval(tick,200);
+function chips(){const c={};D.tracks.forEach(t=>c[t.kind]=(c[t.kind]||0)+1);
+ $('chips').innerHTML=`<span class="chip" id="st">${$('chips').dataset.s||'●'}</span>`+Object.keys(K).map(k=>`<span class="chip${hidden.has(k)?' off':''}" data-k="${k}" style="border-color:${K[k].c}">${K[k].n} ${c[k]||0}</span>`).join('')}
+$('chips').onclick=e=>{const k=e.target.dataset.k;if(k){hidden.has(k)?hidden.delete(k):hidden.add(k);render(D)}};
+function banner(){const b=$('ban'),h=D.home,kabs=D.tracks.filter(t=>t.kind=='kab'&&!t.ended&&!t.short&&hav(t.goal[0],t.goal[1],h[1],h[2])<25);
+ if(kabs.length){const t=kabs.sort((a,b)=>(a.eta??1e9)-(b.eta??1e9))[0];b.className='rd';b.textContent=`⚠️ КАБ на ${h[0]} · ${t.home} км${t.eta!=null?' · ~'+fmt(t.eta):''} · ${t.alt} м`;return}
+ const dr=D.tracks.filter(t=>t.kind!='strike'&&t.kind!='aircraft');
+ if(dr.length){const n=dr.slice().sort((a,b)=>a.home-b.home)[0];b.className='am';b.textContent=`Цілей: ${dr.length} · найближча ${K[n.kind].n} — ${n.home} км до ${h[0]}`}
+ else{b.className='';b.textContent='🟢 Спокійно: активних цілей немає'}}
+function list(){const rows=D.tracks.filter(t=>!hidden.has(t.kind)).sort((a,b)=>(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||a.home-b.home);
+ $('list').innerHTML=rows.map(t=>{const k=K[t.kind];return`<div class="r" data-id="${t.id}"><b style="color:${k.c}">${k.n}</b> ${esc(t.frm)} → ${esc(t.to)}${t.short?' <i>(не долетить)</i>':''}
+ <small>${t.v?t.v+' км/год · курс '+t.hdg+'° · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}до ${esc(D.home[0])}: ${t.home} км${t.eta>0?' · ~'+fmt(t.eta):''}${me?' · до вас '+hav(me[0],me[1],t.lat,t.lon).toFixed(0)+' км':''} · звіт ${t.age} с тому</small>
+ <small class="tx">${esc(t.text)}</small></div>`}).join('')||'<div class="r">Цілей немає</div>'}
+$('list').onclick=e=>{const r=e.target.closest('.r');if(r&&objs[r.dataset.id])map.flyTo(objs[r.dataset.id].mk.getLatLng(),11)};
+function feed(){$('feed').innerHTML=(D.feed||[]).map(f=>`<div class="r"><small>${new Date(f.t*1000).toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit'})} · ${esc(f.ch)}</small><div class="tx">${esc(f.text)}</div>${f.kinds.map(k=>`<span class="k" style="color:${K[k].c}">${K[k].n}</span>`).join('')}<small style="display:inline">${esc(f.place)}</small></div>`).join('')||'<div class="r">Поки порожньо</div>'}
+$('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...$('tabs').children].forEach(x=>x.classList.toggle('on',x==e.target));$('list').hidden=t!='list';$('feed').hidden=t!='feed'};
+$('grip').onclick=()=>{const r=document.documentElement.style;r.setProperty('--sh',r.getPropertyValue('--sh')=='56px'?'40%':'56px');setTimeout(()=>map.invalidateSize(),50)};
+$('bh').onclick=()=>D.home&&map.flyTo([D.home[1],D.home[2]],10);
+$('bl').onclick=()=>{map.removeLayer(base);base=base===dk?st:dk;base.addTo(map)};
+$('bm').onclick=()=>navigator.geolocation&&navigator.geolocation.watchPosition(p=>{me=[p.coords.latitude,p.coords.longitude];
+ if(!meMk)meMk=L.circleMarker(me,{radius:7,color:'#fff',fillColor:'#2f81f7',fillOpacity:1,weight:2}).addTo(map).bindTooltip('Ви');meMk.setLatLng(me);list()},()=>{},{enableHighAccuracy:true});
+function beep(){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=900;o.connect(g);g.connect(actx.destination);g.gain.value=.4;o.start();o.frequency.setValueAtTime(600,actx.currentTime+.25);o.stop(actx.currentTime+.5)}
+function alarm(a){$('at').textContent='⚠️ '+a.text;$('al').style.display='block';clearInterval(alarmT);beep();alarmT=setInterval(beep,700);navigator.vibrate&&navigator.vibrate([500,200,500,200,800]);
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance('Увага! КАБ летить на Запоріжжя. '+(a.lvl==2?'Негайно в укриття!':''));u.lang='uk-UA';speechSynthesis.speak(u);
+ if(window.Notification&&Notification.permission=='granted')new Notification('КАБ на Запоріжжя',{body:a.text,requireInteraction:true})}
+function stopAlarm(){clearInterval(alarmT);speechSynthesis.cancel();$('al').style.display='none'}
+$('bs').onclick=async()=>{if(!soundOn){soundOn=true;actx=new(window.AudioContext||window.webkitAudioContext)();beep();speechSynthesis.speak(new SpeechSynthesisUtterance(' '));window.Notification&&Notification.requestPermission();
+  try{await navigator.wakeLock.request('screen')}catch(_){}$('bs').textContent='🔊';$('bs').title='Тест сирени'}else alarm({text:'ТЕСТ: КАБ на Запоріжжя',lvl:1})};
+function connect(){const es=new EventSource('/events');
+ es.onopen=()=>{$('chips').dataset.s='● онлайн';chips()};
+ es.onmessage=e=>{$('chips').dataset.s='● онлайн';render(JSON.parse(e.data))};
+ es.addEventListener('alert',e=>alarm(JSON.parse(e.data)));
+ es.onerror=()=>{$('chips').dataset.s='✖ немає зв\'язку';chips();$('ban').className='am';$('ban').textContent='Немає зв\'язку з сервером — дані не оновлюються'}}
+connect();if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js');
 </script></body></html>
