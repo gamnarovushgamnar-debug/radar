@@ -6,7 +6,7 @@ import aiohttp
 from aiohttp import web
 from bs4 import BeautifulSoup
 
-CHANNELS = ["eyes_everywhere_ua", "operatyvnohlep"]
+CHANNELS = ["eyes_everywhere_ua", "operatyvnohlep", "gnilayachereha", "rotodrellomod"]
 HOME = ("Запоріжжя", 47.838, 35.139)
 POLL = 1.5                                   # сек между опросами каждого канала
 NTFY = os.getenv("NTFY_TOPIC")
