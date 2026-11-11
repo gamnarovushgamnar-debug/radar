@@ -138,7 +138,7 @@ tracks, ids, seen, clients, alerted, stats = {}, itertools.count(1), set(), set(
 OBLAST = [(34.30, 47.40), (34.46, 47.56), (34.80, 47.72), (35.02, 47.98), (35.20, 48.14), (35.50, 48.10), (35.80, 47.98),
           (36.20, 48.02), (36.50, 47.95), (36.78, 47.72), (36.96, 47.40), (37.05, 47.05), (36.95, 46.80), (36.55, 46.58),
           (36.00, 46.52), (35.45, 46.42), (35.00, 46.38), (34.75, 46.55), (34.78, 46.90), (34.50, 47.15)]
-OBL_MARGIN = 4.0                                   # км допуска (контур приблизительный, а координаты из сводок — ещё приблизительнее)
+OBL_MARGIN = 10.0                                   # км допуска (контур приблизительный, а координаты из сводок — ещё приблизительнее)
 
 def _pip(x, y, poly):
     ins, j = False, len(poly) - 1
@@ -306,7 +306,7 @@ def upsert(sub, pos, tgt, ts, text, kmax=None, cnt=None):
             dirn = c["hdg"] if c["hdg"] is not None else (brg(pos[1], pos[2], tgt[1], tgt[2]) if tgt else None)
             m = fwd(pos[1], pos[2], dirn, v * gap / 3600) if (dirn is not None and v and gap) else (pos[1], pos[2])
             dist = hav(m[0], m[1], c["lat"], c["lon"])
-            cost = dist / ((kmax or sub["merge"]) + c["unc"] + sg)
+            cost = dist / ((kmax or sub["merge"] * 0.5) + c["unc"] + sg)
             if c["hdg"] is not None and dist > 2:
                 cost += 0.25 * abs(ang(brg(c["lat"], c["lon"], m[0], m[1]) - c["hdg"])) / 180
             if cost < best: best, t, tm = cost, c, m
@@ -327,38 +327,60 @@ def upsert(sub, pos, tgt, ts, text, kmax=None, cnt=None):
     t["text"] = text
 
 log, GEO_CACHE, geo_lock = [], {}, asyncio.Lock()
-feed = []
+feed, fed = [], set()
 SKIP = re.compile(r"^(курс|курсом|напрям|балістик|групи|група|рухаєть|також|увага|реактив)")
 
 def note(m):
-    log.append(m[:160]); del log[:-25]
+    log.append(m[:160]); del log[:-60]
 
-async def geo(s, text):
-    """Неизвестные названия (с заглавной буквы) ищем в OpenStreetMap Nominatim и запоминаем."""
-    for w in set(re.findall(r"[А-ЯІЇЄҐ][а-яіїєґ'’\-]{4,}", text)):
+GEO_Q = None
+NOMI = "https://nominatim.openstreetmap.org/search"
+
+def geo_words(text):
+    """Незнакомые названия (с заглавной буквы), которых ещё нет в справочнике."""
+    out = []
+    for w in dict.fromkeys(re.findall(r"[А-ЯІЇЄҐ][а-яіїєґ'’\-]{4,}", text)):
         lw = w.lower()
         if lw in GEO_CACHE or SKIP.match(lw) or any(re.match(rx, lw) for *_, rx in PLACES) or any(re.search(sb["rx"], lw) for sb in SUBS):
             continue
-        GEO_CACHE[lw] = None
-        async with geo_lock:
-            for q in dict.fromkeys([w, w[:-1] + "а", w[:-1] + "я", w[:-1] + "е"]):
-                try:
-                    async with s.get("https://nominatim.openstreetmap.org/search", headers={"User-Agent": "radar-app/1.0"},
-                                     params={"q": q, "format": "json", "countrycodes": "ua", "limit": 1, "accept-language": "uk",
-                                             "viewbox": VIEWBOX, "bounded": 1}, timeout=aiohttp.ClientTimeout(total=6)) as r:
-                        j = await r.json()
-                except Exception:
-                    j = []
-                await asyncio.sleep(1.1)
-                if j:
-                    PLACES.append((j[0]["display_name"].split(",")[0], float(j[0]["lat"]), float(j[0]["lon"]),
-                                   re.escape(lw[:-2] if len(lw) > 6 else lw[:-1])))
-                    GEO_CACHE[lw] = True
-                    try:
-                        bb = [float(x) for x in j[0]["boundingbox"]]
-                        RAD[j[0]["display_name"].split(",")[0]] = max(2.5, min(25.0, max((bb[1] - bb[0]) * 111.2, (bb[3] - bb[2]) * 111.2 * math.cos(math.radians(bb[0]))) / 2))
-                    except Exception: pass
-                    break
+        out.append(w)
+    return out
+
+async def geo_one(s, w):
+    """Ищет одно название в Nominatim; из нескольких одноимённых сёл берёт ближайшее к Запорожью (внутри области)."""
+    lw = w.lower()
+    GEO_CACHE[lw] = None
+    for q in dict.fromkeys([w, w[:-1] + "а", w[:-1] + "я"]):
+        try:
+            async with s.get(NOMI, headers={"User-Agent": "radar-app/1.0"},
+                             params={"q": q, "format": "json", "countrycodes": "ua", "limit": 8, "accept-language": "uk",
+                                     "viewbox": VIEWBOX, "bounded": 1}, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                j = await r.json()
+        except Exception:
+            GEO_CACHE.pop(lw, None); return False        # сеть/лимит — не запоминаем промах, попробуем позже
+        await asyncio.sleep(1.0)
+        if not j: continue
+        c = [x for x in j if in_oblast(float(x["lat"]), float(x["lon"]), 15)] or j
+        x = min(c, key=lambda x: hav(float(x["lat"]), float(x["lon"]), HOME[1], HOME[2]))
+        nm = x["display_name"].split(",")[0]
+        PLACES.append((nm, float(x["lat"]), float(x["lon"]), re.escape(lw[:-2] if len(lw) > 6 else lw[:-1])))
+        GEO_CACHE[lw] = True
+        try:
+            bb = [float(v) for v in x["boundingbox"]]
+            RAD[nm] = max(2.5, min(25.0, max((bb[1] - bb[0]) * 111.2, (bb[3] - bb[2]) * 111.2 * math.cos(math.radians(bb[0]))) / 2))
+        except Exception: pass
+        return True
+    return False
+
+async def geo_worker(s):
+    """Фон: сообщение уже нанесено по известным местам; если нашли новые названия — наносим его повторно, уже точнее."""
+    while True:
+        ts, text, ch = await GEO_Q.get()
+        added = False
+        for w in geo_words(text):
+            added = await geo_one(s, w) or added
+        if added:
+            ingest(ts, text, ch); await push()
 
 NEWS = re.compile(r"https?://|t\.me|підписуй|подпиш|читайте|джерело|реклам|донат|загинул|загинув|поранен|постраждал|внаслідок|наслідк|зведення|за добу|минулої|вчора|заявив|повідомив|міністр|командув|генштаб|збито \d|знищено \d|втрат")
 
@@ -387,7 +409,7 @@ def ingest(ts, text, ch=""):
     kmax = None
     if not subs:                                   # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
         ref = pos or tgt
-        live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < t["ttl"]]
+        live = [t for t in tracks.values() if t["kind"] != "strike" and now - t["seen"] < t["ttl"]]
         if not live or len(text) > 160:
             return note(f"{ch}: «{text[:50]}» → без типа цели и нет активных целей, пропуск")
         near = min(live, key=lambda t: hav(t["lat"], t["lon"], ref[1], ref[2]))
@@ -395,7 +417,8 @@ def ingest(ts, text, ch=""):
     for sb, cnt in subs:
         if sb["kind"] == "strike": upsert(sb, pos or tgt, None, ts, text, None, cnt)
         else: upsert(sb, pos, tgt, ts, text, kmax, cnt)
-    if any(in_oblast(p[1], p[2], 8) for p in (pos, tgt) if p):      # в ленту — только то, что касается области
+    if (ts, text[:60]) not in fed and any(in_oblast(p[1], p[2], 8) for p in (pos, tgt) if p):
+        fed.add((ts, text[:60]))      # в ленту — только то, что касается области
         feed.insert(0, dict(t=ts, ch=ch, text=text[:200], kinds=kinds, place=" → ".join(p[0] for p in (pos, tgt) if p)))
         del feed[30:]
     note(f"{ch}: «{text[:50]}» → {[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} цель={tgt and tgt[0]}")
@@ -459,15 +482,15 @@ async def poll(s, ch):
                     new.append((ts, tx.get_text(" ", strip=True)))
             first = False
             for ts, text in sorted(new):
-                await geo(s, text)
                 ingest(ts, text, ch)
+                if geo_words(text): GEO_Q.put_nowait((ts, text, ch))
             if new: await push()
         except Exception as e:
             print(ch, e); stats[ch] = {"error": str(e)}
         await asyncio.sleep(POLL)
 
 async def events(req):
-    r = web.StreamResponse(headers={"Content-Type": "text/event-stream", "Cache-Control": "no-cache"})
+    r = web.StreamResponse(headers={"Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
     await r.prepare(req)
     clients.add(r)
     try:
@@ -477,7 +500,10 @@ async def events(req):
         clients.discard(r)
 
 async def main():
+    global GEO_Q
     s = aiohttp.ClientSession()
+    GEO_Q = asyncio.Queue()
+    asyncio.create_task(geo_worker(s))
     app = web.Application()
     D = os.path.dirname(os.path.abspath(__file__))
     f = lambda n: (lambda r: web.FileResponse(os.path.join(D, n)))
