@@ -23,13 +23,18 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:14px/1.3
 .chip{padding:4px 10px;border-radius:99px;background:#151a22ee;border:1px solid var(--l);font-size:13px;cursor:pointer;user-select:none}
 .chip.off{opacity:.38}
 #btns{position:absolute;z-index:900;right:8px;bottom:calc(var(--sh) + 10px);display:flex;flex-direction:column;gap:6px}
-.b{width:42px;height:42px;border-radius:12px;background:#151a22ee;border:1px solid var(--l);color:var(--t);font-size:18px;padding:0}
+.b{width:42px;height:42px;border-radius:12px;background:#151a22ee;border:1px solid var(--l);color:var(--t);font-size:18px;padding:0;cursor:pointer}
 #sheet{position:absolute;left:0;right:0;bottom:0;height:var(--sh);background:var(--p);border-top:1px solid var(--l);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
 #grip{height:18px;display:flex;justify-content:center;align-items:center;cursor:pointer}#grip i{width:40px;height:4px;border-radius:4px;background:#2c3646}
-#tabs{display:flex;gap:16px;padding:0 14px 6px;color:var(--m);font-weight:600}#tabs b.on{color:var(--t);border-bottom:2px solid #58a6ff}
+#tabs{display:flex;gap:16px;padding:0 14px 6px;color:var(--m);font-weight:600;align-items:center}#tabs b{cursor:pointer}#tabs b.on{color:var(--t);border-bottom:2px solid #58a6ff}
+#simbox{display:flex;gap:6px;padding:0 14px 8px}
+#simin{flex:1;background:#0e1116;border:1px solid var(--l);color:var(--t);border-radius:8px;padding:6px 10px;font-size:13px}
+#simbtn{background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:13px}
+#clrbtn{background:#21262d;border:1px solid var(--l);color:var(--m);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
 #list,#feed{overflow:auto;flex:1;padding:0 14px}
-.r{padding:8px 0;border-bottom:1px solid var(--l)}.r small{display:block;color:var(--m)}.r .tx{color:#a9b4c4}
+.r{padding:8px 0;border-bottom:1px solid var(--l);cursor:pointer}.r small{display:block;color:var(--m)}.r .tx{color:#a9b4c4}
 .k{display:inline-block;padding:1px 7px;border-radius:99px;border:1px solid;font-size:12px;margin-right:4px}
+.ai-b{display:inline-block;padding:0 5px;border-radius:4px;background:#1f6feb33;border:1px solid #388bfd66;color:#79c0ff;font-size:10px;margin-left:4px;vertical-align:middle}
 .mk{position:relative;width:24px;height:24px}.mk svg{width:24px;height:24px;filter:drop-shadow(0 0 3px #000)}
 .lb{position:absolute;left:20px;top:-1px;white-space:nowrap;font:600 11px system-ui;color:var(--c);text-shadow:0 0 3px #000,0 0 3px #000}
 .pulse{position:absolute;inset:-6px;border:2px solid var(--c);border-radius:50%;animation:pu 1.2s infinite}
@@ -41,7 +46,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:14px/1.3
 <div id="m"></div>
 <div id="hud"><div id="ban">з'єднання…</div><div id="chips"></div></div>
 <div id="btns"><button class="b" id="bs" title="Сирена">🔔</button><button class="b" id="bm" title="Я">📍</button><button class="b" id="bh" title="До Запоріжжя">🎯</button><button class="b" id="bl" title="Карта">🗺</button></div>
-<div id="sheet"><div id="grip"><i></i></div><div id="tabs"><b class="on" data-t="list">Цілі</b><b data-t="feed">Стрічка</b></div><div id="list"></div><div id="feed" hidden></div></div>
+<div id="sheet">
+ <div id="grip"><i></i></div>
+ <div id="tabs"><b class="on" data-t="list">Цілі</b><b data-t="feed">Стрічка</b><span id="aist" style="margin-left:auto;font-size:11px;font-weight:400;color:#58a6ff"></span></div>
+ <div id="simbox"><input id="simin" placeholder="Тест сводки (напр.: КАБ з Токмака на Запоріжжя)"><button id="simbtn">На карту</button><button id="clrbtn" title="Очистити цілі">✖</button></div>
+ <div id="list"></div><div id="feed" hidden></div>
+</div>
 <div id="al"><div id="at"></div><button onclick="stopAlarm()">Зрозуміло</button></div>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -74,21 +84,29 @@ const st=L.layerGroup([L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/
 let base=dk.addTo(map),D={tracks:[],feed:[],home:null},snapT=performance.now(),hidden=new Set(),objs={},ringsOk=0,me=null,meMk=null,actx,alarmT,soundOn=false;
 const fmt=s=>s>=60?Math.floor(s/60)+' хв':s+' с';
 function hav(a,b,c,d){const p=Math.PI/180,x=Math.sin((c-a)*p/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin((d-b)*p/2)**2;return 12742*Math.asin(Math.sqrt(x))}
-function ext(t,dt){if(!t.v||t.ended||t.hdg==null)return[t.lat,t.lon];dt=Math.min(dt,3);const km=t.v*(t.eta!=null?Math.max(0,Math.min(dt,t.eta)):dt)/3600,h=t.hdg*Math.PI/180;
- return[t.lat+km*Math.cos(h)/111.2,t.lon+km*Math.sin(h)/(111.2*Math.cos(t.lat*Math.PI/180))]}
+function brg(a,b,c,d){const p=Math.PI/180,y=Math.sin((d-b)*p)*Math.cos(c*p),x=Math.cos(a*p)*Math.sin(c*p)-Math.sin(a*p)*Math.cos(c*p)*Math.cos((d-b)*p);return(Math.atan2(y,x)*180/Math.PI+360)%360}
+function ext(t,dt){
+ if(!t.v||t.ended||t.hdg==null)return{pos:[t.lat,t.lon],hdg:t.hdg||0};
+ dt=Math.min(dt,2.5);
+ const lim=t.eta!=null?Math.max(0,Math.min(dt,t.eta)):dt;
+ const hdg=t.goal?brg(t.lat,t.lon,t.goal[0],t.goal[1]):t.hdg;
+ const km=t.v*lim/3600,h=hdg*Math.PI/180;
+ return{pos:[t.lat+km*Math.cos(h)/111.2,t.lon+km*Math.sin(h)/(111.2*Math.cos(t.lat*Math.PI/180))],hdg};
+}
 function rings(h){[20,45,90].forEach(r=>{L.circle([h[1],h[2]],{radius:r*1000,color:'#3a4559',weight:1,dashArray:'4 6',fill:false,interactive:false}).addTo(map);
  L.marker([h[1]+r/111.2,h[2]],{interactive:false,icon:L.divIcon({className:'',html:`<span class="ring">${r} км</span>`,iconSize:[40,12],iconAnchor:[20,6]})}).addTo(map)});
  L.circleMarker([h[1],h[2]],{radius:6,color:'#3fb950',weight:2,fillOpacity:.9}).addTo(map).bindTooltip(h[0])}
-function icon(t){const c=t.col||K[t.kind].c,cnt=t.cnt?' ×'+t.cnt:'',
+function icon(t,hdgOvr){const c=t.col||K[t.kind].c,cnt=t.cnt?' ×'+t.cnt:'',
  lab=[(t.name||K[t.kind].n)+cnt,t.hdg==null&&t.v?'курс?':'',t.v?t.v+' км/г':'',t.alt!=null?t.alt+' м':'',t.eta>0?fmt(t.eta):''].filter(Boolean).join(' · ');
- const g=(ICONS[t.ico]||ICONS.delta)(c),fast=t.kind=='kab'||t.v>=500,rot=NOROT.has(t.ico)||t.hdg==null?0:t.hdg,op=Math.max(.45,1-t.age/600)*(t.n>1?1:.8);
+ const g=(ICONS[t.ico]||ICONS.delta)(c),fast=t.kind=='kab'||t.v>=500,rot=NOROT.has(t.ico)||t.hdg==null?0:(hdgOvr??t.hdg),op=Math.max(.45,1-t.age/600)*(t.n>1?1:.85);
  return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="mk" style="--c:${c};opacity:${op}">${fast?'<i class="pulse"></i>':''}<svg viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#000" stroke-width="1.2" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`})}
 let oblOk=0;
 function render(d){D=d;snapT=performance.now();if(!ringsOk&&d.home){rings(d.home);ringsOk=1}
+ if(d.ai)$('aist').textContent=`⚡ ${d.ai.provider}${d.ai.ms?' · '+d.ai.ms+' мс':''}`;
  if(!oblOk&&d.oblast){const pg=L.polygon(d.oblast,{color:'#4a5b78',weight:1.5,fill:false,dashArray:'2 6',interactive:false}).addTo(map);map.fitBounds(pg.getBounds(),{padding:[20,20]});oblOk=1}
  const ids=new Set();
  for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=t.col||K[t.kind].c;
-  if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t),keyboard:false}),tr:L.polyline([],{color:c,weight:2,opacity:.5}),ln:L.polyline([],{color:c,weight:1.5,opacity:.7,dashArray:'6 6'}),
+  if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t),keyboard:false}),tr:L.polyline([],{color:c,weight:2,opacity:.55}),ln:L.polyline([],{color:c,weight:1.5,opacity:.75,dashArray:'6 6'}),
    un:L.circle([t.lat,t.lon],{radius:0,color:c,weight:1,opacity:.45,fillOpacity:.07,interactive:false}),
    fz:L.circle([t.lat,t.lon],{radius:0,color:c,weight:1,opacity:.5,dashArray:'3 4',fill:false,interactive:false}),fp:L.layerGroup()};
    o.g.addLayer(o.fz).addLayer(o.un).addLayer(o.tr).addLayer(o.fp).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
@@ -97,9 +115,10 @@ function render(d){D=d;snapT=performance.now();if(!ringsOk&&d.home){rings(d.home
   o.fp.clearLayers();t.fx.forEach((f,i)=>L.circleMarker(f,{radius:i==last?4:2.5,color:c,weight:1,fillColor:c,fillOpacity:i==last?.9:.5,interactive:false}).addTo(o.fp))}
  for(const id in objs)if(!ids.has(+id)){objs[id].g.remove();delete objs[id]}
  chips();banner();list();feed();tick()}
-function tick(){const dt=(performance.now()-snapT)/1000;for(const id in objs){const o=objs[id],t=o.t,p=ext(t,dt);
- o.mk.setLatLng(p);o.un.setLatLng(p);o.tr.setLatLngs([...t.fx,p]);o.ln.setLatLngs(t.goal&&t.kind!='strike'?[p,t.goal]:[])}}
-setInterval(tick,100);
+function tick(){const dt=(performance.now()-snapT)/1000;for(const id in objs){const o=objs[id],t=o.t,st=ext(t,dt),p=st.pos;
+ o.mk.setLatLng(p);o.un.setLatLng(p);o.tr.setLatLngs([t.fx[t.fx.length-1],p]);o.ln.setLatLngs(t.goal&&t.kind!='strike'?[p,t.goal]:[]);
+ if(!NOROT.has(t.ico)&&t.hdg!=null){const el=o.mk.getElement();const svg=el&&el.querySelector('svg');if(svg)svg.style.transform=`rotate(${st.hdg.toFixed(1)}deg)`}}}
+setInterval(tick,50);
 function chips(){const c={};D.tracks.forEach(t=>c[t.kind]=(c[t.kind]||0)+1);
  $('chips').innerHTML=`<span class="chip" id="st">${$('chips').dataset.s||'●'}</span>`+Object.keys(K).map(k=>`<span class="chip${hidden.has(k)?' off':''}" data-k="${k}" style="border-color:${K[k].c}">${K[k].n} ${c[k]||0}</span>`).join('')}
 $('chips').onclick=e=>{const k=e.target.dataset.k;if(k){hidden.has(k)?hidden.delete(k):hidden.add(k);render(D)}};
@@ -110,18 +129,23 @@ function banner(){const b=$('ban'),h=D.home,kabs=D.tracks.filter(t=>t.kind=='kab
   b.className='am';b.textContent=th?`⚠️ ${th.name}${th.cnt?' ×'+th.cnt:''} курсом на ${h[0]} · ${th.home} км · ~${fmt(th.etah)}`:`Цілей: ${dr.length} · найближча ${n.name}${n.cnt?' ×'+n.cnt:''} — ${n.home} км до ${h[0]}${n.hdg==null?' (курс невідомий)':''}`}
  else{b.className='';b.textContent='🟢 Спокійно: у Запорізькій обл. активних цілей немає'}}
 function list(){const rows=D.tracks.filter(t=>!hidden.has(t.kind)).sort((a,b)=>(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||a.home-b.home);
- $('list').innerHTML=rows.map(t=>{const e=t.eta>0?t.eta:t.etah;return`<div class="r" data-id="${t.id}"><b style="color:${t.col}">${esc(t.name)}${t.cnt?' ×'+t.cnt:''}</b> ${esc(t.frm)}${t.to?' → '+esc(t.to):''}${t.short?' <i>(не долетить)</i>':''}${t.ended?' <i>(завершено)</i>':''}
- <small>${t.hdg!=null?'курс '+t.hdg+'° · ':(t.v?'курс невідомий · ':'')}${t.v?t.v+' км/год · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}точність ±${t.unc} км · ${t.n>1?'підтверджено: '+t.n+' звіти':'1 звіт, не підтверджено'}</small>
+ $('list').innerHTML=rows.map(t=>{const e=t.eta>0?t.eta:t.etah;
+ return`<div class="r" data-id="${t.id}"><b style="color:${t.col}">${esc(t.name)}${t.cnt?' ×'+t.cnt:''}</b>${t.ai?'<span class="ai-b">ШІ</span>':''} ${esc(t.frm)}${t.to?' → '+esc(t.to):''}${t.short?' <i>(не долетить)</i>':''}${t.ended?' <i>(завершено)</i>':''}
+ <small>${t.hdg!=null?'курс '+t.hdg+'° · ':(t.v?'курс невідомий · ':'')}${t.v?t.v+' км/год · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}точність ±${t.unc} км · ${t.n>1?'підтверджено: '+t.n+' звіти':'1 звіт'}</small>
  <small>до ${esc(D.home[0])}: ${t.home} км${e!=null?' · ~'+fmt(e)+(t.eta>0?'':' (за курсом)'):''}${me?' · до вас '+hav(me[0],me[1],t.lat,t.lon).toFixed(0)+' км':''} · звіт ${t.age} с тому</small>
  <small class="tx">${esc(t.text)}</small></div>`}).join('')||'<div class="r">Цілей немає</div>'}
 $('list').onclick=e=>{const r=e.target.closest('.r');if(r&&objs[r.dataset.id])map.flyTo(objs[r.dataset.id].mk.getLatLng(),11)};
-function feed(){$('feed').innerHTML=(D.feed||[]).map(f=>`<div class="r"><small>${new Date(f.t*1000).toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit'})} · ${esc(f.ch)}</small><div class="tx">${esc(f.text)}</div>${f.kinds.map(k=>`<span class="k" style="color:${K[k].c}">${K[k].n}</span>`).join('')}<small style="display:inline">${esc(f.place)}</small></div>`).join('')||'<div class="r">Поки порожньо</div>'}
-$('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...$('tabs').children].forEach(x=>x.classList.toggle('on',x==e.target));$('list').hidden=t!='list';$('feed').hidden=t!='feed'};
+function feed(){$('feed').innerHTML=(D.feed||[]).map(f=>`<div class="r"><small>${new Date(f.t*1000).toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${esc(f.ch)}</small><div class="tx">${esc(f.text)}</div>${f.kinds.map(k=>`<span class="k" style="color:${K[k].c}">${K[k].n}</span>`).join('')}<small style="display:inline">${esc(f.place)}</small></div>`).join('')||'<div class="r">Поки порожньо</div>'}
+$('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...$('tabs').querySelectorAll('b')].forEach(x=>x.classList.toggle('on',x==e.target));$('list').hidden=t!='list';$('feed').hidden=t!='feed'};
 $('grip').onclick=()=>{const r=document.documentElement.style;r.setProperty('--sh',r.getPropertyValue('--sh')=='56px'?'40%':'56px');setTimeout(()=>map.invalidateSize(),50)};
 $('bh').onclick=()=>D.home&&map.flyTo([D.home[1],D.home[2]],10);
 $('bl').onclick=()=>{map.removeLayer(base);base=base===dk?st:dk;base.addTo(map)};
 $('bm').onclick=()=>navigator.geolocation&&navigator.geolocation.watchPosition(p=>{me=[p.coords.latitude,p.coords.longitude];
  if(!meMk)meMk=L.circleMarker(me,{radius:7,color:'#fff',fillColor:'#2f81f7',fillOpacity:1,weight:2}).addTo(map).bindTooltip('Ви');meMk.setLatLng(me);list()},()=>{},{enableHighAccuracy:true});
+async function sendSim(){const inp=$('simin'),tx=inp.value.trim();if(!tx)return;inp.value='';
+ await fetch('/sim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:tx})})}
+$('simbtn').onclick=sendSim;$('simin').onkeydown=e=>{if(e.key==='Enter')sendSim()};
+$('clrbtn').onclick=()=>fetch('/sim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clear:true})});
 function beep(){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=900;o.connect(g);g.connect(actx.destination);g.gain.value=.4;o.start();o.frequency.setValueAtTime(600,actx.currentTime+.25);o.stop(actx.currentTime+.5)}
 function alarm(a){$('at').textContent='⚠️ '+a.text;$('al').style.display='block';clearInterval(alarmT);beep();alarmT=setInterval(beep,700);navigator.vibrate&&navigator.vibrate([500,200,500,200,800]);
  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance('Увага! КАБ летить на Запоріжжя. '+(a.lvl==2?'Негайно в укриття!':''));u.lang='uk-UA';speechSynthesis.speak(u);
