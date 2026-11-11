@@ -36,6 +36,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:14px/1.3
 .k{display:inline-block;padding:1px 7px;border-radius:99px;border:1px solid;font-size:12px;margin-right:4px}
 .ai-b{display:inline-block;padding:0 5px;border-radius:4px;background:#1f6feb33;border:1px solid #388bfd66;color:#79c0ff;font-size:10px;margin-left:4px;vertical-align:middle}
 .ch-b{display:inline-block;padding:0 5px;border-radius:4px;background:#2ea04326;border:1px solid #3fb95066;color:#56d364;font-size:10px;margin-left:4px;vertical-align:middle}
+.st-b{display:inline-block;padding:1px 6px;border-radius:4px;background:#f8514926;border:1px solid #f8514988;color:#ff7b72;font-size:11px;font-weight:600;margin-left:4px}
 .mk{position:relative;width:24px;height:24px}.mk svg{width:24px;height:24px;filter:drop-shadow(0 0 3px #000)}
 .lb{position:absolute;left:20px;top:-1px;white-space:nowrap;font:600 11px system-ui;color:var(--c);text-shadow:0 0 3px #000,0 0 3px #000}
 .pulse{position:absolute;inset:-6px;border:2px solid var(--c);border-radius:50%;animation:pu 1.2s infinite}
@@ -50,14 +51,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:14px/1.3
 <div id="sheet">
  <div id="grip"><i></i></div>
  <div id="tabs"><b class="on" data-t="list">Цілі</b><b data-t="feed">Стрічка</b><span id="aist" style="margin-left:auto;font-size:11px;font-weight:400;color:#58a6ff"></span></div>
- <div id="simbox"><input id="simin" placeholder="Тест сводки (напр.: КАБ з Токмака на Запоріжжя)"><button id="simbtn">На карту</button><button id="clrbtn" title="Очистити цілі">✖</button></div>
+ <div id="simbox"><input id="simin" placeholder="Тест (напр.: КАБи з-під Пришиба на Розумівку)"><button id="simbtn">На карту</button><button id="clrbtn" title="Очистити цілі">✖</button></div>
  <div id="list"></div><div id="feed" hidden></div>
 </div>
 <div id="al"><div id="at"></div><button onclick="stopAlarm()">Зрозуміло</button></div>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const K={drone:{n:'БпЛА',c:'#e3b341',p:'M0-8L8 0L0 8L-8 0Z'},kab:{n:'КАБ',c:'#f85149',p:'M0-10L7 8L0 4L-7 8Z'},missile:{n:'Ракета',c:'#ff8a3d',p:'M0-12L3.5 8L0 5L-3.5 8Z'},
- aircraft:{n:'Борт',c:'#58a6ff',p:'M0-10L2-3L9 3L9 5L2 3L1 8L4 10L4 11L0 10L-4 11L-4 10L-1 8L-2 3L-9 5L-9 3L-2-3Z'},
  strike:{n:'РСЗО/обстріл',c:'#d2a8ff',p:'M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z'},
  impact:{n:'Приліт',c:'#ff5c5c',p:''}};
 const ICONS={
@@ -73,11 +73,8 @@ const ICONS={
  missile:c=>'<path d="M0-12L3.5 8L0 5L-3.5 8Z"/>',
  dart:c=>'<path d="M0-13L2.5 4L0 2L-2.5 4Z"/><path d="M0 5L1.8 11L0 9.5L-1.8 11Z" fill-opacity=".6"/>',
  ballistic:c=>'<path d="M0-12L3 5L0 3L-3 5Z"/><path d="M0 6L2.2 12L0 10L-2.2 12Z" fill-opacity=".55"/>',
- bomber:c=>'<path d="M0-11L2-4L12 2L12 5L2 3L1.5 8L5 10.5L5 12L0 11L-5 12L-5 10.5L-1.5 8L-2 3L-12 5L-12 2L-2-4Z"/>',
- heli:c=>`<ellipse cx="0" cy="-1" rx="3" ry="6"/><path d="M-10-1H10M0 5V11M-3 11H3" fill="none" stroke="${c}" stroke-width="1.6"/>`,
- plane2:c=>'<path d="M0-10L2-3L9 3L9 5L2 3L1 8L4 10L4 11L0 10L-4 11L-4 10L-1 8L-2 3L-9 5L-9 3L-2-3Z"/>',
  star:c=>'<path d="M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z"/>'};
-const NOROT=new Set(['star','quad','heli']);
+const NOROT=new Set(['star','quad']);
 const map=L.map('m',{zoomControl:false}).fitBounds([[46.4,34.0],[48.6,37.3]]);
 const dk=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'dk',attribution:'© OpenStreetMap'});
 const st=L.layerGroup([L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,className:'st',attribution:'© Esri'}),
@@ -97,43 +94,47 @@ function ext(t,dt){
 function rings(h){[20,45,90].forEach(r=>{L.circle([h[1],h[2]],{radius:r*1000,color:'#3a4559',weight:1,dashArray:'4 6',fill:false,interactive:false}).addTo(map);
  L.marker([h[1]+r/111.2,h[2]],{interactive:false,icon:L.divIcon({className:'',html:`<span class="ring">${r} км</span>`,iconSize:[40,12],iconAnchor:[20,6]})}).addTo(map)});
  L.circleMarker([h[1],h[2]],{radius:6,color:'#3fb950',weight:2,fillOpacity:.9}).addTo(map).bindTooltip(h[0])}
-function icon(t,hdgOvr){const c=t.col||K[t.kind].c,cnt=t.cnt?' ×'+t.cnt:'',chN=(t.chs&&t.chs.length)||t.n||1,
- lab=[(t.name||K[t.kind].n)+cnt,chN>1?`[${chN} кан.]`:'',t.v?t.v+' км/г':'',t.alt!=null?t.alt+' м':'',t.eta>0?fmt(t.eta):''].filter(Boolean).join(' · ');
- const g=(ICONS[t.ico]||ICONS.delta)(c),fast=t.kind=='kab'||t.v>=500,rot=NOROT.has(t.ico)||t.hdg==null?0:(hdgOvr??t.hdg),op=Math.max(.55,1-t.age/600)*(chN>1?1:.88);
+function icon(t,hdgOvr){const c=(t.ended?'#8b949e':t.col||K[t.kind]?.c||'#e3b341'),cnt=t.cnt?' ×'+t.cnt:'',chN=(t.chs&&t.chs.length)||t.n||1,
+ lab=[(t.name||K[t.kind]?.n||'Ціль')+cnt,t.status?t.status:(t.hdg==null&&!t.ended?'над '+t.frm+' (очікує курс)':(t.v?t.v+' км/г':'')),t.alt!=null?t.alt+' м':'',t.eta>0&&!t.ended?fmt(t.eta):''].filter(Boolean).join(' · ');
+ const g=(ICONS[t.ico]||ICONS.delta)(c),fast=!t.ended&&(t.kind=='kab'||t.v>=500||(t.hdg==null&&t.kind=='drone')),rot=NOROT.has(t.ico)||t.hdg==null?0:(hdgOvr??t.hdg),op=t.ended?.65:Math.max(.6,1-t.age/600);
  return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="mk" style="--c:${c};opacity:${op}">${fast?'<i class="pulse"></i>':''}<svg viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#000" stroke-width="1.2" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`})}
 let oblOk=0;
 function render(d){D=d;snapT=performance.now();if(!ringsOk&&d.home){rings(d.home);ringsOk=1}
  if(d.ai)$('aist').textContent=`⚡ ${d.ai.provider}`;
  if(!oblOk&&d.oblast){const pg=L.polygon(d.oblast,{color:'#4a5b78',weight:1.5,fill:false,dashArray:'2 6',interactive:false}).addTo(map);map.fitBounds(pg.getBounds(),{padding:[20,20]});oblOk=1}
  const ids=new Set();
- for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=t.col||K[t.kind].c;
-  if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t),keyboard:false}),ln:L.polyline([],{color:c,weight:1.8,opacity:.8,dashArray:'6 6'}),
+ for(const t of d.tracks){if(hidden.has(t.kind))continue;ids.add(t.id);let o=objs[t.id];const c=t.col||K[t.kind]?.c||'#e3b341';
+  if(!o){o={g:L.layerGroup().addTo(map),mk:L.marker([t.lat,t.lon],{icon:icon(t),keyboard:false}),
+   tr:L.polyline([],{color:c,weight:1.5,opacity:.4}),
+   ln:L.polyline([],{color:c,weight:1.8,opacity:.8,dashArray:'6 6'}),
    un:L.circle([t.lat,t.lon],{radius:0,color:c,weight:1,opacity:.45,fillOpacity:.08,interactive:false})};
-   o.g.addLayer(o.un).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
-  o.t=t;o.mk.setIcon(icon(t));o.un.setRadius(t.unc*1000)}
+   o.g.addLayer(o.un).addLayer(o.tr).addLayer(o.ln).addLayer(o.mk);objs[t.id]=o}
+  o.t=t;o.mk.setIcon(icon(t));o.un.setRadius(t.ended?500:t.unc*1000)}
  for(const id in objs)if(!ids.has(+id)){objs[id].g.remove();delete objs[id]}
  chips();banner();list();feed();tick()}
 function tick(){const dt=(performance.now()-snapT)/1000;for(const id in objs){const o=objs[id],t=o.t,st=ext(t,dt),p=st.pos;
- o.mk.setLatLng(p);o.un.setLatLng(p);o.ln.setLatLngs(t.goal&&t.kind!='strike'?[p,t.goal]:[]);
+ o.mk.setLatLng(p);o.un.setLatLng(p);
+ o.tr.setLatLngs(t.fx&&t.fx.length>1&&!t.ended?[t.fx[0],p]:[]);
+ o.ln.setLatLngs(t.goal&&!t.ended&&t.kind!='strike'?[p,t.goal]:[]);
  if(!NOROT.has(t.ico)&&t.hdg!=null){const el=o.mk.getElement();const svg=el&&el.querySelector('svg');if(svg)svg.style.transform=`rotate(${st.hdg.toFixed(1)}deg)`}}}
 setInterval(tick,50);
-function chips(){const c={};D.tracks.forEach(t=>c[t.kind]=(c[t.kind]||0)+1);
+function chips(){const c={};D.tracks.forEach(t=>{if(!t.ended)c[t.kind]=(c[t.kind]||0)+1});
  $('chips').innerHTML=`<span class="chip" id="st">${$('chips').dataset.s||'●'}</span>`+Object.keys(K).map(k=>`<span class="chip${hidden.has(k)?' off':''}" data-k="${k}" style="border-color:${K[k].c}">${K[k].n} ${c[k]||0}</span>`).join('')}
 $('chips').onclick=e=>{const k=e.target.dataset.k;if(k){hidden.has(k)?hidden.delete(k):hidden.add(k);render(D)}};
 function banner(){const b=$('ban'),h=D.home,kabs=D.tracks.filter(t=>t.kind=='kab'&&!t.ended&&!t.short&&t.goal&&hav(t.goal[0],t.goal[1],h[1],h[2])<25);
- if(kabs.length){const t=kabs.sort((a,b)=>(a.eta??1e9)-(b.eta??1e9))[0];b.className='rd';b.textContent=`⚠️ КАБ на ${h[0]} · ${t.home} км${t.eta!=null?' · ~'+fmt(t.eta):''} · ${t.alt} м`;return}
- const dr=D.tracks.filter(t=>t.kind!='strike'&&t.kind!='impact'&&t.kind!='aircraft'&&!t.ended);
+ if(kabs.length){const t=kabs.sort((a,b)=>(a.eta??1e9)-(b.eta??1e9))[0];b.className='rd';b.textContent=`⚠️ КАБ на ${h[0]} (пуск: ${t.frm}) · ${t.home} км${t.eta!=null?' · ~'+fmt(t.eta):''} · ${t.alt} м`;return}
+ const dr=D.tracks.filter(t=>t.kind!='strike'&&t.kind!='impact'&&!t.ended);
  if(dr.length){const n=dr.slice().sort((a,b)=>a.home-b.home)[0],th=dr.filter(t=>t.etah!=null).sort((a,b)=>a.etah-b.etah)[0];
-  b.className='am';b.textContent=th?`⚠️ ${th.name}${th.cnt?' ×'+th.cnt:''} курсом на ${h[0]} · ${th.home} км · ~${fmt(th.etah)}`:`Цілей: ${dr.length} · найближча ${n.name}${n.cnt?' ×'+n.cnt:''} — ${n.home} км до ${h[0]}${n.hdg==null?' (курс невідомий)':''}`}
+  b.className='am';b.textContent=th?`⚠️ ${th.name}${th.cnt?' ×'+th.cnt:''} курсом на ${h[0]} · ${th.home} км · ~${fmt(th.etah)}`:`Активних цілей: ${dr.length} · найближча ${n.name}${n.cnt?' ×'+n.cnt:''} (${n.frm}${n.to?' → '+n.to:''}) — ${n.home} км до ${h[0]}`}
  else{b.className='';b.textContent='🟢 Спокійно: у Запорізькій обл. активних цілей немає'}}
-function list(){const rows=D.tracks.filter(t=>!hidden.has(t.kind)).sort((a,b)=>(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||a.home-b.home);
+function list(){const rows=D.tracks.filter(t=>!hidden.has(t.kind)).sort((a,b)=>(a.ended?1:0)-(b.ended?1:0)||(a.kind=='kab'?0:1)-(b.kind=='kab'?0:1)||a.home-b.home);
  $('list').innerHTML=rows.map(t=>{const e=t.eta>0?t.eta:t.etah,chs=t.chs&&t.chs.length?t.chs:[];
- return`<div class="r" data-id="${t.id}"><b style="color:${t.col}">${esc(t.name)}${t.cnt?' ×'+t.cnt:''}</b>${chs.length>1?`<span class="ch-b">консенсус: ${chs.length} кан.</span>`:''}${t.ai?'<span class="ai-b">ШІ</span>':''} ${esc(t.frm)}${t.to?' → '+esc(t.to):''}${t.short?' <i>(не долетить)</i>':''}${t.ended?' <i>(завершено)</i>':''}
- <small>${t.hdg!=null?'курс '+t.hdg+'° · ':''}${t.v?t.v+' км/год · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}точність ±${t.unc} км${chs.length?' · канали: '+esc(chs.join(', ')):''}</small>
- <small>до ${esc(D.home[0])}: ${t.home} км${e!=null?' · ~'+fmt(e)+(t.eta>0?'':' (за курсом)'):''}${me?' · до вас '+hav(me[0],me[1],t.lat,t.lon).toFixed(0)+' км':''} · оновлено ${t.age} с тому</small>
+ return`<div class="r" data-id="${t.id}"><b style="color:${t.ended?'#8b949e':t.col}">${esc(t.name)}${t.cnt?' ×'+t.cnt:''}</b>${t.status?`<span class="st-b">${esc(t.status)}</span>`:''}${chs.length>1?`<span class="ch-b">консенсус: ${chs.length} кан.</span>`:''} ${esc(t.frm)}${t.to?' → '+esc(t.to):''}
+ <small>${t.hdg!=null&&!t.ended?'курс '+t.hdg+'° · ':(!t.ended?'очікує уточнення курсу · ':'')}${t.v&&!t.ended?t.v+' км/год · ':''}${t.alt!=null?'висота ~'+t.alt+' м · ':''}точність ±${t.unc} км${chs.length?' · '+esc(chs.join(', ')):''}</small>
+ <small>до ${esc(D.home[0])}: ${t.home} км${e!=null&&!t.ended?' · ~'+fmt(e)+(t.eta>0?'':' (за курсом)'):''}${me?' · до вас '+hav(me[0],me[1],t.lat,t.lon).toFixed(0)+' км':''} · ${t.age} с тому</small>
  <small class="tx">${esc(t.text)}</small></div>`}).join('')||'<div class="r">Цілей немає</div>'}
 $('list').onclick=e=>{const r=e.target.closest('.r');if(r&&objs[r.dataset.id])map.flyTo(objs[r.dataset.id].mk.getLatLng(),11)};
-function feed(){$('feed').innerHTML=(D.feed||[]).map(f=>`<div class="r"><small>${new Date(f.t*1000).toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${esc(f.ch)}</small><div class="tx">${esc(f.text)}</div>${f.kinds.map(k=>`<span class="k" style="color:${K[k].c}">${K[k].n}</span>`).join('')}<small style="display:inline">${esc(f.place)}</small></div>`).join('')||'<div class="r">Поки порожньо</div>'}
+function feed(){$('feed').innerHTML=(D.feed||[]).map(f=>`<div class="r"><small>${new Date(f.t*1000).toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${esc(f.ch)}</small><div class="tx">${esc(f.text)}</div>${f.kinds.map(k=>K[k]?`<span class="k" style="color:${K[k].c}">${K[k].n}</span>`:'').join('')}<small style="display:inline">${esc(f.place)}</small></div>`).join('')||'<div class="r">Поки порожньо</div>'}
 $('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...$('tabs').querySelectorAll('b')].forEach(x=>x.classList.toggle('on',x==e.target));$('list').hidden=t!='list';$('feed').hidden=t!='feed'};
 $('grip').onclick=()=>{const r=document.documentElement.style;r.setProperty('--sh',r.getPropertyValue('--sh')=='56px'?'40%':'56px');setTimeout(()=>map.invalidateSize(),50)};
 $('bh').onclick=()=>D.home&&map.flyTo([D.home[1],D.home[2]],10);
