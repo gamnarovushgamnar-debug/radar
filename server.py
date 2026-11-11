@@ -10,9 +10,9 @@ CHANNELS = ["eyes_everywhere_ua", "operatyvnohlep"]
 HOME = ("Запоріжжя", 47.838, 35.139)
 POLL = 1.5                                   # сек между опросами каждого канала
 NTFY = os.getenv("NTFY_TOPIC")
-SPEED = {"drone": 160, "kab": 650, "missile": 900, "aircraft": 0}   # км/ч (средние)
-TTL = {"drone": 1800, "kab": 600, "missile": 900, "aircraft": 900}  # сек без новых сообщений
-MERGE_KM = {"drone": 35, "kab": 25, "missile": 60, "aircraft": 20}
+SPEED = {"drone": 160, "kab": 650, "missile": 900, "aircraft": 0, "strike": 0}   # км/ч (средние)
+TTL = {"drone": 1800, "kab": 600, "missile": 900, "aircraft": 900, "strike": 600}  # сек без новых сообщений
+MERGE_KM = {"drone": 35, "kab": 25, "missile": 60, "aircraft": 20, "strike": 10}
 KAB_H0, KAB_RANGE = 9000, 90                 # м высота пуска, км макс. дальность планирования
 ALERT_ETA2 = 60                              # сек до цели -> «красный» уровень
 
@@ -25,7 +25,8 @@ PLACES = [(n, la, lo, rx) for n, la, lo, rx in [
  ("Молочанськ", 47.194, 35.624, r"молочан"), ("Мелітополь", 46.849, 35.365, r"мелітопол|мелитопол"),
  ("Приазовське", 46.7, 35.67, r"приазовськ|приазовск"), ("Кирилівка", 46.667, 35.283, r"кирилівк|кирилловк"),
  ("Бердянськ", 46.755, 36.788, r"бердянськ|бердянск"), ("Маріуполь", 47.097, 37.543, r"маріупол|мариупол"),
- ("Дніпро", 48.465, 35.046, r"дніпр|днепр"), ("Нікополь", 47.567, 34.4, r"нікопол|никопол"),
+ ("Дніпро", 48.465, 35.046, r"дніпр(?!опетр)|днепр(?!опетр)"),
+ ("Дніпропетровщина (край біля Запоріжжя)", 48.12, 35.3, r"(?:з|із|зі|від|со)\s+(?:дніпр|днепр)\w*|дніпропетровщин\w*|днепропетровщин\w*"), ("Нікополь", 47.567, 34.4, r"нікопол|никопол"),
  ("Павлоград", 48.533, 35.867, r"павлоград"), ("Кривий Ріг", 47.91, 33.392, r"кривий ріг|кривой рог|кривог"),
  ("Херсон", 46.635, 32.617, r"херсон"), ("Миколаїв", 46.975, 31.995, r"миколаїв|николаев"),
  ("Одеса", 46.482, 30.723, r"одес"), ("Харків", 49.994, 36.23, r"харків|харьков"),
@@ -35,11 +36,17 @@ PLACES += [("Дніпропетровщина", 48.5, 35.0, r"дніпропет
            ("Харківщина", 49.6, 36.4, r"харківщин|харьковщин"), ("Херсонщина", 46.7, 33.0, r"херсонщин"),
            ("Запорізька обл.", 47.5, 35.6, r"запоріжчин|запорожчин|запорізьк\w+ обл"), ("Полтавщина", 49.6, 34.5, r"полтавщин"),
            ("Миколаївщина", 47.2, 31.9, r"миколаївщин|николаевщин"), ("Одещина", 46.6, 30.5, r"одещин|одесчин")]
+# Только Запорізька обл. и ближние районы Дніпропетровщини: всё остальное отбрасываем
+DROP = {"Маріуполь", "Херсон", "Миколаїв", "Одеса", "Харків", "Джанкой", "Сімферополь", "Кривий Ріг", "Дніпропетровщина",
+        "Донеччина", "Харківщина", "Херсонщина", "Полтавщина", "Миколаївщина", "Одещина"}
+PLACES[:] = [p for p in PLACES if p[0] not in DROP]
+VIEWBOX = "34.0,48.7,37.3,46.3"                      # lon_лев, lat_верх, lon_прав, lat_низ
 KINDS = [("kab", r"\bкаб|авіабомб|авиабомб|умпк|\bфаб"),
-         ("missile", r"ракет|іскандер|искандер|калібр|калибр|кинджал|кінжал"),
+         ("strike", r"рсзо|реактивн\w* систем|\bград\b|ураган|смерч|артобстр|артилер|обстріл|обстрел|приліт|прилет"),
+         ("missile", r"баліст|балист|ракет|іскандер|искандер|калібр|калибр|кинджал|кінжал"),
          ("aircraft", r"\bборт|літак|самол[её]т|\bсу-?\d\d|\bту-?\d+|авіаці|авиаци"),
-         ("drone", r"бпла|шахед|шахид|герань|реактив|мопед|дрон|\bбла\b")]
-TGT = re.compile(r"(?:\bна|\bк|\bдо|напрям\w*|направ\w*|бік|сторон\w*|курс\w*)\s*$")
+         ("drone", r"бпла|шахед|шахид|герань|реактив(?!н\w* систем)|мопед|ланцет|орлан|\bфпв|камікадзе|дрон|\bбла\b")]
+TGT = re.compile(r"(?:\bна|\bпо|\bк|\bдо|напрям\w*|направ\w*|бік|сторон\w*|курс\w*)\s*$")
 CLEAR = re.compile(r"відбій|отбой|збит|сбит|знищен|минус|мінус|чисто")
 
 def hav(a, b, c, d):
@@ -92,7 +99,7 @@ def upsert(kind, pos, tgt, ts, text, kmax=None):
     if t is None:
         if not pos: return
         i = next(ids)
-        t = tracks[i] = dict(id=i, kind=kind, o=(pos[1], pos[2]), frm=pos[0], goal=tgt or (pos if kind == "aircraft" else HOME))
+        t = tracks[i] = dict(id=i, kind=kind, o=(pos[1], pos[2]), frm=pos[0], goal=tgt or (pos if kind in ("aircraft", "strike") else HOME))
     if pos:
         t["lat"], t["lon"], t["t0"] = pos[1], pos[2], ts
     if tgt:
@@ -120,7 +127,7 @@ async def geo(s, text):
                 try:
                     async with s.get("https://nominatim.openstreetmap.org/search", headers={"User-Agent": "radar-app/1.0"},
                                      params={"q": q, "format": "json", "countrycodes": "ua", "limit": 1, "accept-language": "uk",
-                                             "viewbox": "30,51,40.5,44", "bounded": 1}, timeout=aiohttp.ClientTimeout(total=6)) as r:
+                                             "viewbox": VIEWBOX, "bounded": 1}, timeout=aiohttp.ClientTimeout(total=6)) as r:
                         j = await r.json()
                 except Exception:
                     j = []
@@ -131,8 +138,12 @@ async def geo(s, text):
                     GEO_CACHE[lw] = True
                     break
 
+NEWS = re.compile(r"https?://|t\.me|підписуй|подпиш|читайте|джерело|реклам|донат|загинул|загинув|поранен|постраждал|внаслідок|наслідк|зведення|за добу|минулої|вчора|заявив|повідомив|міністр|командув|генштаб|збито \d|знищено \d|втрат")
+
 def ingest(ts, text, ch=""):
     tl, now = text.lower(), time.time()
+    if NEWS.search(tl) or len(text) > 280:        # новости, итоги, реклама — не сводка
+        return note(f"{ch}: «{text[:50]}» → новость/не сводка, пропуск")
     kinds = [k for k, rx in KINDS if re.search(rx, tl)]
     best = {}                                      # одно место на позицию, берём самое длинное совпадение
     for n, la, lo, rx in PLACES:
@@ -150,17 +161,15 @@ def ingest(ts, text, ch=""):
                 tracks.pop(t["id"])
         return note(f"{ch}: «{text[:50]}» → отбой")
     kmax = None
-    if not kinds:                                  # короткие посты вида «До Новомиколаївки» без типа цели
-        if len(text) > 160:
-            return note(f"{ch}: «{text[:50]}» → длинный пост без типа")
+    if not kinds:                                  # короткие посты вида «До Новомиколаївки» — только уточняют уже летящую цель
         ref = pos or tgt
         live = [t for t in tracks.values() if t["kind"] in ("drone", "missile") and now - t["seen"] < TTL[t["kind"]]]
-        if live:
-            kinds, kmax = [min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))["kind"]], 200
-        else:
-            kinds = ["drone"]
+        if not live or len(text) > 160:
+            return note(f"{ch}: «{text[:50]}» → без типа цели и нет активных целей, пропуск")
+        kinds, kmax = [min(live, key=lambda t: hav(*calc(t, now)[:2], ref[1], ref[2]))["kind"]], 200
     for k in kinds:
-        upsert(k, pos, tgt, ts, text, kmax)
+        if k == "strike": upsert(k, pos or tgt, None, ts, text)
+        else: upsert(k, pos, tgt, ts, text, kmax)
     note(f"{ch}: «{text[:50]}» → {kinds} поз={pos and pos[0]} цель={tgt and tgt[0]}")
 
 def snap(now):
