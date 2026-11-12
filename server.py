@@ -1,23 +1,16 @@
+# -*- coding: utf-8 -*-
 """Оперативний Радар ZP v8 — Розумний тактичний AI-радар повітряних цілей Запоріжжя та області.
+Сумісний з Python 3.7 / 3.8 / 3.9 / 3.10 / 3.11 / 3.12+ (Render.com та локальний запуск).
 Запуск: pip install aiohttp beautifulsoup4 && python server.py
-Відкрити: http://localhost:8080
+Відкрити: http://localhost:8080"""
 
-Ключові виправлення та AI-можливості v8:
-1. Виправлено спавн БпЛА при повідомленні «БпЛА на Запоріжжя» / «БпЛА Запоріжжя»:
-   - Якщо пишуть «БпЛА на Запоріжжя» (або «Запоріжжя БпЛА» без слова «над»), ціль більше НЕ спавниться в центрі міста!
-   - Вона спавниться на зовнішньому рубежі підльоту за межами міста (~14.5 км від центру ЗП у відповідному секторі підльоту) і летить у бік межі міста, показуючи реальний час підльоту.
-   - Над самим містом ціль з'являється лише тоді, коли прямо написано «над Запоріжжям / у місті / над <районом>» або коли вона фізично долетіла до міста.
-2. Виправлено політ над Запоріжжям та розуміння команд «курс Зелений», «на Шевчик», «на Бабурку» тощо:
-   - Додано детальну базу всіх мікрорайонів, селищ, промзон та народних назв Запоріжжя (українською та російською мовами):
-     Зелений Яр («Зелений», «Зеленый»), Шевчик (1/2/3), Космос, Піски («Южний»), Бабурка, Кічкас, Бородок, Осипок, Великий Луг, Верхня Хортиця, о. Хортиця, Правий берег, ДніпроГЕС/Гребля/Плотина, Центр/Вознесенівський/Фестивальна/Радуга, Олександрівський/Анголенко/Малий ринок, Мотор Січ/Іванівка, Селище ДД/Димитрова, Аеропорт/Мокрянка, Військове містечко, Тепличний, Промзона, а також суміжні н.п. (Покровське, Тернувате, Синельникове, Васильківка, Чаплине, Солоне, Марганець, Нікополь).
-   - Парсер розуміє конструкції без прийменника «на»: «курс зеленый», «курс бабурка», «вектор космос», «напрямок вільнянськ», а також короткі уточнення курсу без повторення слова «БпЛА» (автоматично розвертає активний БпЛА на карті).
-3. Усунено вигадування курсу («сам придумывает курс»):
-   - Радар ніколи не вигадує випадковий курс 330°, якщо напрямок не вказано.
-   - Коли БпЛА фіксується «над Запоріжжям» (без вказаного району/вектора) або долітає до межі/району міста, він НЕ летить тупо в центр площі Фестивальної і НЕ летить далі по прямій за вигаданим вектором, а переходить у режим маневрування/очікування уточнення курсу над районом до наступного повідомлення.
-4. Інтегровано розумний тактичний AI-аналізатор (Smart Tactical AI v8):
-   - Аналізує контекст попередніх повідомлень, визначає які мікрорайони та н.п. знаходяться в секторі загрози за поточним вектором (AI-прогноз загрози), підтримує пряме керування ціллю з карти та хмарні LLM (Groq / Gemini / OpenAI / Anthropic) за наявності ключів."""
-
-import asyncio, json, math, os, re, time, itertools
+import asyncio
+import itertools
+import json
+import math
+import os
+import re
+import time
 from datetime import datetime
 import aiohttp
 from aiohttp import web
@@ -67,7 +60,6 @@ OTHER_OBLAST_RX = re.compile(
     re.I
 )
 
-# Повний високоточний каталог локацій (Запоріжжя по мікрорайонах, передмістя, область та суміжні рубежі)
 RAW_PLACES = [
     # ── Далекі пускові рубежі ──
     ("Таганрог (РФ)", 47.236, 38.896, r"таганрог\w*|таганріг\w*|таганрозьк\w*"),
@@ -116,7 +108,7 @@ RAW_PLACES = [
     ("Приморськ", 46.735, 36.344, r"приморськ\b|приморск\b"),
     ("Бердянськ", 46.755, 36.788, r"бердянськ\w*|бердянск\w*"),
 
-    # ── МІКРОРАЙОНИ, СЕЛИЩА ТА ПРОМЗОНИ М. ЗАПОРІЖЖЯ (ВИСОКА ТОЧНІСТЬ) ──
+    # ── МІКРОРАЙОНИ, СЕЛИЩА ТА ПРОМЗОНИ М. ЗАПОРІЖЖЯ ──
     ("Зелений Яр (ЗП)", 47.849, 35.208,
      r"зелен\w+\s+яр\w*|зелен\w+\s+га[йю]\w*|(?:курс\w*|вектор\w*|напрям\w*|направ\w*|на|до|над|біля|через|повз|в\s+бік|у\s+бік|в\s+сторону|район\w*|селищ\w*|пос\w*)\s+зелен(?:ий|ый|ого|ому|им|ым|е|ое|а|ую)\b|\bзелен(?:ий|ый)\b"),
     ("Аеропорт / Мокрянка (ЗП)", 47.866, 35.312,
@@ -283,7 +275,6 @@ BROAD_REGIONS = {"Запорізька обл.", "Дніпро", "Запоріз
 PLACES = [(n, la, lo, rx) for n, la, lo, rx in RAW_PLACES]
 PLACE_BY_NAME = {n: (n, la, lo) for n, la, lo, _ in RAW_PLACES}
 
-# ── КАТАЛОГ ЦІЛЕЙ ─────────────────────────────────────────────────────────────
 def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
     return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=ttl, ico=ico, col=col, generic=generic)
 
@@ -306,12 +297,10 @@ SUBS = [
     S("drone", "drone", "БпЛА",
       r"бпла|\bбла\b|дрон\w*|безпілотн\w*|беспилотн\w*|камікадзе|камикадзе|\bуав\b|\bбпак\w*|невідом\w+\s+бпла|повітрян\w+\s+ціл\w*|воздушн\w+\s+цел\w*|🛸|\bпташк\w*",
       138, 28, 1200, "delta", None, True),
-    # --- авіабомби ---
     S("kab_big", "kab", "ФАБ-1500/3000", r"(?:фаб|каб|рбк)-?\s*(?:1500|3000)", 490, 28, 300, "kab", None),
     S("kab", "kab", "КАБ",
       r"\bкаб(?:и|ів|ах|ам|ом|у|а|ів|чик|чики|ы|ов|ам|ами)?\b|авіабомб\w*|авиабомб\w*|умпк\w*|умпб\w*|\bфаб\w*|\bодаб\w*|д-?30сн|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|пуск\w*\s+каб\w*|(?:пуск\w*|виход\w*|выход\w*)\s+з-?під\s+(?:пришиб|токмак|молочанськ|полог|михайлівк)",
       500, 28, 300, "kab", None),
-    # --- ракети ---
     S("kinzhal", "missile", "Х-47М2 Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 3800, 120, 260, "dart", "#ff2d55"),
     S("zircon", "missile", "3М22 Циркон", r"циркон\w*|3м-?22", 4200, 120, 260, "dart", "#ff2d55"),
     S("iskander_m", "missile", "Іскандер-М (балістика)", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 3800, 120, 260, "ballistic", "#ff453a"),
@@ -324,7 +313,6 @@ SUBS = [
     S("kalibr", "missile", "Калібр", r"калібр\w*|калибр\w*|3м-?14|3м-?54", 780, 60, 600, "cruise", "#ff8a3d"),
     S("kh59", "missile", "Х-35/Х-59/Х-69", r"\b[xх]-?(?:35|38|59|69)\b", 780, 60, 600, "cruise", "#ff8a3d"),
     S("missile", "missile", "Ракета", r"ракет\w*|\bкр\b|крилат\w*|крылат\w*", 780, 60, 600, "missile", None, True),
-    # --- обстріли ---
     S("mlrs", "strike", "РСЗО", r"рсзо|рсзв|реактивн\w*\s+систем\w*|\bград(?:и|ів|у|ом|ами|ы|ов)?\b|ураган\w*|смерч\w*|торнадо-?[гс]", 0, 10, 360, "star", None),
     S("arty", "strike", "Артобстріл", r"артобстр\w*|артилер\w*|артиллер\w*|обстріл\w*|обстрел\w*|мінометн\w*|минометн\w*|танков\w+\s+обстр\w*", 0, 10, 360, "star", None, True),
 ]
@@ -377,6 +365,18 @@ REGION_HEADER_RX = re.compile(
     re.I
 )
 
+def parse_iso_ts(dt_str):
+    """Сумісний парсер ISO-часу для всіх версій Python (3.7 - 3.12+)."""
+    if not dt_str:
+        return time.time()
+    try:
+        s = str(dt_str).strip()
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return datetime.fromisoformat(s).timestamp()
+    except Exception:
+        return time.time()
+
 def clean_post(raw_text):
     if not raw_text:
         return ""
@@ -418,7 +418,6 @@ CARDINAL_PATTERNS = [
     (90,  r"(?:(?:на|курс\w*(?:\s+на)?|у\s+бік|в\s+бік|в\s+сторону|напрям\w*|вектор\w*)\s+схід\w*|(?:на|курс\w*(?:\s+на)?|в\s+сторону)\s+восток\w*|східн\w+\s+(?:курс|напрям|вектор)\w*|восточн\w+\s+(?:курс|направ|вектор)\w*)"),
 ]
 
-# Напрямки ЗВІДКИ летить («з півдня на Запоріжжя», «зі сходу», «з півночі»)
 APPROACH_FROM_SECTOR_RX = [
     (180.0, r"(?:з\s+півдн\w*|із\s+півдн\w*|з\s+південн\w*|с\s+юг\w*|с\s+южн\w*)"),
     (135.0, r"(?:з\s+південн\w*[-–\s]*схід\w*|с\s+юго[-–\s]*вост\w*)"),
@@ -496,7 +495,6 @@ def detect(tl):
         out.append((s, count_around(tl, st, en)))
     return out
 
-# ВИПРАВЛЕНО в v8: TO_PRE_RX тепер розуміє «курс зеленый», «вектор бабурка», «напрямок вільнянськ» БЕЗ обов'язкового «на»!
 TO_PRE_RX = re.compile(
     r"(?:(?:→|->|=>|➡|🔜|—>|–>)|"
     r"(?:\bна|\bдо|\bк|\bпо|\bу\s+бік|\bв\s+бік|\bв\s+сторону|\bу\s+сторону|\bу\s+напрям\w*|\bв\s+напрям\w*|\bв\s+направ\w*|"
@@ -553,10 +551,6 @@ def fwd(la, lo, h, km):
     return la + km * math.cos(r) / 111.2, lo + km * math.sin(r) / (111.2 * math.cos(math.radians(la)))
 
 def extract_routes(tl):
-    """Розумний гео-парсер маршрутів v8:
-    - Розуміє «між А і Б» (середина між двома точками).
-    - Розуміє «курс Зелений», «на Шевчик», «через Балабине на Космос».
-    - Розуміє різницю між «над Запоріжжям» (role='at') і «БпЛА на Запоріжжя / Запоріжжя БпЛА» (role='to' — підліт до міста!)."""
     best = {}
     for n, la, lo, rx in PLACES:
         for m in re.finditer(r"(?<![а-яіїєґ'’])(?:" + rx + r")", tl):
@@ -571,7 +565,6 @@ def extract_routes(tl):
     if not spans:
         return []
 
-    # Перевірка конструкції «між <Місто1> та <Місто2>»
     if len(spans) >= 2:
         pre0 = tl[max(0, spans[0][0] - 25):spans[0][0]]
         between01 = tl[spans[0][1]:spans[1][0]]
@@ -627,15 +620,9 @@ def extract_routes(tl):
     if origin:
         return [(origin, None)]
 
-    # ВАЖЛИВЕ ВИПРАВЛЕННЯ v8:
-    # Якщо локація стоїть без прийменника (role == "unk"), наприклад:
-    # - «БпЛА Запоріжжя» або «Запоріжжя: БпЛА» -> якщо немає слова «над / кружляє», для м. Запоріжжя це означає ЗАГРОЗУ/ПІДЛІТ ДО МІСТА (tgt = Запоріжжя, pos = None)!
-    # - Якщо в повітрі вже є активний БпЛА і користувач пише коротку команду «Зелений Яр» або «Шевчик» або «Бабурка»,
-    #   це уточнення курсу (tgt) для активної цілі!
     if unk_pts:
         p0 = unk_pts[0]
         if len(unk_pts) >= 2:
-            # Наприклад: «Пришиб — Малокатеринівка» або «Кушугум Балабине»
             return [(unk_pts[0], unk_pts[1])]
         if p0[0] == "Запоріжжя" and not OVER_CITY_RX.search(tl) and not LOITER_RX.search(tl):
             return [(None, p0)]
@@ -657,7 +644,8 @@ OBL_MARGIN = 32.0
 def _pip(x, y, poly):
     ins, j = False, len(poly) - 1
     for i in range(len(poly)):
-        xi, yi = poly[i]; xj, yj = poly[j]
+        xi, yi = poly[i]
+        xj, yj = poly[j]
         if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
             ins = not ins
         j = i
@@ -711,27 +699,19 @@ def real_kab_launch_origin_for(tgt):
     return ("Кінські Роздори (пусковий рубіж)", 47.382, 36.418)
 
 def realistic_drone_approach_origin(tgt, hdg_ovr=None, from_brg=None):
-    """ВИПРАВЛЕННЯ БАГУ #1 («когда пишут бпла на запорожье а оно спавнит бпла тупо над запорожьем»):
-    Коли пишуть «БпЛА на Запоріжжя» (без вказаного села вильоту), БпЛА ще НЕ над Запоріжжям — він тільки летить ДО міста!
-    Тому спавнимо його на зовнішньому рубежі підльоту (за межами міста, ~14.5 км від центру ЗП),
-    а для інших населених пунктів області — на підльоті за ~8.5 км від н.п."""
     t_name, tla, tlo = tgt[0], tgt[1], tgt[2]
-
-    # Визначаємо напрямок ЗВІДКИ летить ціль до tgt:
     if from_brg is not None:
         in_brg = from_brg
     elif hdg_ovr is not None:
         in_brg = (hdg_ovr + 180) % 360
     else:
-        # Типовий коридор заходу БпЛА на Запоріжжя — з південного сходу / півдня (148°)
         in_brg = 148.0
 
     if t_name == "Запоріжжя":
-        dist_km = 14.5  # За межами міста (район Кушугума / Лежиного / Канівського), а НЕ над центром!
+        dist_km = 14.5
         sla, slo = fwd(tla, tlo, in_brg, dist_km)
-        return (f"підліт до м. Запоріжжя", sla, slo)
+        return ("підліт до м. Запоріжжя", sla, slo)
     elif t_name in ZP_DISTRICTS:
-        # Якщо це мікрорайон ЗП, спавнимо за 8.5 км на підльоті до цього району
         dist_km = 8.5
         sla, slo = fwd(tla, tlo, in_brg, dist_km)
         return (f"підліт до {t_name}", sla, slo)
@@ -741,23 +721,16 @@ def realistic_drone_approach_origin(tgt, hdg_ovr=None, from_brg=None):
         return (f"підліт до {t_name}", sla, slo)
 
 def adjust_city_entry_goal(pos, tgt):
-    """ВИПРАВЛЕННЯ БАГУ #2 («когда бпла летает над запорожьем он тупо летит на центр»):
-    Якщо ціль летить із-за меж міста загальним курсом «на Запоріжжя» (без вказаного конкретного району),
-    вона летить до межі входу в місто з цього напрямку (за ~4.2 км до центру),
-    де переходить у статус «Над м. Запоріжжя (очікує курс по районах)», а не летить тупо в центральну точку площі Фестивальної!"""
     if not pos or not tgt or tgt[0] != "Запоріжжя":
         return tgt
     d = hav(pos[1], pos[2], tgt[1], tgt[2])
     if d <= 5.5:
         return tgt
-    # Точка входу в межі м. Запоріжжя з боку pos (4.2 км від центру в бік pos)
     b_from_center = brg(tgt[1], tgt[2], pos[1], pos[2])
     ela, elo = fwd(tgt[1], tgt[2], b_from_center, 4.2)
     return ("Запоріжжя", ela, elo)
 
 def predict_next_threats(lat, lon, hdg, max_km=22.0):
-    """Розумний AI-аналіз траєкторії: обчислює, які мікрорайони або населені пункти
-    знаходяться прямо по курсу цілі (±22°), щоб показати точний прогноз підльоту!"""
     if hdg is None:
         return []
     candidates = []
@@ -821,7 +794,6 @@ def effective_speed(t):
     return v
 
 def step(t, now):
-    """Рухає ціль за вектором з розумною логікою поведінки над містом."""
     dt = min(now - t["ls"], 1800.0)
     if dt <= 0:
         return
@@ -849,16 +821,11 @@ def step(t, now):
                 t["hdg"] = t["thdg"]
             t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], step_km)
         else:
-            # Ціль досягла вказаного орієнтира g[0]!
             t["lat"], t["lon"] = g[1], g[2]
             t["frm"] = g[0]
             t["passed_goal"] = True
             t["passed_at"] = now
 
-            # ВИПРАВЛЕННЯ v8:
-            # Якщо БпЛА долетів до м. Запоріжжя або конкретного мікрорайону Запоріжжя,
-            # він НЕ вигадує подальший курс по прямій через усе місто, а переходить у статус
-            # «Над <район/місто> (очікує уточнення курсу)», готовий миттєво повернути за командою («курс Зелений», «на Шевчик» тощо)!
             if t["kind"] == "drone" and (g[0] == "Запоріжжя" or g[0] in ZP_DISTRICTS):
                 t["hdg"] = None
                 t["thdg"] = None
@@ -913,9 +880,6 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False):
             return True, 0.3
         return False, 999.0
 
-    # Для БпЛА (drone):
-    # Якщо є активний БпЛА у Запоріжжі або поруч (<= 32 км) і приходить новий курс (tgt або hdg_ovr),
-    # завжди оновлюємо цей БпЛА замість створення дубліката чи ігнорування!
     if pos and not pos[0].startswith("підліт"):
         p_dist = hav(pos[1], pos[2], c["lat"], c["lon"])
         if p_dist <= sub["merge"]:
@@ -971,7 +935,6 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
         if not pos:
             return None
 
-        # Якщо ціль летить із-за меж міста просто «на Запоріжжя», ставимо точку входу на межу міста (щоб не летіла сліпо в центр Фестивальної)
         eff_goal = adjust_city_entry_goal(pos, tgt) if (sub["kind"] == "drone" and tgt) else tgt
 
         i = next(ids)
@@ -1005,7 +968,6 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
         t["obs"][ch or f"c{i}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=eff_goal, hdg=init_hdg, v=v, explicit=explicit_origin)
         return t
 
-    # ── ОНОВЛЕННЯ ІСНУЮЧОЇ ЦІЛІ АБО РОЗВОРОТ НА НОВИЙ КУРС ──
     t = best_t
     if t.get("ended"):
         t["ended"] = False
@@ -1052,13 +1014,11 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             t["thdg"] = t["hdg"] = hdg_ovr
             t["status_msg"] = f"↪ Курс {round(hdg_ovr)}°"
     else:
-        # Для БпЛА та ракет:
         if pos and not pos[0].startswith("підліт"):
             t["lat"], t["lon"] = pos[1], pos[2]
             t["frm"] = pos[0]
             t["obs"][ch or f"u{t['n']}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=tgt, hdg=hdg_ovr, v=t["v"], explicit=True)
 
-        # Якщо написали «над Запоріжжям / кружляє над містом» без нової цілі — зупиняємо прямолінійний рух і чекаємо курс!
         if (is_loiter or (pos and not tgt and hdg_ovr is None and (pos[0] == "Запоріжжя" or pos[0] in ZP_DISTRICTS))):
             t["goal"] = None
             t["to_name"] = None
@@ -1070,7 +1030,6 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
         elif tgt:
             eff_goal = adjust_city_entry_goal((t["frm"], t["lat"], t["lon"]), tgt) if t["kind"] == "drone" else tgt
             dist_to_goal = hav(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
-            # Якщо дрон вже майже в тій точці (< 0.4 км), відсунемо цільовий орієнтир або перемістимо на 1.5 км щоб показати рух
             if dist_to_goal >= 0.25:
                 old_to = t.get("to_name")
                 t["goal"] = eff_goal
@@ -1203,8 +1162,6 @@ def resolve_tracks_status(kinds, loc, status_label, one=False):
             ended_cooldown[(t["kind"], t["frm"])] = now
 
 def infer_implicit_subs(tl, pos, tgt, ch):
-    """Розумне визначення типу цілі з контексту (коли пишуть просто «курс Зелений» або «на Шевчик»):
-    якщо на карті вже є активна ціль — беремо її тип!"""
     m_cnt = ANY_CNT_RX.search(tl)
     cnt = m_cnt.group(1) if m_cnt else None
     if IMPLICIT_KAB_RX.search(tl):
@@ -1256,9 +1213,6 @@ def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, 
         if not subs:
             return note(tag + "немає типу цілі та ознак польоту, пропуск")
 
-    # ВИПРАВЛЕННЯ v8: якщо користувач або канал пише коротке уточнення курсу (напр. «курс Зелений», «на Шевчик»,
-    # або навіть просто «Зелений Яр» коли на карті вже летить БпЛА, і немає слів «над / в районі»),
-    # то знайдена точка — це НОВИЙ КУРС (tgt), а не місце спавну з нуля!
     now = time.time()
     has_live_drone = any(not t.get("ended") and t["kind"] == "drone" and now - t["seen"] < t["ttl"] for t in tracks.values())
     if pos and not tgt and has_live_drone and not VIA_PRE_RX.search(text.lower()) and not is_loiter:
@@ -1319,7 +1273,6 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
         return subs
 
     if not routes:
-        # ВИПРАВЛЕННЯ v8: жодних вигаданих 330°! Міняємо курс за азимутом ТІЛЬКИ якщо користувач явно вказав градуси або сторону світу (hdg_ovr is not None)
         if hdg_ovr is not None and tracks and (has_zp or ch.lower() not in ALL_UA_CHANNELS):
             live = [t for t in tracks.values() if t["kind"] not in ("strike", "impact") and not t.get("ended")]
             if live:
@@ -1384,15 +1337,17 @@ ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
 ai_stats = {"provider": "Smart Tactical AI v8", "calls": 0, "ok": 0, "last_ms": 1}
 
 def active_ai_provider():
-    if GROQ_KEY: return "Groq Llama-3.3 + Tactical AI v8"
-    if GEMINI_KEY: return "Gemini 2.5 + Tactical AI v8"
-    if OPENAI_KEY: return "OpenAI GPT-4o + Tactical AI v8"
-    if ANTHROPIC_KEY: return "Claude 3.5 + Tactical AI v8"
+    if GROQ_KEY:
+        return "Groq Llama-3.3 + Tactical AI v8"
+    if GEMINI_KEY:
+        return "Gemini 2.5 + Tactical AI v8"
+    if OPENAI_KEY:
+        return "OpenAI GPT-4o + Tactical AI v8"
+    if ANTHROPIC_KEY:
+        return "Claude 3.5 + Tactical AI v8"
     return "Нейро-тактичний аналізатор ZP v8"
 
 async def llm_fallback_parse(session, text):
-    """Якщо увімкнено зовнішній LLM ключ і нестандартний текст не розпізнано локальним гео-парсером,
-    звертається до хмарного ШІ для виділення типу цілі, точки вильоту та вектора."""
     if not (GROQ_KEY or GEMINI_KEY or OPENAI_KEY):
         return None
     prompt = (
@@ -1416,7 +1371,6 @@ async def llm_fallback_parse(session, text):
     return None
 
 def build_ai_summary(vis_tracks):
-    """Формує розумне тактичне зведення ШІ в реальному часі на основі всіх векторів та загроз."""
     active = [t for t in vis_tracks if not t.get("ended") and t["kind"] not in ("strike", "impact")]
     if not active:
         return {
@@ -1596,7 +1550,7 @@ async def probe_next_embed(s, ch, next_id, headers):
         main_text, reply_ctx = extract_tg_message_and_reply(w)
         if not main_text:
             return None
-        ts = datetime.fromisoformat(tm["datetime"]).timestamp() if (tm and tm.get("datetime")) else time.time()
+        ts = parse_iso_ts(tm.get("datetime")) if tm else time.time()
         return (ts, main_text, pid, reply_ctx, next_id)
     except Exception:
         return None
@@ -1653,7 +1607,7 @@ async def poll(s, ch):
                     seen_text[pid] = main_text
                     if len(seen_text) > 1200:
                         seen_text.pop(next(iter(seen_text)))
-                    ts = datetime.fromisoformat(tm["datetime"]).timestamp()
+                    ts = parse_iso_ts(tm.get("datetime"))
                     if is_edit:
                         ts = time.time()
                     cl = clean_post(main_text).lower()
@@ -1686,7 +1640,6 @@ async def sim_endpoint(req):
                 ended_cooldown[(t["kind"], t["to_name"])] = time.time()
             await push()
             return web.json_response({"ok": True, "tracks": len(tracks)})
-        # Пряме керування ціллю з інтерфейсу (розворот на будь-який район або точку на карті!)
         if data.get("steer") is not None:
             st = data["steer"]
             tid = int(st.get("id", 0))
@@ -1781,4 +1734,8 @@ async def main():
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    asyncio.run(main())ы
+    try:
+        asyncio.run(main())
+    except AttributeError:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(main())
