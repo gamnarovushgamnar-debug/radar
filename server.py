@@ -121,7 +121,7 @@ RAW_PLACES = [
     ("ДніпроГЕС", 47.869, 35.086,
      r"дніпрогес\w*|днепрогэс\w*|гребл\w+|дамб\w+|плотин\w*"),
     ("Піски / Південний", 47.768, 35.192,
-     r"південн\w+\s*(?:мкрн|мікрорайон|р-?н|район)\w*|южн\w+\s*(?:мкрн|микрорайон|р-?н|район)\w*|\bпіск(?:и|ів|ах|ам|ами)\b|\bпеск(?:и|ів|ам|ах|ами|ов)\b|(?:на|над|через|біля|повз|мимо|в\s+бік|у\s+бік|в\s+сторону|курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?)\s+(?:південн(?:ий|ого|ому)|южн(?:ий|ый|ого|ому))(?!\s*(?:напрям|вектор|курс|захід|схід|восток|запад|край|околиц|обл))"),
+     r"південн\w+\s*(?:мкрн|мікрорайон|р-?н|район)\w*|южн\w+\s*(?:мкрн|микрорайон|р-?н|район)\w*|\bпіск(?:и|ів|ах|ам|ами)\b|\bпеск(?:и|ів|ам|ах|ами|ов)\b|(?:на|над|через|біля|повз|мимо|в\s+бік|у\s+бік|в\s+сторону|курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?)\s+(?:південн(?:ий|ого|ому|им|ім)|южн(?:ий|ый|ого|ому|ым|ом))(?!\s*(?:напрям|вектор|курс|захід|схід|восток|запад|край|околиц|обл))"),
     ("Космос", 47.785, 35.185,
      r"комунарськ\w*|коммунарск\w*|космос\w*|космічн\w*|космическ\w*|дослідн\w+\s+станц\w*|опытн\w+\s+станц\w*"),
     ("Малий ринок / Анголенко", 47.815, 35.152,
@@ -344,10 +344,10 @@ def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
     return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=ttl, ico=ico, col=col, generic=generic)
 
 SUBS = [
-    S("banderol", "drone", "Бандероль", r"бандерол\w*|\bs-?8000\b", 660, 45, 900, "cruise", "#f43f5e"),
+    S("banderol", "drone", "Бандероль", r"бандерол\w*|\bs-?8000\b", 340, 35, 900, "cruise", "#f43f5e"),
     S("geran3", "drone", "Реактивний",
-      r"реактив\w*(?!\s+(?:систем|залп|артил))|реактів\w*|реактв\w*|(?:шахед|шахид|герань|геран)\w*[-–\s]*(?:3|238)\b|\bjet\b",
-      640, 45, 900, "jet", "#ef4444"),
+      r"(?:реактив\w*|реактів\w*|реактв\w*)(?!\s+(?:систем|залп|артил))(?:\s+(?:шах\w*|геран\w*|бпл\w*|дрон\w*|мопед\w*|ціл\w*))?|(?:шах\w*|геран\w*|бпл\w*|дрон\w*)\s+реактив\w*|(?:шахед|шахид|герань|геран)\w*[-–\s]*(?:3|238)\b|\bjet\b",
+      310, 32, 720, "jet", "#ef4444"),
     S("geran2", "drone", "Шахед-136",
       r"шах[еєиі]д\w*|геран\w*|гєран\w*|моп[еє]д\w*|газонокосарк\w*|балалайк\w*|дирчик\w*|трикутник\w*|\bударн\w+\s+(?:бпла|дрон|бла)\w*",
       185, 32, 1200, "delta", "#f59e0b"),
@@ -373,11 +373,11 @@ SUBS = [
       r"орлан\w*",
       130, 24, 900, "plane", "#94a3b8"),
     S("recon", "drone", "РозвідБпЛА",
-      r"суперкам\w*|supercam|\bzala\b|\bзала\b|елерон\w*|\beleron|мерлін\w*|форпост\w*|розвід\w*\s*(?:бпла|дрон|бла|крил|борт)\w*|развед\w*\s*(?:бпла|дрон|бла|крыл|борт)\w*|крил\w+\s+розвід\w*|\bрозвідник\w*|\bразведчик\w*",
-      125, 24, 900, "plane", "#94a3b8"),
+      r"суперкам\w*|supercam|\bzala\b|\bзала\b|елерон\w*|\beleron|мерлін\w*|форпост\w*|розвід\w*\s*(?:бпла|дрон|бла|крил|борт)\w*|развед\w*\s*(?:бпла|дрон|бла|крыл|борт)\w*|крил\w+\s+розвід\w*|\bрозвідкрил\w*|\bразведкрыл\w*|\bрозвідник\w*|\bразведчик\w*|(?:ворож\w+\s+)?\bкрил(?:о|а)\b",
+      115, 18, 600, "plane", "#94a3b8"),
     S("drone", "drone", "БпЛА",
-      r"бпл\w*|\bбла\b|дрон\w*|безпілотн\w*|беспилотн\w*|камікадзе|камикадзе|\bуав\w*|\bбпак\w*|невідом\w+\s+бпла|повітрян\w+\s+ціл\w*|воздушн\w+\s+цел\w*|\bпташк\w*",
-      180, 32, 1200, "delta", None, True),
+      r"бпл\w*|\bбла\b|дрон\w*|безпілотн\w*|беспилотн\w*|камікадзе|камикадзе|\bуав\w*|\bбпак\w*|невідом\w+\s+бпла|повітрян\w+\s+ціл\w*|воздушн\w+\s+цел\w*|\bпташк\w*|\bціл(?:ь|і|ей)\b|\bцел(?:ь|и|ей)\b|\bборт(?:и|ів|а)?\b",
+      180, 24, 900, "delta", None, True),
     S("kab_big", "kab", "ФАБ-1500", r"(?:фаб|каб|рбк)-?\s*(?:1500|3000)", 680, 20, 300, "kab", "#dc2626"),
     S("kab", "kab", "КАБ",
       r"\bкаб(?:и|ів|ах|ам|ом|у|а|ів|чик|чики|ы|ов|ам|ами)?\b|авіабомб\w*|авиабомб\w*|умпк\w*|умпб\w*|\bфаб\w*|\bодаб\w*|д-?30сн|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|пуск\w*\s+каб\w*|(?:пуск\w*|виход\w*|выход\w*)\s+(?:з|із|с|из|з-?під|из-?под)?\s*(?:пришиб|токмак|молочанськ|полог|михайлівк|василівк|васильевк)",
@@ -426,7 +426,13 @@ NEGATION_RX = re.compile(
     re.I
 )
 PURE_ALARM_RX = re.compile(
-    r"^[\s•\-–—!]*(?:повітрян\w+\s+тривог\w+|воздушн\w+\s+тревог\w+|увага\s*!\s*тривога|активність\s+(?:тактичної|ворожої)\s+авіації|загроза\s+застосування\s+каб\w*\s+для\s+запорізької\s+області)[\s!.]*$",
+    r"^[\s•\-–—!]*(?:повітрян\w+\s+тривог\w+|воздушн\w+\s+тревог\w+|увага\s*!\s*тривога|активність\s+(?:тактичної|ворожої)\s+авіації|загроз\w*\s+(?:застосування\s+)?(?:каб\w*|ударн\w+\s+бпла|бпла|шахед\w*|балістик\w*|ракетн\w+)(?:\s+для\s+[а-яіїєґ\s\-]+)?)[\s!.]*$",
+    re.I
+)
+
+NON_FLIGHT_NOISE_RX = re.compile(
+    r"(?:перебувайте\s+в\s+укритт|будьте\s+в\s+укритт|не\s+ігноруйте\s+тривог|бережіть\s+себе|правил\w+\s+двох\s+стін|подалі\s+від\s+вікон|безпечн\w+\s+місц|"
+    r"(?:чутно|було\s+чутно|пролунав|пролунали|звук\w*)\s+вибух\w*|вибух\w*\s+які\s+чули|працює\s+ппо|робота\s+ппо|підпишись|слідкуємо|інформація\s+уточнюється)",
     re.I
 )
 
@@ -666,10 +672,18 @@ def extract_routes(tl):
     - Якщо написано «НА Кушугум / В БІК Запоріжжя / КУРС Шевчик» -> `(None, ('Кушугум', ...), False)` (летить ДО цієї точки, спавниться на підльоті).
     - Якщо написано «НАД Кушугумом / БІЛЯ Балабиного / ПРОЛІТАЄ Космос» -> `(('Кушугум', ...), None, True)` (ВЖЕ знаходиться НАД цією точкою!).
     - Якщо написано «НАД Бабуркою курс НА Кічкас» -> `(('Бабурка', ...), ('Кічкас', ...), True)` (знаходиться над Бабуркою і летить на Кічкас!)."""
+    SPAN_PRE_STRIP = re.compile(
+        r"^(?:(?:в\s+бік|у\s+бік|в\s+сторону|у\s+сторону|курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|з-?під|із-?під|из-?под|"
+        r"с\.|село|смт|селищ\w*|пос\w*|н\.п\.|район\w*|на|над|до|біля|возле|через|повз|мимо|вздовж|вдоль|по)\s+)+",
+        re.I
+    )
     best = {}
     for n, la, lo, rx in PLACES:
         for m in re.finditer(r"(?<![а-яіїєґ'’])(?:" + rx + r")", tl):
             st, en = m.start(), m.end()
+            mp = SPAN_PRE_STRIP.match(tl[st:en])
+            if mp and st + mp.end() < en:
+                st += mp.end()
             if st not in best or (en - st, len(rx)) > (best[st][0] - st, best[st][1]):
                 best[st] = (en, len(rx), n, la, lo)
     spans = []
@@ -1006,24 +1020,11 @@ def step(t, now):
     v_eff = effective_speed(t)
     if not v_eff:
         return
-    if t["hdg"] is None:
-        t["hdg"] = 330.0
 
-    # РЕАЛІСТИЧНА ФІЗИЧНА ШВИДКІСТЬ (1.0x): FPV летить 95 км/год, Молнія 130 км/год, Шахед 180 км/год!
-    step_km = v_eff * dt / 3600.0
-
-    if t.get("loiter"):
-        # Плавне патрулювання / кружляння безпосередньо в межах вказаного району (без польоту через усе місто!)
-        anchor = t.get("anchor") or (t["lat"], t["lon"])
-        orb_r = 0.28 if t["sub"] == "fpv" else (0.42 if t["sub"] in TACTICAL_SHORT_DRONES else 0.60)
-        omega_deg = 28.0 if t["sub"] == "fpv" else 20.0
-        t["orb_ang"] = (t.get("orb_ang", t["hdg"]) + omega_deg * dt) % 360
-        t["lat"], t["lon"] = fwd(anchor[0], anchor[1], t["orb_ang"], orb_r)
-        t["hdg"] = (t["orb_ang"] + 90.0) % 360
-        t["thdg"] = t["hdg"]
-        vec_len = 0.8 if t["sub"] in TACTICAL_SHORT_DRONES else 1.5
-        gla, glo = fwd(t["lat"], t["lon"], t["hdg"], vec_len)
-        t["goal"] = (t["frm"], gla, glo)
+    # Якщо ціль стоїть над вказаним районом без курсу або долетіла до своєї точки призначення і нових даних немає —
+    # вона НЕ вигадує собі новий курс і не крутить стрілкою, а фіксується над точкою!
+    if t.get("holding") or t.get("loiter"):
+        t["goal"] = None
         if t.get("passed_goal") and now - t.get("passed_at", now) > (75 if t["sub"] in TACTICAL_SHORT_DRONES else 150):
             t["ended"] = True
             t["auto_ended"] = True
@@ -1031,48 +1032,44 @@ def step(t, now):
             t["ended_at"] = now
         return
 
-    if t.get("thdg") is not None and t["hdg"] is not None:
-        diff = ang(t["thdg"] - t["hdg"])
-        if abs(diff) > 0.1:
-            max_turn = 140.0 * dt
-            t["hdg"] = (t["hdg"] + max(-max_turn, min(max_turn, diff))) % 360
+    if t["hdg"] is None:
+        return
 
-    t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], step_km)
-
-    cont_km = 1.6 if t["sub"] == "fpv" else (2.5 if t["sub"] in TACTICAL_SHORT_DRONES else (8.0 if t["kind"] == "kab" else 4.2))
+    # СУВОРО ПРЯМОЛІНІЙНИЙ ПОЛІТ (без жодних самовільних поворотів чи зміни курсу в дорозі!)
+    step_km = v_eff * dt / 3600.0
     g = t["goal"]
+
     if g and not t.get("passed_goal"):
         rem_g = hav(t["lat"], t["lon"], g[1], g[2])
-        brg_g = brg(t["lat"], t["lon"], g[1], g[2])
-        if rem_g <= max(0.28, step_km * 1.4) or abs(ang(brg_g - t["hdg"])) > 75.0:
+        if rem_g > step_km and rem_g > 0.15:
+            # Летить тупо прямо по зафіксованому курсу до цілі g
+            t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], step_km)
+        else:
+            # Долетів до цілі g!
+            t["lat"], t["lon"] = g[1], g[2]
             t["frm"] = g[0]
             t["passed_goal"] = True
             t["passed_at"] = now
             t["status_msg"] = f"Над {g[0]}"
-            # Коли FPV, Молнія, Ланцет або РозвідБпЛА долітає до своєї цілі (напр. «Кар'єри/Димитрова» чи «Космос»),
-            # він залишається патрулювати в цьому районі, а не летить ще 20 км на Дніпровське чи Відрадне!
-            if t["sub"] in TACTICAL_SHORT_DRONES or t["sub"] in ("recon", "orlan"):
-                t["loiter"] = True
-                t["anchor"] = (g[1], g[2])
-                t["orb_ang"] = (t["hdg"] - 90.0) % 360
-                gla, glo = fwd(t["lat"], t["lon"], t["hdg"], 0.9)
-                t["goal"] = (g[0], gla, glo)
-            else:
+            if str(g[0]).startswith("курс"):
+                # Якщо був заданий чистий азимут (напр. «курс північно-західний»), продовжує летіти прямо за цим азимутом
+                cont_km = 2.5 if t["sub"] in TACTICAL_SHORT_DRONES else 5.0
                 gla, glo = fwd(t["lat"], t["lon"], t["hdg"], cont_km)
                 t["goal"] = (g[0], gla, glo)
+            else:
+                # Якщо летів на конкретний район/село і долетів, а нових повідомлень немає — зупиняється над ціллю (не вигадує курс!)
+                t["holding"] = True
+                t["goal"] = None
     else:
-        if t.get("passed_goal") and now - t.get("passed_at", now) > 95 and t["kind"] == "drone":
-            # Якщо за 1.5 хвилини після прольоту точки нових повідомлень немає — переходить у локальне кружляння
-            t["loiter"] = True
-            t["anchor"] = (t["lat"], t["lon"])
-            t["orb_ang"] = (t["hdg"] - 90.0) % 360
-        else:
-            lbl = t.get("to_name") or (g[0] if g else t["frm"])
+        # Якщо летить за чистим азимутом — летить строго прямо
+        t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], step_km)
+        if g:
+            cont_km = 2.5 if t["sub"] in TACTICAL_SHORT_DRONES else 5.0
             gla, glo = fwd(t["lat"], t["lon"], t["hdg"], cont_km)
-            t["goal"] = (lbl, gla, glo)
+            t["goal"] = (g[0], gla, glo)
 
     if t["kind"] == "kab":
-        if hav(*t["o"], t["lat"], t["lon"]) >= KAB_RANGE or (t.get("passed_goal") and now - t.get("passed_at", now) > 45):
+        if hav(*t["o"], t["lat"], t["lon"]) >= KAB_RANGE or (t.get("passed_goal") and now - t.get("passed_at", now) > 35):
             t["ended"] = True
             t["auto_ended"] = True
             t["status_msg"] = "Локаційно не фіксується"
@@ -1178,41 +1175,35 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
 
         i = next(ids)
         v = v_ovr or sub["v"]
-        init_hdg = 330.0
-        if eff_goal and hav(pos[1], pos[2], eff_goal[1], eff_goal[2]) >= 0.25:
+        init_hdg = None
+        holding = False
+        if eff_goal and hav(pos[1], pos[2], eff_goal[1], eff_goal[2]) >= 0.15:
             init_hdg = brg(pos[1], pos[2], eff_goal[1], eff_goal[2])
         elif hdg_ovr is not None:
             init_hdg = hdg_ovr
-            proj_km = 4.5 if sub["id"] in TACTICAL_SHORT_DRONES else (14.0 if v < 400 else 40.0)
+            proj_km = 2.5 if sub["id"] in TACTICAL_SHORT_DRONES else (6.0 if v < 400 else 18.0)
             gla, glo = fwd(pos[1], pos[2], init_hdg, proj_km)
             eff_goal = (f"курс {round(init_hdg)}°", gla, glo)
         elif from_brg is not None:
             init_hdg = (from_brg + 180.0) % 360
-            proj_km = 4.5 if sub["id"] in TACTICAL_SHORT_DRONES else 10.0
+            proj_km = 2.5 if sub["id"] in TACTICAL_SHORT_DRONES else 6.0
             gla, glo = fwd(pos[1], pos[2], init_hdg, proj_km)
             eff_goal = (pos[0], gla, glo)
-        elif v > 0:
-            if sub["id"] in TACTICAL_SHORT_DRONES or sub["id"] in ("recon", "orlan") or is_explicit_over:
-                # Якщо написано «ФПВ над Космосом» або «Шахед над Шевчиком» (без курсу куди летить) —
-                # він патрулює над цим районом, а не вигадує фейковий курс через усе місто!
-                is_loiter = True
-                init_hdg = 335.0
-                gla, glo = fwd(pos[1], pos[2], init_hdg, 0.9 if sub["id"] in TACTICAL_SHORT_DRONES else 1.5)
-                eff_goal = (pos[0], gla, glo)
-            else:
-                init_hdg = 335.0 if hav(pos[1], pos[2], HOME[1], HOME[2]) <= 4.0 else brg(pos[1], pos[2], HOME[1], HOME[2])
-                proj_km = 2.5 if sub["id"] in TACTICAL_SHORT_DRONES else 4.5
-                gla, glo = fwd(pos[1], pos[2], init_hdg, proj_km)
-                eff_goal = (pos[0], gla, glo)
+        else:
+            # Якщо написано лише «над Космосом / в районі Шевчика» (без цілі куди летить і без азимута) —
+            # НЕ вигадуємо фейковий курс! Ціль фіксується над цим районом і чекає на курс.
+            holding = True
+            eff_goal = None
+            init_hdg = None
 
         sg = sigma_of(pos[0])
-        status_msg = f"Над {pos[0]}" if (explicit_origin and not tgt) else (f"Кружляє ({pos[0]})" if is_loiter else None)
+        status_msg = f"Кружляє ({pos[0]})" if is_loiter else (f"Над {pos[0]}" if (holding or (explicit_origin and not tgt)) else None)
         t = tracks[i] = dict(
             id=i, kind=sub["kind"], sub=sub["id"], ttl=sub["ttl"], v=v,
             o=(pos[1], pos[2]), frm=pos[0], to_name=tgt[0] if tgt else (eff_goal[0] if eff_goal else pos[0]),
             explicit_origin=explicit_origin,
             lat=pos[1], lon=pos[2], hdg=init_hdg, thdg=init_hdg,
-            loiter=bool(is_loiter), anchor=(pos[1], pos[2]), orb_ang=0.0, manual=bool(manual),
+            loiter=bool(is_loiter), holding=bool(holding or is_loiter), anchor=(pos[1], pos[2]), orb_ang=0.0, manual=bool(manual),
             unc=sg, goal=eff_goal, passed_goal=False, ls=now, seen=now, last_msg_ts=ts, fix_seq=1, n=1,
             fx=[(te, pos[1], pos[2], sg)], text=text, cnt=cnt,
             status_msg=status_msg,
@@ -1277,15 +1268,14 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
 
         if is_loiter:
             t["loiter"] = True
+            t["holding"] = True
+            t["goal"] = None
             t["passed_goal"] = False
-            if t["hdg"] is None:
-                t["hdg"] = 320.0
             clean_p = pos[0] if pos else t["frm"]
             t["status_msg"] = f"Кружляє ({clean_p})"
         elif tgt:
             t["loiter"] = False
-            # 2) Якщо pos не вказано (напр. послідовні повідомлення «на Кушугум» -> «на Балабине» -> «на Космос» -> «на Шевчик»):
-            #    Просуваємо БпЛА до попередньої проміжної точки маршруту, щоб він не стояв «як вкопаний» на старому місці спавну!
+            t["holding"] = False
             if not pos:
                 old_g = t.get("goal")
                 old_to = t.get("to_name")
@@ -1296,30 +1286,36 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
                         t["lat"], t["lon"] = old_g[1], old_g[2]
                         t["frm"] = old_to
                         t["ls"] = now
-                # Якщо ціль все ще далеко (> 6.5 км) від нового мікрорайону призначення, ставимо її на реалістичний підліт до tgt
                 d_rem = hav(t["lat"], t["lon"], tgt[1], tgt[2])
                 if d_rem > 6.5:
                     in_b = brg(tgt[1], tgt[2], t["lat"], t["lon"])
                     if 45.0 <= in_b <= 315.0 or tgt[0] in ZP_DISTRICTS:
-                        app_km = 2.2 if t["sub"] in TACTICAL_SHORT_DRONES else (3.6 if tgt[0] in ZP_DISTRICTS else 4.8)
+                        app_km = 1.8 if t["sub"] in TACTICAL_SHORT_DRONES else (3.4 if tgt[0] in ZP_DISTRICTS else 4.5)
                         t["lat"], t["lon"] = fwd(tgt[1], tgt[2], in_b, app_km)
                         t["ls"] = now
 
             eff_goal = adjust_city_entry_goal((t["frm"], t["lat"], t["lon"]), tgt) if (t["kind"] == "drone" and tgt[0] == "Запоріжжя") else tgt
             dist_to_goal = hav(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
-            if dist_to_goal < 0.25:
-                cur_h = t["hdg"] if t["hdg"] is not None else 325.0
-                gla, glo = fwd(t["lat"], t["lon"], cur_h, 7.5)
-                eff_goal = (tgt[0], gla, glo)
-            t["goal"] = eff_goal
-            t["to_name"] = tgt[0]
-            t["passed_goal"] = False
-            new_b = brg(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
-            t["hdg"] = t["thdg"] = new_b
-            t["status_msg"] = f"Над {pos[0]}" if (pos and is_explicit_over) else None
+            if dist_to_goal < 0.15:
+                t["lat"], t["lon"] = eff_goal[1], eff_goal[2]
+                t["frm"] = tgt[0]
+                t["holding"] = True
+                t["goal"] = None
+                t["to_name"] = tgt[0]
+                t["passed_goal"] = True
+                t["passed_at"] = now
+                t["status_msg"] = f"Над {tgt[0]}"
+            else:
+                t["goal"] = eff_goal
+                t["to_name"] = tgt[0]
+                t["passed_goal"] = False
+                new_b = brg(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
+                t["hdg"] = t["thdg"] = new_b
+                t["status_msg"] = f"Над {pos[0]}" if (pos and is_explicit_over) else None
         elif hdg_ovr is not None:
             t["loiter"] = False
-            proj_km = 5.0 if t["sub"] in TACTICAL_SHORT_DRONES else (14.0 if t["v"] < 400 else 40.0)
+            t["holding"] = False
+            proj_km = 2.5 if t["sub"] in TACTICAL_SHORT_DRONES else (6.0 if t["v"] < 400 else 18.0)
             gla, glo = fwd(t["lat"], t["lon"], hdg_ovr, proj_km)
             t["goal"] = (f"курс {round(hdg_ovr)}°", gla, glo)
             t["to_name"] = f"курс {round(hdg_ovr)}°"
@@ -1327,25 +1323,14 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             t["hdg"] = t["thdg"] = hdg_ovr
             t["status_msg"] = f"Над {pos[0]}" if (pos and is_explicit_over) else None
         elif pos:
-            if t["sub"] in TACTICAL_SHORT_DRONES or t["sub"] in ("recon", "orlan") or is_explicit_over:
-                t["loiter"] = True
-                t["anchor"] = (pos[1], pos[2])
-                t["orb_ang"] = (t.get("hdg") or 330.0) % 360
-                cur_h = t["hdg"] if t["hdg"] is not None else 330.0
-                gla, glo = fwd(t["lat"], t["lon"], cur_h, 0.9 if t["sub"] in TACTICAL_SHORT_DRONES else 1.5)
-                t["goal"] = (pos[0], gla, glo)
-                t["to_name"] = pos[0]
-                t["passed_goal"] = False
-                t["status_msg"] = f"Над {pos[0]}"
-            else:
-                t["loiter"] = False
-                cur_h = t["hdg"] if t["hdg"] is not None else 330.0
-                proj_km = 2.5 if t["sub"] in TACTICAL_SHORT_DRONES else 4.5
-                gla, glo = fwd(t["lat"], t["lon"], cur_h, proj_km)
-                t["goal"] = (pos[0], gla, glo)
-                t["to_name"] = pos[0]
-                t["passed_goal"] = False
-                t["status_msg"] = f"Над {pos[0]}"
+            # Якщо написано просто «над Шевчиком» (без цілі куди далі летить) — ставимо над Шевчиком без вигадування курсу!
+            t["loiter"] = False
+            t["holding"] = True
+            t["goal"] = None
+            t["to_name"] = pos[0]
+            t["passed_goal"] = True
+            t["passed_at"] = now
+            t["status_msg"] = f"Над {pos[0]}"
 
     t["unc"] = max(1.0, round(sigma_of(t["frm"]) / (1.0 + 0.25 * (len(t["channels"]) - 1)), 1))
     if cnt:
@@ -1372,25 +1357,22 @@ def view(t, now):
         if abs(ang(brg(la, lo, HOME[1], HOME[2]) - t["hdg"])) <= tol:
             etah = int(home / v_eff * 3600)
     sb = SUB[t["sub"]]
-    hdg_out = round(t["hdg"]) if t["hdg"] is not None else 330
-    thdg_out = round(t["thdg"]) if t.get("thdg") is not None else hdg_out
+    is_hold = bool(t.get("holding") or t.get("loiter"))
+    hdg_out = round(t["hdg"]) if (t["hdg"] is not None and not is_hold) else None
+    thdg_out = round(t["thdg"]) if (t.get("thdg") is not None and not is_hold) else hdg_out
     chs = sorted(t.get("channels") or [])
-    next_threats = predict_next_threats(t, la, lo, hdg_out)
+    next_threats = [f"{t['frm']} (в районі)"] if is_hold else predict_next_threats(t, la, lo, hdg_out)
 
     clean_frm = t["frm"]
     raw_to = t.get("to_name") or (g[0] if g else None)
     clean_to = raw_to if raw_to else None
 
-    if not g and not t.get("ended"):
-        gla, glo = fwd(la, lo, hdg_out, 5.0 if t["sub"] in TACTICAL_SHORT_DRONES else 10.0)
-        g = (clean_to or clean_frm, gla, glo)
-
     r = dict(
         id=t["id"], kind=t["kind"], lat=round(la, 5), lon=round(lo, 5), unc=round(t["unc"], 1),
         v=v_eff, fix_seq=t.get("fix_seq", 1),
         hdg=hdg_out, thdg=thdg_out, turn=140.0,
-        loiter=bool(t.get("loiter")), anchor=list(t.get("anchor") or [round(la, 5), round(lo, 5)]),
-        goal=[round(g[1], 5), round(g[2], 5)] if (g and not t.get("ended")) else None,
+        loiter=bool(t.get("loiter")), holding=is_hold, anchor=list(t.get("anchor") or [round(la, 5), round(lo, 5)]),
+        goal=[round(g[1], 5), round(g[2], 5)] if (g and not t.get("ended") and not is_hold) else None,
         to=clean_to, frm=clean_frm,
         fx=[[round(t["o"][0], 5), round(t["o"][1], 5)], [round(la, 5), round(lo, 5)]] if (t["kind"] in ("kab", "missile") and not t.get("ended")) else [[round(la, 5), round(lo, 5)]],
         fs=round(t["unc"], 1),
@@ -1453,10 +1435,14 @@ def resolve_tracks_status(kinds, loc, status_label, one=True):
         t["seen"] = now
 
 def infer_implicit_subs(tl, pos, tgt, ch):
-    """ВИПРАВЛЕНО в v17 («половину мимо ушей»):
-    Якщо в повідомленні з 4 наших моніторингових каналів названо район або село Запорізької області
-    (напр. «Кушугум -> Балабине», «Над Шевчиком», «1х на Космос», «Вже на Бабурці»),
-    навіть якщо слово «Шахед / БпЛА» опущено, радар розуміє, що йдеться про БпЛА, і не пропускає повідомлення!"""
+    """Розумне визначення неявної цілі:
+    Спрацьовує ТІЛЬКИ якщо в реченні є явні ознаки польоту/маршруту (IMPLICIT_FLIGHT_RX, стрілка, курс, «над/на»),
+    і НЕ створює фейкові цілі з простих згадок міста, тривог чи попереджень!"""
+    if NON_FLIGHT_NOISE_RX.search(tl) or PURE_ALARM_RX.match(tl):
+        return []
+    has_flight_cue = bool(IMPLICIT_FLIGHT_RX.search(tl) or TURN_RX.search(tl) or (pos and tgt))
+    if not has_flight_cue:
+        return []
     m_cnt = ANY_CNT_RX.search(tl)
     cnt = m_cnt.group(1) if m_cnt else None
     if IMPLICIT_KAB_RX.search(tl):
@@ -1467,12 +1453,11 @@ def infer_implicit_subs(tl, pos, tgt, ch):
         ref = pos or tgt
         if ref:
             near = min(live_drones, key=lambda t: hav(t["lat"], t["lon"], ref[1], ref[2]))
-            return [(SUB[near["sub"]], cnt)]
+            if hav(near["lat"], near["lon"], ref[1], ref[2]) <= 16.0:
+                return [(SUB[near["sub"]], cnt)]
         latest = max(live_drones, key=lambda t: t["seen"])
         return [(SUB[latest["sub"]], cnt)]
-    if pos or tgt or IMPLICIT_FLIGHT_RX.search(tl):
-        return [(SUB["geran2"], cnt)]
-    return []
+    return [(SUB["geran2"], cnt)]
 
 def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, is_explicit_over=False):
     loc = pos or tgt
@@ -1533,7 +1518,10 @@ def split_clauses_by_target_types(seg):
 
 def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=None, full_post_has_zp=False):
     tl = seg.lower()
-    if REAL_NEWS_RX.search(tl) or "?" in tl:
+    if REAL_NEWS_RX.search(tl) or NON_FLIGHT_NOISE_RX.search(tl):
+        return []
+
+    if PURE_ALARM_RX.match(tl):
         return []
 
     routes = extract_routes(tl)
@@ -1541,16 +1529,13 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
     if OTHER_OBLAST_RX.search(tl) and not ZP_UNIQUE_RX.search(tl) and not routes:
         return []
 
-    if PURE_ALARM_RX.match(tl):
-        feed_add(ts, ch, seg, ["kab"], None, None)
-        return []
-
     intent = intent_of(tl)
     subs = detect(tl)
+    has_flight_cue = bool(IMPLICIT_FLIGHT_RX.search(tl) or TURN_RX.search(tl) or intent in ("downed", "clear", "impact") or (routes and (routes[0][0] and routes[0][1] or routes[0][2])))
     if not subs:
-        if inherited_subs and all(sb["kind"] == "drone" for sb, _ in inherited_subs) and not IMPLICIT_KAB_RX.search(tl):
+        if has_flight_cue and inherited_subs and all(sb["kind"] == "drone" for sb, _ in inherited_subs) and not IMPLICIT_KAB_RX.search(tl):
             subs = inherited_subs
-        elif reply_ctx and reply_ctx.get("subs"):
+        elif has_flight_cue and reply_ctx and reply_ctx.get("subs"):
             subs = reply_ctx.get("subs")
         else:
             subs = []
@@ -1617,7 +1602,7 @@ def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
     for t in tracks.values():
         step(t, now)
     cleaned = clean_post(text)
-    if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 360:
+    if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 1200:
         return note(f"{ch}: «{text[:50]}» -> новина/не зведення, пропуск")
     full_has_zp = bool(ZP_UNIQUE_RX.search(cleaned.lower()))
     clauses = []
@@ -1639,7 +1624,7 @@ def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
 async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
     try:
         cleaned = clean_post(text)
-        if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 360:
+        if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 1200:
             return
         ingest(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx)
         await push()
@@ -1882,12 +1867,15 @@ async def sim_endpoint(req):
                     t["v"] = max(40, min(5000, int(st["v"])))
                 if st.get("loiter"):
                     t["loiter"] = True
+                    t["holding"] = True
+                    t["goal"] = None
                     t["passed_goal"] = False
                     if t["hdg"] is None:
                         t["hdg"] = 320.0
                     t["status_msg"] = f"Кружляє ({t['frm']})"
                 elif st.get("hdg") is not None and st.get("lat") is None:
                     t["loiter"] = False
+                    t["holding"] = False
                     h_deg = float(st["hdg"]) % 360
                     proj_km = 5.0 if t["sub"] in TACTICAL_SHORT_DRONES else (14.0 if t["v"] < 400 else 40.0)
                     gla, glo = fwd(t["lat"], t["lon"], h_deg, proj_km)
@@ -1898,6 +1886,7 @@ async def sim_endpoint(req):
                     t["status_msg"] = None
                 elif st.get("lat") is not None and st.get("lon") is not None:
                     t["loiter"] = False
+                    t["holding"] = False
                     tla, tlo = float(st["lat"]), float(st["lon"])
                     tname = str(st.get("name") or nearest_place_name(tla, tlo))
                     t["goal"] = (tname, tla, tlo)

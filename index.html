@@ -631,7 +631,7 @@ html, body, #map {
           </button>
           <button class="uav-spawn-btn" data-sub="geran3">
             <svg viewBox="0 0 32 32"><path fill="#ef4444" stroke="#080d15" stroke-width="1.2" d="M16 2L6 24l7-2.5L14.5 28h3L19 21.5 26 24 16 2z"/></svg>
-            <div class="uav-meta"><span>Реактивний</span><span class="uav-speed">640 км/год · Герань-3</span></div>
+            <div class="uav-meta"><span>Реактивний</span><span class="uav-speed">310 км/год · Герань-3</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="molniya">
             <svg viewBox="0 0 32 32"><path fill="#38bdf8" stroke="#080d15" stroke-width="1.2" d="M16 3l-2 7H3l2 4h9l-1 10-4 2v2l7-1 7 1v-2l-4-2-1-10h9l2-4H18l-2-7z"/></svg>
@@ -989,7 +989,7 @@ function getTargetLabelText(t) {
 function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
   const spec = getTargetVisualSpec(t);
   const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 330);
-  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv') ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
+  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.holding || t.loiter) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
     <div class="t-lock-ring"></div>
@@ -1148,9 +1148,9 @@ function syncTrackVectorLayers(forceRebuild = false) {
   }
 
   Object.values(serverTracks).forEach(t => {
-    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg || 330, goal: t.goal };
-    const goalPt = (a && a.goal) ? a.goal : t.goal;
-    if (hiddenKinds.has(t.kind) || t.ended || !goalPt) {
+    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg, goal: t.goal, holding: t.holding };
+    const goalPt = (a && !a.holding && a.goal) ? a.goal : (!t.holding ? t.goal : null);
+    if (hiddenKinds.has(t.kind) || t.ended || t.holding || t.loiter || !goalPt || a.hdg == null) {
       removeTrackVectorLayers(t.id);
       return;
     }
@@ -1162,7 +1162,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     const pLeft = fwd(a.lat, a.lon, (a.hdg - halfAng + 360) % 360, coneLen);
     const pRight = fwd(a.lat, a.lon, (a.hdg + halfAng) % 360, coneLen);
 
-    if (showCones && !t.loiter && distKm > 0.25) {
+    if (showCones && distKm > 0.15) {
       if (!conePolyById[t.id]) {
         conePolyById[t.id] = L.polygon([[a.lat, a.lon], pLeft, pRight], {
           color: col, weight: 0.7, opacity: 0.28, fillColor: col, fillOpacity: 0.11, interactive: false, renderer: canvasRenderer
@@ -1225,7 +1225,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
   });
 }
 
-// ── БЕЗПЕРЕРВНИЙ ПЛАВНИЙ DEAD-RECKONING РУШІЙ (60 FPS + ТАЙМЕР-FALLBACK + СУБПІКСЕЛЬНИЙ GPU РЕНДЕР) ──
+// ── СУВОРО ПРЯМОЛІНІЙНИЙ РУШІЙ ПОЛЬОТУ (БЕЗ ВИГАДУВАННЯ КУРСІВ ТА БЕЗ ДОВІЛЬНИХ ПОВОРОТІВ!) ──
 let lastAnimTs = performance.now();
 function stepClientKinematics() {
   const nowMs = performance.now();
@@ -1242,65 +1242,44 @@ function stepClientKinematics() {
     if (!a || !m || m._isDragging) return;
     const v = t.v || 180;
     if (!t.ended && v > 0) {
-      // РЕАЛІСТИЧНА ФІЗИЧНА ШВИДКІСТЬ (1.0x): FPV летить 95 км/год, Молнія 130 км/год, Шахед 180 км/год!
+      // Якщо ціль стоїть над вказаним районом без курсу або вже долетіла до своєї точки призначення —
+      // вона НЕ вигадує собі курс і стоїть рівно над районом до наступного зведення!
+      if (t.holding || t.loiter || a.holding || a.hdg == null) {
+        m.setLatLng([a.lat, a.lon]);
+        removeTrackVectorLayers(t.id);
+        return;
+      }
+
       const stepKm = (v * dt) / 3600;
       const isShortTactical = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon' || t.sub === 'orlan');
-      const minVecKm = t.sub === 'fpv' ? 1.6 : (isShortTactical ? 2.5 : (t.kind === 'kab' ? 8.0 : 4.2));
+      const minVecKm = t.sub === 'fpv' ? 1.8 : (isShortTactical ? 2.5 : (t.kind === 'kab' ? 8.0 : 4.5));
 
-      if (t.loiter) {
-        const anchor = a.anchor || t.anchor || [a.lat, a.lon];
-        const orbR = t.sub === 'fpv' ? 0.28 : (isShortTactical ? 0.42 : 0.60);
-        const omega = t.sub === 'fpv' ? 28.0 : 20.0;
-        a.orbAng = ((a.orbAng != null ? a.orbAng : a.hdg) + omega * dt) % 360;
-        const np = fwd(anchor[0], anchor[1], a.orbAng, orbR);
-        a.lat = np[0];
-        a.lon = np[1];
-        a.hdg = (a.orbAng + 90.0) % 360;
-        a.goal = fwd(a.lat, a.lon, a.hdg, isShortTactical ? 0.8 : 1.5);
-      } else {
-        let curStepKm = stepKm;
-        if (a.wpLat != null && a.wpLon != null) {
-          const dWp = hav(a.lat, a.lon, a.wpLat, a.wpLon);
-          if (dWp <= Math.max(0.25, stepKm * 2.5)) {
-            a.lat = a.wpLat;
-            a.lon = a.wpLon;
-            a.wpLat = null;
-            a.wpLon = null;
-            if (a.postWpHdg != null) {
-              a.targetHdg = a.postWpHdg;
-            }
-          } else {
-            a.targetHdg = brg(a.lat, a.lon, a.wpLat, a.wpLon);
-            curStepKm = stepKm * 2.2;
-          }
-        }
-
-        const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
-        if (Math.abs(diff) > 0.1) {
-          const maxTurn = 140.0 * dt;
-          a.hdg = (a.hdg + Math.max(-maxTurn, Math.min(maxTurn, diff)) + 360) % 360;
-        }
-
-        const np = fwd(a.lat, a.lon, a.hdg, curStepKm);
-        a.lat = np[0];
-        a.lon = np[1];
-
-        if (!a.goal) {
-          a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+      if (a.goal) {
+        const remKm = hav(a.lat, a.lon, a.goal[0], a.goal[1]);
+        if (remKm > stepKm && remKm > 0.12) {
+          // Суворо прямолінійний політ до цілі за незмінним курсом a.hdg!
+          const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+          a.lat = np[0];
+          a.lon = np[1];
         } else {
-          const dGoal = hav(a.lat, a.lon, a.goal[0], a.goal[1]);
-          const brgGoal = brg(a.lat, a.lon, a.goal[0], a.goal[1]);
-          if (dGoal <= 0.28 || Math.abs(angDiff(brgGoal, a.hdg)) > 75) {
-            if (isShortTactical) {
-              t.loiter = true;
-              a.anchor = [a.goal[0], a.goal[1]];
-              a.orbAng = (a.hdg - 90.0 + 360.0) % 360;
-              a.goal = fwd(a.lat, a.lon, a.hdg, 0.8);
-            } else {
-              a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
-            }
+          // Ціль долетіла до точки призначення!
+          a.lat = a.goal[0];
+          a.lon = a.goal[1];
+          if (t.to && String(t.to).startsWith('курс')) {
+            // Якщо був заданий відкритий азимут («курс північно-західний»), продовжує летіти тупо прямо
+            a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+          } else {
+            // Якщо летів на конкретний район/село і долетів, а нових даних немає — зупиняється над ціллю!
+            a.holding = true;
+            t.holding = true;
+            a.goal = null;
+            removeTrackVectorLayers(t.id);
           }
         }
+      } else {
+        const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+        a.lat = np[0];
+        a.lon = np[1];
       }
 
       m.setLatLng([a.lat, a.lon]);
@@ -1314,11 +1293,11 @@ function stepClientKinematics() {
           if (rootEl) rootEl.style.transform = `translate3d(${fracX}px, ${fracY}px, 0)`;
         }
         const svgEl = el.querySelector('.target-rot-svg');
-        if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+        if (svgEl && a.hdg != null) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
       }
 
-      const goalPt = a.goal || t.goal;
-      if (goalPt) {
+      const goalPt = a.goal;
+      if (goalPt && !a.holding) {
         if (vectorPolyById[t.id]) {
           vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
         }
@@ -1328,7 +1307,7 @@ function stepClientKinematics() {
         if (reticleMarkerById[t.id] && !reticleMarkerById[t.id]._isDragging) {
           reticleMarkerById[t.id].setLatLng(goalPt);
         }
-        if (conePolyById[t.id] && !t.loiter) {
+        if (conePolyById[t.id]) {
           const distKm = hav(a.lat, a.lon, goalPt[0], goalPt[1]);
           const maxCone = t.sub === 'fpv' ? 2.0 : ((t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon') ? 3.2 : (t.kind === 'kab' ? 18 : 6.5));
           const coneLen = Math.min(distKm, maxCone);
@@ -1377,49 +1356,34 @@ function applyServerState(st) {
       else if (t.kind === 'impact') counts.strike++;
     }
 
-    const initH = t.hdg != null ? t.hdg : 330;
+    const initH = t.hdg != null ? t.hdg : null;
     const srvFixSeq = t.fix_seq || 1;
     if (!animState[t.id]) {
       animState[t.id] = {
         lat: t.lat, lon: t.lon,
-        hdg: initH, targetHdg: t.thdg != null ? t.thdg : initH,
+        hdg: initH,
+        holding: Boolean(t.holding || t.loiter || !t.goal),
         goal: t.goal ? [t.goal[0], t.goal[1]] : null,
-        anchor: t.anchor || [t.lat, t.lon],
-        orbAng: (initH - 90 + 360) % 360,
-        fixSeq: srvFixSeq,
-        wpLat: null, wpLon: null, postWpHdg: null
+        fixSeq: srvFixSeq
       };
     } else {
       const a = animState[t.id];
       const m = markerLayerById[t.id];
       if (!m || !m._isDragging) {
-        // Оновлюємо курс та точку фіксації ТІЛЬКИ коли прийшло нове повідомлення/команда (fix_seq змінився),
-        // щоб 1-секундні серверні тіки ніколи не смикали і не гальмували плавний політ на клієнті!
-        if (t.anchor) a.anchor = t.anchor;
         if (srvFixSeq !== a.fixSeq) {
           a.fixSeq = srvFixSeq;
-          const newH = t.thdg != null ? t.thdg : initH;
-          a.targetHdg = newH;
-          a.postWpHdg = newH;
-          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
-          const distJump = hav(a.lat, a.lon, t.lat, t.lon);
-          if (distJump > 18.0) {
-            a.lat = t.lat;
-            a.lon = t.lon;
-            a.hdg = newH;
-            a.wpLat = null;
-            a.wpLon = null;
-          } else if (distJump > 0.45) {
-            a.wpLat = t.lat;
-            a.wpLon = t.lon;
-          } else {
-            a.hdg = newH;
-          }
-        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 3.0 && a.wpLat == null) {
-          // Якщо вкладка була неактивна у фоні, плавно синхронізуємо позицію з сервером
           a.lat = t.lat;
           a.lon = t.lon;
-          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
+          a.hdg = initH;
+          a.holding = Boolean(t.holding || t.loiter || !t.goal);
+          a.goal = t.goal ? [t.goal[0], t.goal[1]] : null;
+        } else if (t.holding || t.loiter || !t.goal) {
+          a.holding = true;
+          a.goal = null;
+        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 2.0) {
+          a.lat = t.lat;
+          a.lon = t.lon;
+          a.goal = [t.goal[0], t.goal[1]];
         }
       }
     }
