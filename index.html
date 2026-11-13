@@ -23,14 +23,6 @@
   --txt-dim: #64748b;
   --accent-cyan: #38bdf8;
   --accent-emerald: #10b981;
-  --col-shahed: #f59e0b;
-  --col-jet: #ef4444;
-  --col-molniya: #38bdf8;
-  --col-fpv: #eab308;
-  --col-lancet: #2dd4bf;
-  --col-kab: #ef4444;
-  --col-missile: #f97316;
-  --col-strike: #c084fc;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -42,13 +34,11 @@ html, body, #map {
   user-select: none;
 }
 
-/* ── КАРТА ТА ТАКТИЧНІ ТЕКСТУРИ ── */
 #map.theme-tactical .leaflet-tile-pane { filter: contrast(1.05) saturate(0.88) brightness(0.95); }
 #map.theme-dark .leaflet-tile-pane { filter: brightness(0.82) contrast(1.22) saturate(0.75); }
 #map.theme-sat .leaflet-tile-pane { filter: contrast(1.12) brightness(0.90) saturate(1.05); }
 #map.theme-light .leaflet-tile-pane { filter: contrast(1.02) saturate(0.95); }
 
-/* ── ТАКТИЧНА СІТКА ТА РАДАРНЕ СВІТІННЯ ПОВЕРХ КАРТИ ── */
 #hud-grid-overlay {
   position: fixed; inset: 0; pointer-events: none; z-index: 390;
   background-image:
@@ -58,7 +48,6 @@ html, body, #map {
   background-size: 100% 100%, 64px 64px, 64px 64px;
 }
 
-/* ── ВОДЯНИЙ ЗНАК «ОПЕРАТИВНИЙ РАДАР ZP» ── */
 #watermark-overlay {
   position: fixed; inset: -35%; width: 170%; height: 170%;
   pointer-events: none; z-index: 400;
@@ -68,7 +57,6 @@ html, body, #map {
   will-change: transform;
 }
 
-/* ── ВЕРХНЯ ТАКТИЧНА ПАНЕЛЬ HUD ── */
 #top-hud {
   position: fixed;
   top: max(8px, env(safe-area-inset-top));
@@ -79,9 +67,7 @@ html, body, #map {
 }
 #top-hud > * { pointer-events: auto; }
 
-.hud-row {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
+.hud-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .status-pill {
   position: relative;
@@ -103,7 +89,6 @@ html, body, #map {
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(56,189,248,0.03) 2px, rgba(56,189,248,0.03) 4px);
 }
 
-/* Міні-радар із променем сканування */
 .radar-scope {
   width: 20px; height: 20px; border-radius: 50%;
   border: 1.5px solid rgba(16, 185, 129, 0.65);
@@ -132,16 +117,9 @@ html, body, #map {
   to { transform: rotate(360deg); }
 }
 
-.hud-divider {
-  width: 1px; height: 12px; background: rgba(148, 163, 184, 0.28);
-}
+.hud-divider { width: 1px; height: 12px; background: rgba(148, 163, 184, 0.28); }
+.hud-brand-tag { color: var(--accent-cyan); font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
 
-.hud-brand-tag {
-  color: var(--accent-cyan);
-  font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
-}
-
-/* Банер тривоги КАБ / Балістика */
 #banner {
   display: none;
   padding: 6px 12px; border-radius: 6px;
@@ -158,7 +136,6 @@ html, body, #map {
   50% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
 }
 
-/* Фільтри типів цілей з векторними силуетами */
 #filterbar {
   display: flex; gap: 5px; flex-wrap: nowrap;
   overflow-x: auto; max-width: calc(100vw - 60px);
@@ -186,7 +163,6 @@ html, body, #map {
   font-size: 9.5px; color: #f8fafc; font-variant-numeric: tabular-nums;
 }
 
-/* ── ПРАВІ ТАКТИЧНІ КНОПКИ УПРАВЛІННЯ КАРТОЮ ── */
 #map-tools {
   position: fixed;
   right: 8px; top: max(8px, env(safe-area-inset-top));
@@ -207,7 +183,6 @@ html, body, #map {
 .tool-btn:hover { border-color: var(--accent-cyan); color: #fff; box-shadow: 0 0 12px rgba(56, 189, 248, 0.28); }
 .tool-btn.on { background: rgba(14, 116, 144, 0.85); color: #fff; border-color: var(--accent-cyan); box-shadow: 0 0 14px rgba(56, 189, 248, 0.45); }
 
-/* ── КОМПАКТНА ТАКТИЧНА ПАНЕЛЬ (ДЕСКТОП ПРАВОРУЧ / МОБІЛЬНА ШТОРКА ЗНИЗУ) ── */
 #dock {
   position: fixed;
   top: 8px; right: 48px; width: 328px;
@@ -234,15 +209,8 @@ html, body, #map {
   align-items: center; justify-content: space-between;
   border-bottom: 1px solid rgba(148,163,184,0.12);
 }
-.grabber-pill {
-  width: 34px; height: 3.5px; border-radius: 3px;
-  background: rgba(56, 189, 248, 0.45);
-  margin: 0 auto 3px;
-}
-.sheet-summary {
-  display: flex; align-items: center; justify-content: space-between;
-  width: 100%; font-size: 11px; font-weight: 700; color: #e2e8f0; letter-spacing: 0.4px;
-}
+.grabber-pill { width: 34px; height: 3.5px; border-radius: 3px; background: rgba(56, 189, 248, 0.45); margin: 0 auto 3px; }
+.sheet-summary { display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 11px; font-weight: 700; color: #e2e8f0; letter-spacing: 0.4px; }
 
 .tabs {
   display: flex; gap: 3px; padding: 6px 8px;
@@ -275,7 +243,6 @@ html, body, #map {
 .pane { display: none; overflow-y: auto; padding: 8px; flex: 1; gap: 6px; flex-direction: column; position: relative; z-index: 2; }
 .pane.active { display: flex; }
 
-/* ── КАРТКИ АКТИВНИХ ЦІЛЕЙ З КУТОВИМИ HUD-СКОБАМИ ── */
 .card {
   position: relative;
   background: var(--bg-card);
@@ -321,7 +288,6 @@ html, body, #map {
 .feed-head { display: flex; justify-content: space-between; color: var(--txt-dim); font-size: 9.5px; margin-bottom: 2px; font-weight: 700; }
 .feed-place { color: var(--accent-cyan); font-weight: 700; }
 
-/* ── СЕКЦІЇ НАЛАШТУВАНЬ ТА АДМІН-ПАНЕЛІ ── */
 .sec-box {
   background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.16);
   border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;
@@ -359,10 +325,7 @@ html, body, #map {
 }
 .btn-sec:hover { border-color: var(--accent-cyan); color: #fff; }
 
-/* Сітка спавну різних типів БпЛА та озброєння в Адмін-панелі */
-.uav-spawn-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
-}
+.uav-spawn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .uav-spawn-btn {
   background: rgba(15, 23, 42, 0.88);
   border: 1px solid rgba(148, 163, 184, 0.22);
@@ -394,7 +357,6 @@ html, body, #map {
 .qchip:hover { background: rgba(14, 116, 144, 0.35); border-color: var(--accent-cyan); color: #fff; }
 .qchip.active { background: #0284c7; color: #fff; border-color: #7dd3fc; }
 
-/* ── ТАКТИЧНІ МАРКЕРИ ЦІЛЕЙ З АНІМАЦІЯМИ НА КАРТІ ── */
 .t-icon-wrap { background: none !important; border: none !important; }
 .t-marker-root {
   position: relative; width: 32px; height: 32px;
@@ -403,7 +365,6 @@ html, body, #map {
 .t-marker-root.admin-draggable { cursor: grab; }
 .t-marker-root.admin-draggable:active { cursor: grabbing; }
 
-/* Радарне кільце захоплення цілі */
 .t-lock-ring {
   position: absolute; inset: 1px; border-radius: 50%;
   border: 1.2px dashed var(--tc, #f59e0b);
@@ -473,7 +434,6 @@ html, body, #map {
   content: ""; width: 4px; height: 4px; border-radius: 50%; background: #38bdf8;
 }
 
-/* ── АДАПТАЦІЯ ПІД МОБІЛЬНИЙ ТЕЛЕФОН ── */
 @media (max-width: 768px) {
   #top-hud { top: max(6px, env(safe-area-inset-top)); left: 6px; right: 44px; gap: 4px; }
   .status-pill { font-size: 10px; padding: 4px 9px 4px 6px; gap: 6px; }
@@ -798,7 +758,6 @@ function setMapStyle(styleKey) {
 }
 document.querySelectorAll('.style-btn').forEach(b => b.addEventListener('click', () => setMapStyle(b.dataset.style)));
 
-// ── ВОДЯНИЙ ЗНАК «ОПЕРАТИВНИЙ РАДАР ZP» ──
 function updateWatermarkPattern() {
   const isDark = document.getElementById('map').classList.contains('theme-dark') || document.getElementById('map').classList.contains('theme-sat');
   const strokeCol = isDark ? 'rgba(226,232,240,0.48)' : 'rgba(15,23,42,0.52)';
@@ -813,27 +772,21 @@ function updateWatermarkPattern() {
 }
 updateWatermarkPattern();
 
-// ── ПОВНА ДЕТАЛЬНА ЛІНІЯ ФРОНТУ (ЛБЗ) ПІВДЕНЬ — СХІД УКРАЇНИ (БЕЗ «ОГРИЗКА»!) ──
+// ── ПОВНА ДЕТАЛЬНА ЛІНІЯ ФРОНТУ (ЛБЗ) ПІВДЕНЬ — СХІД УКРАЇНИ ──
 const FULL_UKRAINE_FRONTLINE = [
-  // Кінбурнська коса та гирло Дніпра (Миколаївська / Херсонська обл.)
   [46.54, 31.52], [46.51, 31.78], [46.56, 32.08], [46.52, 32.32], [46.61, 32.58],
-  // Лівий берег Дніпра (Олешки — Нова Каховка — Каховське водосховище)
   [46.65, 32.74], [46.74, 33.05], [46.78, 33.34], [46.86, 33.56], [47.02, 33.76],
   [47.16, 33.92], [47.34, 34.12], [47.45, 34.28], [47.49, 34.41],
-  // Запорізький напрямок (Енергодар — Василівка — Кам'янське — Степногірськ — Оріхів — Гуляйполе)
   [47.50, 34.65], [47.46, 34.84], [47.41, 35.01], [47.46, 35.16], [47.53, 35.28],
   [47.54, 35.36], [47.52, 35.48], [47.50, 35.63], [47.52, 35.78], [47.49, 35.88],
   [47.52, 35.99], [47.58, 36.12], [47.64, 36.26], [47.65, 36.44], [47.67, 36.65],
-  // Донецький напрямок (Велика Новосілка — Вугледар — Курахове — Покровськ — Торецьк — Часів Яр — Сіверськ)
   [47.74, 36.82], [47.77, 37.05], [47.78, 37.24], [47.88, 37.32], [47.98, 37.40],
   [48.07, 37.36], [48.16, 37.28], [48.24, 37.38], [48.32, 37.62], [48.38, 37.78],
   [48.46, 37.82], [48.57, 37.85], [48.66, 37.92], [48.75, 38.04], [48.86, 38.12],
-  // Луганський та Куп'янський напрямок (Кремінна — Сватове — Куп'янськ — Дворічна — кордон)
   [48.94, 38.10], [49.04, 38.05], [49.18, 37.98], [49.34, 37.92], [49.52, 37.85],
   [49.68, 37.76], [49.82, 37.72], [49.98, 37.85], [50.14, 37.92]
 ];
 
-// Повний полігон тимчасово окупованої території Півдня, Криму та Сходу
 const FULL_OCCUPIED_POLYGON = [
   ...FULL_UKRAINE_FRONTLINE,
   [50.14, 40.25], [49.20, 40.40], [47.80, 40.10], [47.10, 39.50],
@@ -841,7 +794,6 @@ const FULL_OCCUPIED_POLYGON = [
   [46.10, 31.45], [46.54, 31.52]
 ];
 
-// Північний Харківський плацдарм (район Вовчанська / Глибокого)
 const KHARKIV_NORTH_FL = [
   [50.23, 36.32], [50.20, 36.44], [50.25, 36.55], [50.31, 36.68],
   [50.27, 36.85], [50.28, 36.98], [50.35, 37.08]
@@ -851,7 +803,6 @@ const KHARKIV_NORTH_POLY = [
   [50.45, 37.08], [50.45, 36.32], [50.23, 36.32]
 ];
 
-// ── ШАРИ РАДАРА ──
 let showCones = true, showFrontline = true, showRings = true;
 const staticLayerGroup = L.layerGroup().addTo(map);
 const ringsLayerGroup = L.layerGroup().addTo(map);
@@ -863,13 +814,12 @@ function drawStaticLayers() {
   ringsLayerGroup.clearLayers();
   flLayerGroup.clearLayers();
 
-  // Центр м. Запоріжжя
   L.circleMarker([home[1], home[2]], {
     radius: 4.5, color: '#38bdf8', weight: 2, fillColor: '#0284c7', fillOpacity: 0.9, renderer: canvasRenderer
   }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top" }).addTo(staticLayerGroup);
 
   if (showRings && map.getZoom() < 12) {
-    [[20, '#10b981', '20 км'], [45, '#f59e0b', '45 км'], [70, '#ef4444', '70 км']].forEach(([rKm, col, lbl]) => {
+    [[20, '#10b981', '20 км'], [45, '#f59e0b', '45 км'], [70, '#ef4444', '70 км']].forEach(([rKm, col]) => {
       L.circle([home[1], home[2]], {
         radius: rKm * 1000, color: col, weight: 1, opacity: 0.32, fill: false, dashArray: '5,6', interactive: false, renderer: canvasRenderer
       }).addTo(ringsLayerGroup);
@@ -877,22 +827,18 @@ function drawStaticLayers() {
   }
 
   if (showFrontline) {
-    // Основний полігон ТОТ Південь + Схід + Крим
     L.polygon(FULL_OCCUPIED_POLYGON, {
       color: 'transparent', weight: 0, fillColor: '#dc2626', fillOpacity: 0.19, interactive: false, renderer: canvasRenderer
     }).addTo(flLayerGroup);
 
-    // Зовнішнє світіння ЛБЗ
     L.polyline(FULL_UKRAINE_FRONTLINE, {
       color: '#ef4444', weight: 5, opacity: 0.24, interactive: false, renderer: canvasRenderer
     }).addTo(flLayerGroup);
 
-    // Чітка тактична лінія ЛБЗ
     L.polyline(FULL_UKRAINE_FRONTLINE, {
       color: '#dc2626', weight: 2.2, opacity: 0.88, dashArray: '6,3', interactive: false, renderer: canvasRenderer
     }).addTo(flLayerGroup);
 
-    // Північний Харківський сектор
     L.polygon(KHARKIV_NORTH_POLY, {
       color: 'transparent', weight: 0, fillColor: '#dc2626', fillOpacity: 0.19, interactive: false, renderer: canvasRenderer
     }).addTo(flLayerGroup);
@@ -915,7 +861,6 @@ document.getElementById('chk-cones').addEventListener('change', e => { showCones
 document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
 
-// ── ГЕОДЕЗИЧНІ ФУНКЦІЇ ──
 function fwd(la, lo, h, km) {
   const r = h * Math.PI / 180;
   return [la + km * Math.cos(r) / 111.2, lo + km * Math.sin(r) / (111.2 * Math.cos(la * Math.PI / 180))];
@@ -928,7 +873,7 @@ function hav(a, b, c, d) {
 function brg(a, b, c, d) {
   const p = Math.PI / 180;
   const y = Math.sin((d - b) * p) * Math.cos(c * p);
-  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
+  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 function fmtEta(s) {
@@ -936,7 +881,7 @@ function fmtEta(s) {
   return s < 60 ? `${s} с` : `${Math.floor(s / 60)} хв ${s % 60} с`;
 }
 
-// ── ДЕТАЛЬНІ ВЕКТОРНІ СИЛУЕТИ ВСІХ ТИПІВ БПЛА ТА РАКЕТ (БЕЗ СМАЙЛИКІВ!) ──
+// ── ДЕТАЛЬНІ ВЕКТОРНІ СИЛУЕТИ ВСІХ ТИПІВ БПЛА ТА РАКЕТ ──
 function getTargetVisualSpec(t) {
   const sub = t.sub || '';
   if (sub === 'geran3') return { col: '#ef4444', type: 'jet_drone' };
@@ -954,8 +899,7 @@ function getTargetVisualSpec(t) {
 
 function renderSilhouetteSVG(type, col, rotDeg = 0) {
   if (type === 'shahed') {
-    // Дельта-крило Шахед-136 / Герань-2 з кільовими шайбами та glowing-ядром
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 3 L6 27 L14.5 23.5 L16 29 L20 29 L21.5 23.5 L30 27 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M18 6 L18 26 M12 20 L18 13 L24 20" stroke="rgba(6,10,18,0.55)" stroke-width="1.1" fill="none"/>
       <path d="M5.5 24 L5.5 28.5 M30.5 24 L30.5 28.5" stroke="#fde68a" stroke-width="1.5" stroke-linecap="round"/>
@@ -963,24 +907,21 @@ function renderSilhouetteSVG(type, col, rotDeg = 0) {
     </svg>`;
   }
   if (type === 'jet_drone') {
-    // Реактивний Шахед-238 / Герань-3 з турбореактивним факелом
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 2 L7 25 L15 22 L16.2 28 L19.8 28 L21 22 L29 25 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M15 14 L18 7 L21 14" stroke="#fecaca" stroke-width="1.2" fill="none"/>
       <polygon points="16.2,28 18,35 19.8,28" fill="#fde047" class="flame-anim"/>
     </svg>`;
   }
   if (type === 'molniya') {
-    // БпЛА «Молнія» — високоплан з прямим крилом, двома балками та електро-емблемою
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 3 L16 11 L3 12.5 L4.5 16.5 L16 15.5 L15.2 25 L11 27 L11 29.5 L18 28 L25 29.5 L25 27 L20.8 25 L20 15.5 L31.5 16.5 L33 12.5 L20 11 Z" fill="${col}" stroke="#060a12" stroke-width="1.35" stroke-linejoin="round"/>
       <path d="M14 4.5 Q18 2 22 4.5" stroke="#e0f2fe" stroke-width="1.5" fill="none"/>
       <circle cx="18" cy="13.5" r="1.8" fill="#e0f2fe"/>
     </svg>`;
   }
   if (type === 'fpv') {
-    // FPV-дрон (квадрокоптер Х-рами з 4 обертовими гвинтами)
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <line x1="9" y1="9" x2="27" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
       <line x1="27" y1="9" x2="9" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
       <rect x="14.5" y="13" width="7" height="10" rx="2" fill="${col}" stroke="#060a12" stroke-width="1.2"/>
@@ -992,81 +933,98 @@ function renderSilhouetteSVG(type, col, rotDeg = 0) {
     </svg>`;
   }
   if (type === 'lancet') {
-    // БпЛА «Ланцет» з подвійним Х-подібним крилом
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 3 L20 10 L29 6 L21 14 L20.5 21 L28 26 L20 24.5 L19.5 31 L16.5 31 L16 24.5 L8 26 L15.5 21 L15 14 L7 6 L16 10 Z" fill="${col}" stroke="#060a12" stroke-width="1.3" stroke-linejoin="round"/>
       <circle cx="18" cy="16" r="1.8" fill="#ccfbf1"/>
     </svg>`;
   }
   if (type === 'recon') {
-    // РозвідБпЛА (Орлан / ZALA / Supercam)
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 4 L16.2 12 L2 15 L3 18 L16.3 16.5 L16.8 26 L13 28.5 L13 30.5 L18 29 L23 30.5 L23 28.5 L19.2 26 L19.7 16.5 L33 18 L34 15 L19.8 12 Z" fill="${col}" stroke="#060a12" stroke-width="1.3"/>
       <circle cx="18" cy="14" r="2" fill="#38bdf8"/>
     </svg>`;
   }
   if (type === 'gerbera') {
-    // БпЛА «Гербера» (імітатор)
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 4 L7 26 L15.5 23.5 L16 28 L20 28 L20.5 23.5 L29 26 Z" fill="${col}" fill-opacity="0.82" stroke="#060a12" stroke-width="1.3" stroke-dasharray="3,1.5"/>
     </svg>`;
   }
   if (type === 'kab') {
-    // КАБ з розкритим модулем планування УМПК та стабілізаторами
-    return `<svg viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 2 C20.4 2 21.5 5 21.5 8.5 L21.5 12 L33 17 L33 19.8 L21.5 17.5 L21.2 24.5 L25 27.5 L25 30 L18 28 L11 30 L11 27.5 L14.8 24.5 L14.5 17.5 L3 19.8 L3 17 L14.5 12 L14.5 8.5 C14.5 5 15.6 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
       <line x1="18" y1="5" x2="18" y2="25" stroke="#fecaca" stroke-width="1.2"/>
     </svg>`;
   }
   if (type === 'cruise') {
-    // Крилата ракета Х-101 / Калібр / Бандероль
-    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 2 C19.8 2 20.6 5.5 20.6 9 L20.6 14 L32 18.5 L32 21 L20.6 18.8 L20.4 26 L24 28.5 L24 30.5 L18 29 L12 30.5 L12 28.5 L15.6 26 L15.4 18.8 L4 21 L4 18.5 L15.4 14 L15.4 9 C15.4 5.5 16.2 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.35"/>
       <polygon points="16.5,29 18,35 19.5,29" fill="#fde047" class="flame-anim"/>
     </svg>`;
   }
   if (type === 'ballistic') {
-    // Балістична ракета Іскандер-М / Кинджал з гіперзвуковими шевронами
-    return `<svg viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
+    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
       <path d="M18 1 L12.5 14 L13.5 24 L9 28.5 L9 31 L18 28.5 L27 31 L27 28.5 L22.5 24 L23.5 14 Z" fill="${col}" stroke="#060a12" stroke-width="1.4"/>
       <path d="M10 9 L18 3 L26 9" stroke="#fecdd3" stroke-width="1.3" fill="none"/>
       <polygon points="16,28.5 18,35.5 20,28.5" fill="#fde047" class="flame-anim"/>
     </svg>`;
   }
-  // РСЗВ / Артобстріл / Приліт — тактичний приціл
-  return `<svg viewBox="0 0 36 36" width="26" height="26">
+  return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="26" height="26">
     <circle cx="18" cy="18" r="10" stroke="${col}" stroke-width="2" fill="rgba(192,132,252,0.18)"/>
     <circle cx="18" cy="18" r="3" fill="${col}"/>
     <path d="M18 3v6M18 27v6M3 18h6M27 18h6" stroke="${col}" stroke-width="2" stroke-linecap="round"/>
   </svg>`;
 }
 
-function buildTargetMarkerHTML(t, isSelected, isAdmin) {
-  const spec = getTargetVisualSpec(t);
-  const hdg = (t.hdg != null) ? t.hdg : 0;
+function getTargetLabelText(t) {
   const routeTxt = t.to ? `${t.name} · ${t.to}` : `${t.name}`;
   const etaStr = (!t.ended && t.eta != null) ? ` · ${fmtEta(t.eta)}` : (t.status ? ` · ${t.status}` : '');
+  return routeTxt + etaStr;
+}
+
+function buildTargetMarkerHTML(t, isSelected, isAdmin) {
+  const spec = getTargetVisualSpec(t);
+  const hdg = (t.hdg != null) ? t.hdg : 325;
   const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv') ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
     <div class="t-lock-ring"></div>
     <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg)}</div>
-    <div class="t-lbl-tag" style="--tc:${spec.col}">${routeTxt}${etaStr}</div>
+    <div class="t-lbl-tag" style="--tc:${spec.col}">${getTargetLabelText(t)}</div>
   </div>`;
 }
 
 // ── СТАН РАДАРА ТА АДМІН-РЕЖИМУ ──
 const ADMIN_TOKEN_KEY = 'zp_radar_admin_token_v11';
-constEXPECTED_CODE = 'KDLEPL1@D';
-let isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === 'KDLEPL1@D';
+const EXPECTED_CODE = 'KDLEPL1@D';
+let isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === EXPECTED_CODE;
 let selectedTrackId = null;
 let pickVectorMode = false;
-let clickSpawnSub = null; // Підтип БпЛА для спавну кліком по карті
+let clickSpawnSub = null;
 let serverTracks = {};
 let animState = {};
 let markerLayerById = {};
+let vectorPolyById = {};
+let conePolyById = {};
 let reticleMarkerById = {};
 let hiddenKinds = new Set();
+
+function updateMarkerDOMWithoutRecreating(m, t, isSelected) {
+  const el = m.getElement && m.getElement();
+  if (!el) return false;
+  const root = el.querySelector('.t-marker-root');
+  if (!root) return false;
+  root.classList.toggle('selected', isSelected);
+  root.classList.toggle('admin-draggable', isAdmin);
+  const svgEl = root.querySelector('.target-rot-svg');
+  if (svgEl && t.hdg != null) {
+    svgEl.style.transform = `rotate(${t.hdg}deg)`;
+  }
+  const lblEl = root.querySelector('.t-lbl-tag');
+  if (lblEl) {
+    lblEl.textContent = getTargetLabelText(t);
+  }
+  return true;
+}
 
 function syncAdminUI() {
   const lockBox = document.getElementById('admin-lock-box');
@@ -1090,11 +1048,7 @@ function syncAdminUI() {
     if (m && t) {
       if (isAdmin && m.dragging) m.dragging.enable();
       else if (m.dragging) m.dragging.disable();
-      m.setIcon(L.divIcon({
-        className: 't-icon-wrap',
-        html: buildTargetMarkerHTML(t, Number(id) === selectedTrackId, isAdmin),
-        iconSize: [32, 32], iconAnchor: [16, 16]
-      }));
+      updateMarkerDOMWithoutRecreating(m, t, Number(id) === selectedTrackId);
     }
   });
   renderAllMapVectors();
@@ -1102,9 +1056,9 @@ function syncAdminUI() {
 
 document.getElementById('admin-login-btn').addEventListener('click', () => {
   const val = document.getElementById('admin-code-inp').value.trim();
-  if (val === 'KDLEPL1@D') {
+  if (val === EXPECTED_CODE) {
     isAdmin = true;
-    localStorage.setItem(ADMIN_TOKEN_KEY, 'KDLEPL1@D');
+    localStorage.setItem(ADMIN_TOKEN_KEY, EXPECTED_CODE);
     document.getElementById('admin-auth-err').style.display = 'none';
     syncAdminUI();
   } else {
@@ -1120,7 +1074,6 @@ document.getElementById('admin-logout-btn').addEventListener('click', () => {
   syncAdminUI();
 });
 
-// ── API ВИКЛИКИ ДО СЕРВЕРА ──
 async function postSim(payload) {
   try {
     const r = await fetch('/sim', {
@@ -1129,7 +1082,16 @@ async function postSim(payload) {
       body: JSON.stringify(payload)
     });
     const d = await r.json();
-    if (d && d.state) applyServerState(d.state);
+    if (d && d.state) {
+      applyServerState(d.state);
+      if (d.spawned_id) {
+        selectTrack(d.spawned_id);
+        const st = serverTracks[d.spawned_id];
+        if (st && !map.getBounds().contains([st.lat, st.lon])) {
+          map.panTo([st.lat, st.lon], { animate: true });
+        }
+      }
+    }
   } catch (err) {
     console.error('postSim error:', err);
   }
@@ -1155,20 +1117,17 @@ function selectTrack(id) {
   Object.keys(markerLayerById).forEach(k => {
     const tr = serverTracks[k];
     if (tr && markerLayerById[k]) {
-      markerLayerById[k].setIcon(L.divIcon({
-        className: 't-icon-wrap',
-        html: buildTargetMarkerHTML(tr, Number(k) === selectedTrackId, isAdmin),
-        iconSize: [32, 32], iconAnchor: [16, 16]
-      }));
+      updateMarkerDOMWithoutRecreating(markerLayerById[k], tr, Number(k) === selectedTrackId);
     }
   });
   renderTargetsList();
 }
 
-// ── ВІДМАЛЬОВУВАННЯ ВЕКТОРІВ, КОНУСІВ ЗАГРОЗИ ТА ПРИЦІЛІВ НА КАРТІ ──
 function renderAllMapVectors() {
   if (isZooming) return;
   tracksVectorGroup.clearLayers();
+  vectorPolyById = {};
+  conePolyById = {};
   Object.values(reticleMarkerById).forEach(rm => map.removeLayer(rm));
   reticleMarkerById = {};
 
@@ -1179,33 +1138,29 @@ function renderAllMapVectors() {
 
     if (!t.ended && t.goal && a.hdg != null) {
       const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-      if (showCones && distKm > 0.3) {
+      if (showCones && distKm > 0.25) {
         const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
         const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
         const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
-        L.polygon([[a.lat, a.lon], pLeft, pRight], {
+        conePolyById[t.id] = L.polygon([[a.lat, a.lon], pLeft, pRight], {
           color: col, weight: 0.7, opacity: 0.28, fillColor: col, fillOpacity: 0.11, interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
       }
 
-      // Траєкторія від точки пуску (для КАБ/ракет)
       if (t.fx && t.fx.length >= 2) {
         L.polyline([t.fx[0], [a.lat, a.lon]], {
           color: col, weight: 1.4, opacity: 0.42, dashArray: '3,5', interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
       }
 
-      // Основна лінія курсу до цілі
-      L.polyline([[a.lat, a.lon], t.goal], {
+      vectorPolyById[t.id] = L.polyline([[a.lat, a.lon], t.goal], {
         color: col, weight: 2.2, opacity: 0.88, dashArray: '6,5', interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
 
-      // Точка прицілу
       L.circleMarker(t.goal, {
         radius: 3.5, color: col, weight: 1.5, fillColor: '#070b12', fillOpacity: 0.9, interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
 
-      // Перетягуваний приціл вектора в режимі Адміна
       if (isAdmin) {
         const rm = L.marker(t.goal, {
           draggable: true,
@@ -1222,10 +1177,10 @@ function renderAllMapVectors() {
   });
 }
 
-// ── ПЛАВНА АНІМАЦІЯ РУХУ ЦІЛЕЙ 60 FPS ──
+// ── БЕЗПЕРЕРВНА ПЛАВНА 60 FPS АНІМАЦІЯ ПОЛЬОТУ БПЛА ТА РАКЕТ ──
 let lastAnimTs = performance.now();
 function animateLoop(nowMs) {
-  const dt = Math.min(0.25, (nowMs - lastAnimTs) / 1000);
+  const dt = Math.min(0.15, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
   lastAnimTs = nowMs;
 
   if (!isZooming) {
@@ -1233,19 +1188,45 @@ function animateLoop(nowMs) {
       const a = animState[t.id];
       const m = markerLayerById[t.id];
       if (!a || !m || m._isDragging) return;
-      if (!t.ended && t.v > 0 && a.hdg != null) {
-        const stepKm = (t.v * dt) / 3600;
-        if (t.goal) {
-          const rem = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-          if (rem > 0.25) {
-            const np = fwd(a.lat, a.lon, a.hdg, Math.min(stepKm, rem));
-            a.lat = np[0]; a.lon = np[1];
-          }
-        } else {
+      const v = t.v || 180;
+      if (!t.ended && v > 0) {
+        if (t.loiter) {
+          a.hdg = ((a.hdg || 320) + 12.0 * dt) % 360;
+          const stepKm = (v * dt) / 3600;
           const np = fwd(a.lat, a.lon, a.hdg, stepKm);
           a.lat = np[0]; a.lon = np[1];
+          m.setLatLng([a.lat, a.lon]);
+          const el = m.getElement && m.getElement();
+          const svgEl = el && el.querySelector('.target-rot-svg');
+          if (svgEl) svgEl.style.transform = `rotate(${a.hdg}deg)`;
+        } else if (a.hdg != null) {
+          const stepKm = (v * dt) / 3600;
+          if (t.goal) {
+            const rem = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+            if (rem > 0.15) {
+              a.hdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
+              const np = fwd(a.lat, a.lon, a.hdg, Math.min(stepKm, rem));
+              a.lat = np[0]; a.lon = np[1];
+            } else {
+              const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+              a.lat = np[0]; a.lon = np[1];
+            }
+          } else {
+            const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+            a.lat = np[0]; a.lon = np[1];
+          }
+          m.setLatLng([a.lat, a.lon]);
+          if (vectorPolyById[t.id] && t.goal) {
+            vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+          }
+          if (conePolyById[t.id] && t.goal) {
+            const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+            const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
+            const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+            const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+            conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
+          }
         }
-        m.setLatLng([a.lat, a.lon]);
       }
     });
   }
@@ -1277,13 +1258,20 @@ function applyServerState(st) {
     }
 
     if (!animState[t.id]) {
-      animState[t.id] = { lat: t.lat, lon: t.lon, hdg: t.hdg };
+      animState[t.id] = { lat: t.lat, lon: t.lon, hdg: t.hdg != null ? t.hdg : 325 };
     } else {
       const m = markerLayerById[t.id];
       if (!m || !m._isDragging) {
-        animState[t.id].lat = t.lat;
-        animState[t.id].lon = t.lon;
-        animState[t.id].hdg = t.hdg;
+        // Якщо розбіжність між клієнтською інтерполяцією і сервером > 0.6 км, синхронізуємо координату, інакше плавно дотягуємо
+        const driftKm = hav(animState[t.id].lat, animState[t.id].lon, t.lat, t.lon);
+        if (driftKm > 0.6) {
+          animState[t.id].lat = t.lat;
+          animState[t.id].lon = t.lon;
+        } else {
+          animState[t.id].lat = animState[t.id].lat * 0.65 + t.lat * 0.35;
+          animState[t.id].lon = animState[t.id].lon * 0.65 + t.lon * 0.35;
+        }
+        if (t.hdg != null && !t.loiter) animState[t.id].hdg = t.hdg;
       }
     }
 
@@ -1295,8 +1283,9 @@ function applyServerState(st) {
       return;
     }
 
+    const sig = `${t.sub}|${t.ended}|${isAdmin}`;
     if (!markerLayerById[t.id]) {
-      const m = L.marker([t.lat, t.lon], {
+      const m = L.marker([animState[t.id].lat, animState[t.id].lon], {
         draggable: isAdmin,
         icon: L.divIcon({
           className: 't-icon-wrap',
@@ -1304,6 +1293,7 @@ function applyServerState(st) {
           iconSize: [32, 32], iconAnchor: [16, 16]
         })
       }).addTo(map);
+      m._sig = sig;
 
       m.on('click', ev => {
         L.DomEvent.stopPropagation(ev);
@@ -1320,12 +1310,17 @@ function applyServerState(st) {
       markerLayerById[t.id] = m;
     } else {
       const m = markerLayerById[t.id];
-      if (!m._isDragging) m.setLatLng([t.lat, t.lon]);
-      m.setIcon(L.divIcon({
-        className: 't-icon-wrap',
-        html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
-        iconSize: [32, 32], iconAnchor: [16, 16]
-      }));
+      if (!m._isDragging) m.setLatLng([animState[t.id].lat, animState[t.id].lon]);
+      if (m._sig !== sig) {
+        m._sig = sig;
+        m.setIcon(L.divIcon({
+          className: 't-icon-wrap',
+          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
+          iconSize: [32, 32], iconAnchor: [16, 16]
+        }));
+      } else {
+        updateMarkerDOMWithoutRecreating(m, t, t.id === selectedTrackId);
+      }
     }
   });
 
@@ -1437,7 +1432,6 @@ function renderChannelsList(chs) {
   `).join('');
 }
 
-// ── ФІЛЬТРИ, ВКЛАДКИ ТА МОБІЛЬНА ШТОРКА ──
 document.querySelectorAll('.fchip').forEach(ch => {
   ch.addEventListener('click', () => {
     const k = ch.dataset.k;
@@ -1463,7 +1457,7 @@ document.getElementById('sheet-handle').addEventListener('click', () => {
   document.getElementById('sheet-toggle-lbl').textContent = collapsed ? 'ВІДКРИТИ' : 'ЗГОРНУТИ';
 });
 
-// ── АРСЕНАЛ СПАВНУ РІЗНИХ БПЛА ТА ОЗБРОЄННЯ (ШАХЕД, РЕАКТИВНИЙ, МОЛНІЯ, FPV, ЛАНЦЕТ, РОЗВІДНИК, ГЕРБЕРА, КАБ, РАКЕТИ) ──
+// ── АРСЕНАЛ СПАВНУ РІЗНИХ БПЛА ТА ОЗБРОЄННЯ ──
 const DEFAULT_SPAWN_PRESETS = {
   geran2:    { lat: 47.728, lon: 35.245, frm: 'підліт до ЗП', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
   geran3:    { lat: 47.685, lon: 36.960, frm: 'Донецька обл.', goal_lat: 47.482, goal_lon: 36.254, goal_name: 'Пологи' },
@@ -1503,7 +1497,6 @@ document.querySelectorAll('.uav-spawn-btn').forEach(btn => {
   });
 });
 
-// ── КОМАНДИ ТА КЕРУВАННЯ ВЕКТОРОМ В АДМІН-ПАНЕЛІ ──
 document.getElementById('sim-send-btn').addEventListener('click', () => {
   const inp = document.getElementById('sim-inp');
   const txt = inp.value.trim();
@@ -1599,7 +1592,6 @@ document.getElementById('ch-add-btn').addEventListener('click', () => {
   inp.value = '';
 });
 
-// ── ІНСТРУМЕНТИ КАРТИ (ЗВУК, ЛІНІЙКА, ГЕОЛОКАЦІЯ, ЗАПОРІЖЖЯ, ОГЛЯД ЛБЗ УКРАЇНИ) ──
 let soundOn = false;
 document.getElementById('sndbtn').addEventListener('click', e => {
   soundOn = !soundOn;
@@ -1654,7 +1646,6 @@ document.getElementById('myposbtn').addEventListener('click', () => {
 document.getElementById('homebtn').addEventListener('click', () => map.setView([home[1], home[2]], 10));
 document.getElementById('ukrainebtn').addEventListener('click', () => map.setView([47.85, 35.80], 7));
 
-// ── ПІДКЛЮЧЕННЯ ДО ПОТОКУ РАДАРА (SSE + POLLING FALLBACK) ──
 syncAdminUI();
 fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
 
