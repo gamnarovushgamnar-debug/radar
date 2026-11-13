@@ -1148,13 +1148,14 @@ function syncTrackVectorLayers(forceRebuild = false) {
   }
 
   Object.values(serverTracks).forEach(t => {
-    if (hiddenKinds.has(t.kind) || t.ended || !t.goal) {
+    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg || 330, goal: t.goal };
+    const goalPt = (a && a.goal) ? a.goal : t.goal;
+    if (hiddenKinds.has(t.kind) || t.ended || !goalPt) {
       removeTrackVectorLayers(t.id);
       return;
     }
-    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg || 330 };
     const col = getTargetVisualSpec(t).col;
-    const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+    const distKm = hav(a.lat, a.lon, goalPt[0], goalPt[1]);
     const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 16);
     const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
     const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
@@ -1183,24 +1184,24 @@ function syncTrackVectorLayers(forceRebuild = false) {
     }
 
     if (!vectorPolyById[t.id]) {
-      vectorPolyById[t.id] = L.polyline([[a.lat, a.lon], t.goal], {
+      vectorPolyById[t.id] = L.polyline([[a.lat, a.lon], goalPt], {
         color: col, weight: 2.2, opacity: 0.88, dashArray: '6,5', interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
     } else {
-      vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+      vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
     }
 
     if (!goalDotById[t.id]) {
-      goalDotById[t.id] = L.circleMarker(t.goal, {
+      goalDotById[t.id] = L.circleMarker(goalPt, {
         radius: 3.5, color: col, weight: 1.5, fillColor: '#070b12', fillOpacity: 0.9, interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
     } else {
-      goalDotById[t.id].setLatLng(t.goal);
+      goalDotById[t.id].setLatLng(goalPt);
     }
 
     if (isAdmin) {
       if (!reticleMarkerById[t.id]) {
-        const rm = L.marker(t.goal, {
+        const rm = L.marker(goalPt, {
           draggable: true,
           icon: L.divIcon({ className: '', html: `<div class="reticle-handle" title="Перетягніть приціл для зміни курсу"></div>`, iconSize: [20, 20], iconAnchor: [10, 10] })
         }).addTo(map);
@@ -1213,7 +1214,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
         });
         reticleMarkerById[t.id] = rm;
       } else if (!reticleMarkerById[t.id]._isDragging) {
-        reticleMarkerById[t.id].setLatLng(t.goal);
+        reticleMarkerById[t.id].setLatLng(goalPt);
       }
     } else if (reticleMarkerById[t.id]) {
       map.removeLayer(reticleMarkerById[t.id]);
@@ -1222,11 +1223,13 @@ function syncTrackVectorLayers(forceRebuild = false) {
   });
 }
 
-// ── БЕЗПЕРЕРВНИЙ ПЛАВНИЙ DEAD-RECKONING РУШІЙ (60 FPS + FALLBACK НА ВИПАДОК ФОНОВОЇ ВКЛАДКИ) ──
+// ── БЕЗПЕРЕРВНИЙ ПЛАВНИЙ DEAD-RECKONING РУШІЙ (60 FPS + ТАЙМЕР-FALLBACK + СУБПІКСЕЛЬНИЙ GPU РЕНДЕР) ──
 let lastAnimTs = performance.now();
 function stepClientKinematics() {
   const nowMs = performance.now();
-  const dt = Math.min(0.15, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
+  const rawDt = (nowMs - lastAnimTs) / 1000;
+  if (rawDt < 0.004) return;
+  const dt = Math.min(0.15, rawDt);
   lastAnimTs = nowMs;
 
   if (isZooming) return;
@@ -1237,63 +1240,107 @@ function stepClientKinematics() {
     if (!a || !m || m._isDragging) return;
     const v = t.v || 180;
     if (!t.ended && v > 0) {
-      const kinematicMult = v < 260 ? 2.2 : 1.15;
+      // Наочний множник швидкості (5.5x для БпЛА, 2.2x для КАБ/крилатих), синхронний із сервером:
+      const kinematicMult = v < 260 ? 5.5 : (v < 950 ? 2.2 : 1.0);
       const stepKm = (v * kinematicMult * dt) / 3600;
+      const minVecKm = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet') ? 4.5 : (t.kind === 'kab' ? 10.0 : 7.5);
 
       if (t.loiter) {
-        a.hdg = ((a.hdg || 320) + 18.0 * dt) % 360;
-        const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-        a.lat = np[0]; a.lon = np[1];
-      } else {
-        if (t.goal && hav(a.lat, a.lon, t.goal[0], t.goal[1]) > 0.25) {
-          a.targetHdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
-        }
-        const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
-        if (Math.abs(diff) > 0.2) {
-          const turnRate = (t.kind === 'kab' ? 45.0 : 65.0) * dt;
-          a.hdg = (a.hdg + Math.max(-turnRate, Math.min(turnRate, diff)) + 360) % 360;
-        }
-
+        a.hdg = ((a.hdg || 320) + 22.0 * dt) % 360;
         const np = fwd(a.lat, a.lon, a.hdg, stepKm);
         a.lat = np[0];
         a.lon = np[1];
+        a.goal = fwd(a.lat, a.lon, a.hdg, 3.5);
+      } else {
+        // Плавний доліт без телепортації, якщо прийшла нова точка фіксації («над іншим районом»)
+        let curStepKm = stepKm;
+        if (a.wpLat != null && a.wpLon != null) {
+          const dWp = hav(a.lat, a.lon, a.wpLat, a.wpLon);
+          if (dWp <= Math.max(0.35, stepKm * 2.5)) {
+            a.lat = a.wpLat;
+            a.lon = a.wpLon;
+            a.wpLat = null;
+            a.wpLon = null;
+            if (a.postWpHdg != null) {
+              a.targetHdg = a.postWpHdg;
+            }
+          } else {
+            a.targetHdg = brg(a.lat, a.lon, a.wpLat, a.wpLon);
+            curStepKm = stepKm * 2.4;
+          }
+        }
 
-        if (a.srvLat != null && a.srvLon != null && a.srvTime != null) {
-          const elapsedSrv = Math.min(2.5, Math.max(0, (nowMs - a.srvTime) / 1000));
-          const srvProj = fwd(a.srvLat, a.srvLon, a.targetHdg != null ? a.targetHdg : a.hdg, (v * kinematicMult * elapsedSrv) / 3600);
-          const blend = 1.0 - Math.exp(-1.5 * dt);
-          a.lat += (srvProj[0] - a.lat) * blend;
-          a.lon += (srvProj[1] - a.lon) * blend;
+        const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
+        if (Math.abs(diff) > 0.1) {
+          const maxTurn = 140.0 * dt;
+          a.hdg = (a.hdg + Math.max(-maxTurn, Math.min(maxTurn, diff)) + 360) % 360;
+        }
+
+        // ЗАВЖДИ просуваємо ціль вперед за її поточним курсом a.hdg (без жодного відкату назад!)
+        const np = fwd(a.lat, a.lon, a.hdg, curStepKm);
+        a.lat = np[0];
+        a.lon = np[1];
+
+        // Якщо ціль наблизилась до точки вектора a.goal або пролетіла її — плавно висуваємо вектор вперед за курсом!
+        if (!a.goal) {
+          a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+        } else {
+          const dGoal = hav(a.lat, a.lon, a.goal[0], a.goal[1]);
+          const brgGoal = brg(a.lat, a.lon, a.goal[0], a.goal[1]);
+          if (dGoal < 1.0 || Math.abs(angDiff(brgGoal, a.hdg)) > 70) {
+            a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+          }
         }
       }
 
       m.setLatLng([a.lat, a.lon]);
       const el = m.getElement && m.getElement();
-      const svgEl = el && el.querySelector('.target-rot-svg');
-      if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+      if (el) {
+        if (map.latLngToLayerPoint) {
+          const exactPt = map.latLngToLayerPoint([a.lat, a.lon]);
+          const fracX = (exactPt.x - Math.round(exactPt.x)).toFixed(2);
+          const fracY = (exactPt.y - Math.round(exactPt.y)).toFixed(2);
+          const rootEl = el.querySelector('.t-marker-root');
+          if (rootEl) rootEl.style.transform = `translate3d(${fracX}px, ${fracY}px, 0)`;
+        }
+        const svgEl = el.querySelector('.target-rot-svg');
+        if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+      }
 
-      if (vectorPolyById[t.id] && t.goal) {
-        vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+      const goalPt = a.goal || t.goal;
+      if (goalPt) {
+        if (vectorPolyById[t.id]) {
+          vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
+        }
+        if (goalDotById[t.id]) {
+          goalDotById[t.id].setLatLng(goalPt);
+        }
+        if (reticleMarkerById[t.id] && !reticleMarkerById[t.id]._isDragging) {
+          reticleMarkerById[t.id].setLatLng(goalPt);
+        }
+        if (conePolyById[t.id]) {
+          const distKm = hav(a.lat, a.lon, goalPt[0], goalPt[1]);
+          const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 16);
+          const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+          const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+          conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
+        }
       }
       if (originPolyById[t.id] && t.fx && t.fx.length >= 2) {
         originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
-      }
-      if (conePolyById[t.id] && t.goal) {
-        const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-        const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 16);
-        const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
-        const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
-        conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
       }
     }
   });
 }
 
 function animateLoop() {
-  stepClientKinematics();
+  try { stepClientKinematics(); } catch (e) { console.error(e); }
   requestAnimationFrame(animateLoop);
 }
 requestAnimationFrame(animateLoop);
+setInterval(() => {
+  try { stepClientKinematics(); } catch (_) {}
+}, 50);
 
 // ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ ──
 function applyServerState(st) {
@@ -1308,7 +1355,6 @@ function applyServerState(st) {
   const incomingIds = new Set();
   const counts = { drone: 0, kab: 0, missile: 0, strike: 0 };
   let activeTotal = 0;
-  const nowPerf = performance.now();
 
   (st.tracks || []).forEach(t => {
     incomingIds.add(String(t.id));
@@ -1320,26 +1366,40 @@ function applyServerState(st) {
     }
 
     const initH = t.hdg != null ? t.hdg : 330;
+    const srvFixSeq = t.fix_seq || 1;
     if (!animState[t.id]) {
       animState[t.id] = {
         lat: t.lat, lon: t.lon,
         hdg: initH, targetHdg: t.thdg != null ? t.thdg : initH,
-        srvLat: t.lat, srvLon: t.lon, srvTime: nowPerf
+        goal: t.goal ? [t.goal[0], t.goal[1]] : null,
+        fixSeq: srvFixSeq,
+        wpLat: null, wpLon: null, postWpHdg: null
       };
     } else {
       const a = animState[t.id];
       const m = markerLayerById[t.id];
       if (!m || !m._isDragging) {
-        a.srvLat = t.lat;
-        a.srvLon = t.lon;
-        a.srvTime = nowPerf;
-        if (t.thdg != null) a.targetHdg = t.thdg;
-        else if (t.hdg != null) a.targetHdg = t.hdg;
-        // Якщо позиція змінилася через нове повідомлення «НАД іншим районом» (> 3.2 км), переставляємо в нову точку фіксації!
-        if (hav(a.lat, a.lon, t.lat, t.lon) > 3.2) {
-          a.lat = t.lat;
-          a.lon = t.lon;
-          a.hdg = initH;
+        // Оновлюємо курс та точку фіксації ТІЛЬКИ коли прийшло нове повідомлення/команда (fix_seq змінився),
+        // щоб 1-секундні серверні тіки ніколи не смикали і не гальмували плавний політ на клієнті!
+        if (srvFixSeq !== a.fixSeq) {
+          a.fixSeq = srvFixSeq;
+          const newH = t.thdg != null ? t.thdg : initH;
+          a.targetHdg = newH;
+          a.postWpHdg = newH;
+          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
+          const distJump = hav(a.lat, a.lon, t.lat, t.lon);
+          if (distJump > 18.0) {
+            a.lat = t.lat;
+            a.lon = t.lon;
+            a.hdg = newH;
+            a.wpLat = null;
+            a.wpLon = null;
+          } else if (distJump > 0.45) {
+            a.wpLat = t.lat;
+            a.wpLon = t.lon;
+          } else {
+            a.hdg = newH;
+          }
         }
       }
     }
@@ -1375,9 +1435,8 @@ function applyServerState(st) {
         const ll = ev.target.getLatLng();
         animState[t.id].lat = ll.lat;
         animState[t.id].lon = ll.lng;
-        animState[t.id].srvLat = ll.lat;
-        animState[t.id].srvLon = ll.lng;
-        animState[t.id].srvTime = performance.now();
+        animState[t.id].wpLat = null;
+        animState[t.id].wpLon = null;
         postSim({ move: { id: t.id, lat: ll.lat, lon: ll.lng } });
       });
       markerLayerById[t.id] = m;
