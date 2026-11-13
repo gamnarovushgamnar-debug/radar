@@ -876,7 +876,7 @@ function hav(a, b, c, d) {
 function brg(a, b, c, d) {
   const p = Math.PI / 180;
   const y = Math.sin((d - b) * p) * Math.cos(c * p);
-  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * math.cos((d - b) * p);
+  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 function angDiff(target, cur) {
@@ -1400,6 +1400,11 @@ function applyServerState(st) {
           } else {
             a.hdg = newH;
           }
+        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 3.0 && a.wpLat == null) {
+          // Якщо вкладка була неактивна у фоні, плавно синхронізуємо позицію з сервером
+          a.lat = t.lat;
+          a.lon = t.lon;
+          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
         }
       }
     }
@@ -1442,6 +1447,9 @@ function applyServerState(st) {
       markerLayerById[t.id] = m;
     } else {
       const m = markerLayerById[t.id];
+      if (!m._isDragging) {
+        m.setLatLng([animState[t.id].lat, animState[t.id].lon]);
+      }
       if (m._sig !== sig) {
         m._sig = sig;
         m.setIcon(L.divIcon({
