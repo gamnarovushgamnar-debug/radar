@@ -598,18 +598,18 @@ html, body, #map {
       <div class="sec-box">
         <div class="sec-title">Оперативна команда / тест зведення</div>
         <div style="display:flex;gap:4px">
-          <input id="sim-inp" class="ctrl-input" placeholder="Напр.: фпв над шугумом / шахед з півдня на запоріжжя">
+          <input id="sim-inp" class="ctrl-input" placeholder="Напр.: фпв над шугумом / шахед на шевчик">
           <button id="sim-send-btn" class="btn-primary">Пуск</button>
           <button id="sim-clr-btn" class="btn-sec">Очистити</button>
         </div>
         <div class="chip-row">
           <span class="qchip" data-q="ФПВ над Шугумом">ФПВ над Шугумом</span>
-          <span class="qchip" data-q="Молнія на Степногірськ">Молнія Степногірськ</span>
-          <span class="qchip" data-q="Шахед з півдня на Запоріжжя">Шахед з півдня</span>
-          <span class="qchip" data-q="Запорізька область: пуски КАБ на Оріхів">КАБ Оріхів</span>
-          <span class="qchip" data-q="КАБи з Пришиба на Малокатеринівку">КАБ Пришиб</span>
-          <span class="qchip" data-q="курс на Шевчик">Курс Шевчик</span>
+          <span class="qchip" data-q="Молнія на Степногірськ">Молнія на Степногірськ</span>
+          <span class="qchip" data-q="Шахед на Запоріжжя">Шахед на ЗП</span>
+          <span class="qchip" data-q="Шахед над Шевчиком">Над Шевчиком</span>
           <span class="qchip" data-q="курс Зелений">Курс Зелений</span>
+          <span class="qchip" data-q="Запорізька область: пуски КАБ на Оріхів">КАБ на Оріхів</span>
+          <span class="qchip" data-q="КАБи з Пришиба на Малокатеринівку">КАБ з Пришиба</span>
           <span class="qchip" data-q="курс північно-західний">Курс Пн-Зх</span>
         </div>
       </div>
@@ -719,6 +719,13 @@ html, body, #map {
 </div>
 
 <script>
+// ── ГАРАНТОВАНО ВИМИКАЄМО СТАРИЙ SERVICE WORKER, ЯКИЙ КЕШУВАВ СТАРИЙ ІНТЕРФЕЙС ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const reg of regs) reg.unregister();
+  }).catch(() => {});
+}
+
 const HOME_DEFAULT = ["Запоріжжя", 47.838, 35.139];
 let home = HOME_DEFAULT;
 
@@ -974,7 +981,7 @@ function renderSilhouetteSVG(type, col, rotDeg = 0) {
 }
 
 function getTargetLabelText(t) {
-  const routeTxt = (t.to && t.to !== t.frm) ? `${t.name} · ${t.to}` : `${t.name} · ${t.frm}`;
+  const routeTxt = (t.to && t.to !== t.frm) ? `${t.name} → ${t.to}` : `${t.name} · ${t.frm}`;
   const etaStr = (!t.ended && t.eta != null) ? ` · ${fmtEta(t.eta)}` : (t.status ? ` · ${t.status}` : '');
   return routeTxt + etaStr;
 }
@@ -991,7 +998,6 @@ function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
   </div>`;
 }
 
-// ── СТАН РАДАРА ТА АДМІН-РЕЖИМУ ──
 const ADMIN_TOKEN_KEY = 'zp_radar_admin_token_v11';
 const EXPECTED_CODE = 'KDLEPL1@D';
 let isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === EXPECTED_CODE;
@@ -1216,70 +1222,75 @@ function syncTrackVectorLayers(forceRebuild = false) {
   });
 }
 
-// ── ІДЕАЛЬНО ПЛАВНИЙ DEAD-RECKONING РУШІЙ 60 FPS (БЕЗ СТОЯННЯ НА МІСЦІ І БЕЗ ТЕЛЕПОРТАЦІЙ!) ──
+// ── БЕЗПЕРЕРВНИЙ ПЛАВНИЙ DEAD-RECKONING РУШІЙ (60 FPS + FALLBACK НА ВИПАДОК ФОНОВОЇ ВКЛАДКИ) ──
 let lastAnimTs = performance.now();
-function animateLoop(nowMs) {
-  const dt = Math.min(0.10, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
+function stepClientKinematics() {
+  const nowMs = performance.now();
+  const dt = Math.min(0.15, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
   lastAnimTs = nowMs;
 
-  if (!isZooming) {
-    Object.values(serverTracks).forEach(t => {
-      const a = animState[t.id];
-      const m = markerLayerById[t.id];
-      if (!a || !m || m._isDragging) return;
-      const v = t.v || 180;
-      if (!t.ended && v > 0) {
-        const kinematicMult = v < 250 ? 1.65 : 1.0;
-        const stepKm = (v * kinematicMult * dt) / 3600;
+  if (isZooming) return;
 
-        if (t.loiter) {
-          a.hdg = ((a.hdg || 320) + 15.0 * dt) % 360;
-          const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-          a.lat = np[0]; a.lon = np[1];
-        } else {
-          if (t.goal && hav(a.lat, a.lon, t.goal[0], t.goal[1]) > 0.25) {
-            a.targetHdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
-          }
-          const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
-          if (Math.abs(diff) > 0.2) {
-            const turnRate = (t.kind === 'kab' ? 36.0 : 48.0) * dt;
-            a.hdg = (a.hdg + Math.max(-turnRate, Math.min(turnRate, diff)) + 360) % 360;
-          }
+  Object.values(serverTracks).forEach(t => {
+    const a = animState[t.id];
+    const m = markerLayerById[t.id];
+    if (!a || !m || m._isDragging) return;
+    const v = t.v || 180;
+    if (!t.ended && v > 0) {
+      const kinematicMult = v < 260 ? 2.2 : 1.15;
+      const stepKm = (v * kinematicMult * dt) / 3600;
 
-          const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-          a.lat = np[0];
-          a.lon = np[1];
-
-          if (a.srvLat != null && a.srvLon != null && a.srvTime != null) {
-            const elapsedSrv = Math.min(2.5, Math.max(0, (nowMs - a.srvTime) / 1000));
-            const srvProj = fwd(a.srvLat, a.srvLon, a.targetHdg != null ? a.targetHdg : a.hdg, (v * kinematicMult * elapsedSrv) / 3600);
-            const blend = 1.0 - Math.exp(-1.4 * dt);
-            a.lat += (srvProj[0] - a.lat) * blend;
-            a.lon += (srvProj[1] - a.lon) * blend;
-          }
+      if (t.loiter) {
+        a.hdg = ((a.hdg || 320) + 18.0 * dt) % 360;
+        const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+        a.lat = np[0]; a.lon = np[1];
+      } else {
+        if (t.goal && hav(a.lat, a.lon, t.goal[0], t.goal[1]) > 0.25) {
+          a.targetHdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
+        }
+        const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
+        if (Math.abs(diff) > 0.2) {
+          const turnRate = (t.kind === 'kab' ? 45.0 : 65.0) * dt;
+          a.hdg = (a.hdg + Math.max(-turnRate, Math.min(turnRate, diff)) + 360) % 360;
         }
 
-        m.setLatLng([a.lat, a.lon]);
-        const el = m.getElement && m.getElement();
-        const svgEl = el && el.querySelector('.target-rot-svg');
-        if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+        const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+        a.lat = np[0];
+        a.lon = np[1];
 
-        if (vectorPolyById[t.id] && t.goal) {
-          vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
-        }
-        if (originPolyById[t.id] && t.fx && t.fx.length >= 2) {
-          originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
-        }
-        if (conePolyById[t.id] && t.goal) {
-          const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-          const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 16);
-          const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
-          const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
-          conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
+        if (a.srvLat != null && a.srvLon != null && a.srvTime != null) {
+          const elapsedSrv = Math.min(2.5, Math.max(0, (nowMs - a.srvTime) / 1000));
+          const srvProj = fwd(a.srvLat, a.srvLon, a.targetHdg != null ? a.targetHdg : a.hdg, (v * kinematicMult * elapsedSrv) / 3600);
+          const blend = 1.0 - Math.exp(-1.5 * dt);
+          a.lat += (srvProj[0] - a.lat) * blend;
+          a.lon += (srvProj[1] - a.lon) * blend;
         }
       }
-    });
-  }
+
+      m.setLatLng([a.lat, a.lon]);
+      const el = m.getElement && m.getElement();
+      const svgEl = el && el.querySelector('.target-rot-svg');
+      if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+
+      if (vectorPolyById[t.id] && t.goal) {
+        vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+      }
+      if (originPolyById[t.id] && t.fx && t.fx.length >= 2) {
+        originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
+      }
+      if (conePolyById[t.id] && t.goal) {
+        const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+        const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 16);
+        const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+        const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+        conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
+      }
+    }
+  });
+}
+
+function animateLoop() {
+  stepClientKinematics();
   requestAnimationFrame(animateLoop);
 }
 requestAnimationFrame(animateLoop);
@@ -1324,9 +1335,11 @@ function applyServerState(st) {
         a.srvTime = nowPerf;
         if (t.thdg != null) a.targetHdg = t.thdg;
         else if (t.hdg != null) a.targetHdg = t.hdg;
-        if (hav(a.lat, a.lon, t.lat, t.lon) > 35.0) {
+        // Якщо позиція змінилася через нове повідомлення «НАД іншим районом» (> 3.2 км), переставляємо в нову точку фіксації!
+        if (hav(a.lat, a.lon, t.lat, t.lon) > 3.2) {
           a.lat = t.lat;
           a.lon = t.lon;
+          a.hdg = initH;
         }
       }
     }
@@ -1517,7 +1530,6 @@ document.getElementById('sheet-handle').addEventListener('click', () => {
   document.getElementById('sheet-toggle-lbl').textContent = collapsed ? 'ВІДКРИТИ' : 'ЗГОРНУТИ';
 });
 
-// Реалістичні пресети спавну (FPV та Молнія спавняться на короткій дистанції 2.2 - 4 км, а не з фронту!)
 const DEFAULT_SPAWN_PRESETS = {
   geran2:    { lat: 47.765, lon: 35.215, frm: 'підліт до ЗП', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
   geran3:    { lat: 47.685, lon: 36.960, frm: 'Донецька обл.', goal_lat: 47.482, goal_lon: 36.254, goal_name: 'Пологи' },
@@ -1609,7 +1621,6 @@ pickMapBtn.addEventListener('click', () => {
 
 map.on('click', e => {
   if (isAdmin && clickSpawnSub) {
-    // При спавні кліком по карті ставимо ціль САМЕ В ТОЧЦІ КЛІКУ (не тягнемо з фронту!) з локальним вектором 4 км уперед
     const goalPt = fwd(e.latlng.lat, e.latlng.lng, 335, clickSpawnSub === 'fpv' ? 3.0 : 6.0);
     postSim({
       spawn: {
