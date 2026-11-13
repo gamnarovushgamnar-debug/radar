@@ -3,27 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Оперативний Радар ZP · DeepSeek AI v11</title>
+<title>Оперативний Радар ZP</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#080c14">
+<meta name="theme-color" content="#070a0f">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
 :root {
-  --bg: #070b12;
-  --panel: rgba(13, 19, 31, 0.94);
-  --card: #151e30;
-  --card-hover: #1b273d;
-  --border: rgba(56, 139, 253, 0.24);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --text: #ecf2f8;
-  --muted: #8b9bb0;
-  --accent: #388bfd;
+  --bg: #070a0f;
+  --panel: rgba(10, 14, 20, 0.94);
+  --card: #111722;
+  --card-hover: #172030;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --text: #e6edf3;
+  --muted: #7d8998;
+  --accent: #2f81f7;
   --green: #2ea043;
-  --amber: #e3b341;
+  --amber: #f5a623;
   --red: #f85149;
-  --purple: #bc8cff;
-  --sheet-h: 42%;
+  --sheet-h: 50px;
 }
 
 * {
@@ -38,7 +37,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font: 13.5px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  font: 12.5px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   overflow: hidden;
   user-select: none;
 }
@@ -46,7 +45,7 @@ html, body {
 #mapWrap {
   position: absolute;
   inset: 0;
-  background: #070b12;
+  background: #070a0f;
   overflow: hidden;
 }
 
@@ -55,258 +54,222 @@ html, body {
   inset: 0;
   width: 100%;
   height: 100%;
-  background: #070b12;
+  background: #070a0f;
 }
 
 .leaflet-container {
-  background: #070b12 !important;
+  background: #070a0f !important;
   font-family: inherit;
 }
 
 .leaflet-tile-pane {
   will-change: transform;
 }
-.leaflet-layer.tactical-filter {
-  filter: saturate(0.75) brightness(0.88) contrast(1.05);
+.leaflet-layer.radar-dark {
+  filter: invert(1) hue-rotate(188deg) saturate(0.52) brightness(0.64) contrast(1.12);
+}
+.leaflet-layer.tactical-topo {
+  filter: saturate(0.72) brightness(0.86) contrast(1.04);
 }
 .leaflet-layer.sat-filter {
-  filter: saturate(0.82) brightness(0.68) contrast(1.08);
+  filter: saturate(0.8) brightness(0.65) contrast(1.08);
 }
 
 .leaflet-control-attribution {
-  background: rgba(7, 11, 18, 0.78) !important;
-  color: #6e7f96 !important;
-  font-size: 10px !important;
-  border-radius: 6px 0 0 0;
-  padding: 2px 6px !important;
-}
-.leaflet-control-attribution a {
-  color: #8b9bb0 !important;
+  display: none !important;
 }
 
-/* Фіксована діагональна водянка на всю карту */
+/* Діагональна водянка «ОПЕРАТИВНИЙ РАДАР ZP» */
 #wmOverlay {
   position: absolute;
   inset: 0;
   z-index: 410;
   pointer-events: none;
   overflow: hidden;
-  opacity: 0.22;
+  opacity: 0.19;
 }
 
-#topLeftHud {
+/* ── КОМПАКТНИЙ ТАКТИЧНИЙ ВЕРХНІЙ HUD (НЕ ЗАКРИВАЄ КАРТУ НА ТЕЛЕФОНІ!) ── */
+#topHud {
   position: absolute;
   z-index: 850;
-  top: calc(10px + env(safe-area-inset-top));
-  left: 12px;
-  right: 12px;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 8px;
+  right: 52px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   pointer-events: none;
-  max-width: 680px;
+  max-width: 520px;
 }
-#topLeftHud > * {
+#topHud > * {
   pointer-events: auto;
 }
 
-.top-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#stampBadge {
+.hud-bar {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: rgba(10, 15, 24, 0.92);
-  border: 1px solid rgba(227, 179, 65, 0.45);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
-  font-weight: 700;
-  font-size: 12.5px;
-  color: #ffd875;
-  letter-spacing: 0.2px;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(10, 14, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  width: fit-content;
+  max-width: 100%;
 }
-#stampBadge .brand-dot {
-  width: 8px;
-  height: 8px;
+#statusDot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #3fb950;
-  box-shadow: 0 0 8px #3fb950;
+  box-shadow: 0 0 6px #3fb950;
+  flex-shrink: 0;
 }
-
-#aiBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
-  border-radius: 10px;
-  background: rgba(16, 26, 44, 0.92);
-  border: 1px solid rgba(56, 139, 253, 0.45);
-  color: #79c0ff;
-  font-size: 12px;
+#statusDot.am {
+  background: #f5a623;
+  box-shadow: 0 0 8px #f5a623;
+}
+#statusDot.rd {
+  background: #f85149;
+  box-shadow: 0 0 10px #f85149;
+  animation: blinkDot 0.8s infinite;
+}
+@keyframes blinkDot {
+  50% { opacity: 0.3; }
+}
+#stampText {
+  font: 700 11px/1.2 "SF Mono", "JetBrains Mono", Consolas, monospace;
+  color: #f0c654;
+  white-space: nowrap;
+}
+#banShort {
+  font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  color: #c9d1d9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-#ban {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 13px;
-  background: rgba(14, 34, 22, 0.94);
-  border: 1px solid rgba(46, 160, 67, 0.55);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-  font-weight: 600;
-  font-size: 13.5px;
-  color: #d2f4dc;
-}
-#ban.am {
-  background: rgba(46, 33, 10, 0.95);
-  border-color: rgba(227, 179, 65, 0.65);
-  color: #ffe299;
-}
-#ban.rd {
-  background: rgba(64, 15, 20, 0.96);
-  border-color: rgba(248, 81, 73, 0.85);
-  color: #ffb8b3;
-  animation: pulseAlert 1.1s infinite;
-}
-@keyframes pulseAlert {
-  50% {
-    background: rgba(96, 20, 26, 0.98);
-    box-shadow: 0 0 24px rgba(248, 81, 73, 0.5);
-  }
-}
-
+/* Тонка смужка фільтрів в один рядок */
 #chips {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+#chips::-webkit-scrollbar {
+  display: none;
 }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
-  border-radius: 99px;
-  background: rgba(13, 19, 31, 0.92);
-  border: 1px solid var(--border-subtle);
-  font-size: 12px;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(10, 14, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.15s, opacity 0.15s;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-}
-.chip:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .chip.off {
-  opacity: 0.38;
-  filter: grayscale(0.85);
+  opacity: 0.35;
+  filter: grayscale(0.9);
 }
 .chip b {
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.09);
-  font-size: 11px;
+  color: #fff;
+  font-size: 10.5px;
 }
 
+/* Компактна картка обраної цілі */
 #infocard {
   display: none;
-  padding: 13px 15px;
-  border-radius: 14px;
-  background: rgba(13, 19, 31, 0.96);
-  border: 1px solid rgba(56, 139, 253, 0.45);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
-  max-width: 480px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(10, 14, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  max-width: 390px;
   position: relative;
 }
 #infocard .close {
   position: absolute;
-  top: 9px;
-  right: 11px;
+  top: 7px;
+  right: 8px;
   background: rgba(255, 255, 255, 0.07);
-  border: 1px solid var(--border-subtle);
+  border: 0;
   color: var(--muted);
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  font-size: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-#infocard .close:hover {
-  color: #fff;
-  background: rgba(248, 81, 73, 0.25);
 }
 
 .steer-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 7px;
+  gap: 4px;
+  margin-top: 6px;
 }
 .st-pill {
-  background: #172236;
-  border: 1px solid rgba(56, 139, 253, 0.32);
-  color: #a5d6ff;
-  border-radius: 7px;
-  padding: 4px 8px;
-  font-size: 11.5px;
+  background: #161f2e;
+  border: 1px solid rgba(47, 129, 247, 0.35);
+  color: #9ecbff;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.12s;
 }
 .st-pill:hover, .st-pill.active {
   background: var(--accent);
   color: #fff;
-  border-color: var(--accent);
 }
 
+/* ── КОМПАКТНІ КНОПКИ ІНСТРУМЕНТІВ СПРАВА (34x34px) ── */
 #btns {
   position: absolute;
   z-index: 850;
-  left: 12px;
-  bottom: calc(var(--sheet-h) + 14px);
+  right: 8px;
+  top: calc(8px + env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  transition: bottom 0.22s ease;
+  gap: 5px;
 }
 .b {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: rgba(13, 19, 31, 0.92);
-  border: 1px solid var(--border-subtle);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(10, 14, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text);
-  font-size: 17px;
+  font-size: 14px;
   padding: 0;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
 }
 .b:hover, .b.on {
   border-color: var(--accent);
-  background: #182640;
+  background: #172336;
   color: #79c0ff;
 }
 
+/* ── НИЖНЯ ШТОРКА (ЗГОРНУТА ДО 50px НА ТЕЛЕФОНІ ЗА ЗАМОВЧУВАННЯМ!) ── */
 #sheet {
   position: absolute;
   left: 0;
@@ -318,37 +281,30 @@ html, body {
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom);
-  transition: height 0.22s ease, transform 0.22s ease;
+  transition: height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   z-index: 900;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.6);
 }
 
-@media (min-width: 920px) {
+@media (min-width: 880px) {
   #sheet {
-    top: 12px;
-    bottom: 12px;
-    right: 12px;
+    top: 8px;
+    bottom: 8px;
+    right: 50px;
     left: auto;
-    width: 420px;
+    width: 340px;
     height: auto !important;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid var(--border);
-    box-shadow: 0 12px 38px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
   }
   #grip {
     display: none !important;
   }
-  #btns {
-    left: 12px;
-    bottom: 24px !important;
-  }
-  #topLeftHud {
-    right: 446px;
-  }
 }
 
 #grip {
-  height: 20px;
+  height: 14px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -356,147 +312,108 @@ html, body {
   flex-shrink: 0;
 }
 #grip i {
-  width: 44px;
-  height: 4px;
+  width: 36px;
+  height: 3.5px;
   border-radius: 4px;
-  background: #354660;
+  background: #364152;
 }
 
-.panel-hdr {
+.bar-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px 6px;
+  padding: 2px 10px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
-.panel-title {
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 0.3px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.hdr-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.panel-sub {
-  font-size: 11px;
-  color: #56d364;
-  font-weight: 700;
-}
-
-#adminLoginBtn {
-  background: rgba(56, 139, 253, 0.14);
-  border: 1px solid rgba(56, 139, 253, 0.38);
-  color: #79c0ff;
-  border-radius: 8px;
-  padding: 3px 9px;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-#adminLoginBtn:hover {
-  background: rgba(56, 139, 253, 0.28);
-  color: #fff;
-}
-#adminLoginBtn.unlocked {
-  background: rgba(46, 160, 67, 0.2);
-  border-color: rgba(63, 185, 80, 0.55);
-  color: #56d364;
-}
-
 #tabs {
   display: flex;
-  gap: 6px;
-  padding: 4px 12px 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  gap: 4px;
   overflow-x: auto;
-  flex-shrink: 0;
+  scrollbar-width: none;
+}
+#tabs::-webkit-scrollbar {
+  display: none;
 }
 #tabs b {
   cursor: pointer;
-  padding: 5px 11px;
-  border-radius: 8px;
+  padding: 4px 9px;
+  border-radius: 6px;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--muted);
-  transition: all 0.15s;
-}
-#tabs b:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
 }
 #tabs b.on {
   color: #fff;
-  background: rgba(56, 139, 253, 0.2);
-  border: 1px solid rgba(56, 139, 253, 0.45);
+  background: rgba(47, 129, 247, 0.2);
+  border: 1px solid rgba(47, 129, 247, 0.45);
 }
 
-/* АДМІН-БЛОК КОМАНД (ПРИХОВАНИЙ ДЛЯ ЗВИЧАЙНИХ КОРИСТУВАЧІВ) */
+#adminLoginBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#adminLoginBtn.unlocked {
+  background: rgba(46, 160, 67, 0.18);
+  border-color: rgba(63, 185, 80, 0.45);
+  color: #56d364;
+}
+
+/* Рядок вводу в адмін-режимі */
 #simbox {
   display: none;
-  padding: 9px 12px;
-  background: rgba(7, 11, 18, 0.72);
+  padding: 7px 10px;
+  background: rgba(5, 8, 12, 0.7);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 .sim-input-row {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 #simin {
   flex: 1;
-  background: #080d16;
+  background: #080b10;
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--text);
-  border-radius: 9px;
-  padding: 8px 11px;
-  font-size: 13px;
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12px;
   outline: none;
-  transition: border-color 0.15s;
-}
-#simin:focus {
-  border-color: var(--accent);
 }
 #simbtn {
   background: var(--accent);
   border: 0;
   color: #fff;
-  border-radius: 9px;
-  padding: 8px 13px;
+  border-radius: 7px;
+  padding: 6px 10px;
   font-weight: 700;
   cursor: pointer;
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-#simbtn:hover {
-  background: #2f7be5;
+  font-size: 11.5px;
 }
 #clrbtn {
   background: var(--card);
   border: 1px solid var(--border-subtle);
   color: var(--muted);
-  border-radius: 9px;
-  padding: 8px 10px;
+  border-radius: 7px;
+  padding: 6px 8px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-}
-#clrbtn:hover {
-  color: #ff7b72;
-  border-color: rgba(248, 81, 73, 0.4);
+  font-size: 11px;
 }
 
 .quick-bar {
   display: flex;
-  gap: 5px;
+  gap: 4px;
   overflow-x: auto;
-  padding-top: 7px;
+  padding-top: 6px;
   scrollbar-width: none;
 }
 .quick-bar::-webkit-scrollbar {
@@ -505,195 +422,94 @@ html, body {
 .q-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #c9d6e3;
-  border-radius: 7px;
-  padding: 3.5px 8px;
-  font-size: 11px;
+  color: #c9d1d9;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 10.5px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.12s;
-}
-.q-btn:hover {
-  background: rgba(56, 139, 253, 0.2);
-  border-color: var(--accent);
-  color: #fff;
 }
 
 .pane {
   overflow-y: auto;
   flex: 1;
-  padding: 8px 12px 14px;
-}
-
-#aiSummaryBox {
-  padding: 10px 12px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, rgba(22, 34, 56, 0.9), rgba(15, 23, 38, 0.9));
-  border: 1px solid rgba(56, 139, 253, 0.32);
-  margin-bottom: 9px;
-}
-#aiSummaryBox .ai-h {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #79c0ff;
-  margin-bottom: 4px;
-}
-#aiSummaryBox .ai-main {
-  font-weight: 700;
-  font-size: 13px;
-  color: #fff;
-}
-#aiSummaryBox .ai-det {
-  font-size: 12px;
-  color: #b0c0d4;
-  margin-top: 3px;
+  padding: 6px 10px 12px;
 }
 
 .r-card {
-  padding: 10px 12px;
-  border-radius: 11px;
+  padding: 8px 10px;
+  border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--border-subtle);
-  margin-bottom: 7px;
+  margin-bottom: 5px;
   cursor: pointer;
-  transition: background 0.14s, border-color 0.14s;
 }
 .r-card:hover {
   background: var(--card-hover);
-  border-color: rgba(56, 139, 253, 0.38);
 }
 .r-card small {
   display: block;
   color: var(--muted);
-  margin-top: 3px;
-  font-size: 11.5px;
+  margin-top: 2px;
+  font-size: 11px;
 }
 .r-card .tx {
-  color: #c4d0de;
-  margin-top: 5px;
-  font-size: 12px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 6px;
-}
-.threat-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-}
-.th-pill {
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 1.5px 6px;
-  border-radius: 5px;
-  background: rgba(227, 179, 65, 0.15);
-  border: 1px solid rgba(227, 179, 65, 0.4);
-  color: #ffd875;
-}
-
-.k {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 99px;
-  border: 1px solid;
+  color: #9ca8b8;
+  margin-top: 4px;
   font-size: 11px;
-  margin-right: 5px;
-  font-weight: 600;
-}
-.ch-b {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: rgba(46, 160, 67, 0.16);
-  border: 1px solid rgba(63, 185, 80, 0.4);
-  color: #56d364;
-  font-size: 10.5px;
-  margin-left: 4px;
-}
-.st-b {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: rgba(248, 81, 73, 0.16);
-  border: 1px solid rgba(248, 81, 73, 0.5);
-  color: #ff948d;
-  font-size: 11px;
-  font-weight: 600;
-  margin-left: 4px;
-}
-.conf-b {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: rgba(56, 139, 253, 0.15);
-  border: 1px solid rgba(56, 139, 253, 0.38);
-  color: #79c0ff;
-  font-size: 10.5px;
-  margin-left: 4px;
 }
 .del-b {
   float: right;
-  background: rgba(248, 81, 73, 0.12);
+  background: rgba(248, 81, 73, 0.15);
   border: 1px solid rgba(248, 81, 73, 0.35);
   color: #ff7b72;
-  border-radius: 6px;
-  padding: 2px 7px;
-  font-size: 11px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10.5px;
   cursor: pointer;
 }
-.del-b:hover {
-  background: rgba(248, 81, 73, 0.3);
-}
 
-/* КАРТКА АДМІН-ПАНЕЛІ */
 .adm-box {
-  padding: 11px 12px;
-  border-radius: 11px;
+  padding: 9px 10px;
+  border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--border-subtle);
-  margin-bottom: 9px;
+  margin-bottom: 7px;
 }
 .adm-box h4 {
-  margin: 0 0 7px;
-  font-size: 12.5px;
+  margin: 0 0 6px;
+  font-size: 11.5px;
   color: #79c0ff;
   display: flex;
-  align-items: center;
   justify-content: space-between;
 }
 .adm-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
 }
 .adm-btn {
-  background: #1a2740;
-  border: 1px solid rgba(56, 139, 253, 0.35);
+  background: #162030;
+  border: 1px solid rgba(47, 129, 247, 0.3);
   color: #dce8f5;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 12px;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   text-align: center;
-  transition: all 0.14s;
 }
-.adm-btn:hover, .adm-btn.active {
+.adm-btn.active {
   background: var(--accent);
   color: #fff;
-  border-color: var(--accent);
 }
 
-/* МАРКЕРИ НА КАРТІ */
+/* ── СПРАВЖНІ КОМПАКТНІ РАДАРНІ МІТКИ НА КАРТІ (ЯК В «ОЧІ ВСЮДИ» / ВІРАЖ-ПЛАНШЕТ) ── */
 .mk {
   position: relative;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   will-change: transform;
 }
 .mk.admin-drag {
@@ -703,53 +519,46 @@ html, body {
   cursor: grabbing;
 }
 .mk svg {
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 .lb {
   position: absolute;
-  left: 28px;
-  top: 3px;
+  left: 50%;
+  top: 21px;
+  transform: translateX(-50%);
   white-space: nowrap;
-  font: 700 11px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: var(--c);
-  background: rgba(8, 12, 20, 0.9);
-  padding: 2.5px 7px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
-}
-.pulse-ring {
-  position: absolute;
-  inset: -4px;
-  border: 2px solid var(--c);
-  border-radius: 50%;
-  opacity: 0.55;
+  font: 700 9.5px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #fff;
+  background: rgba(10, 13, 18, 0.88);
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--c);
+  pointer-events: none;
 }
 .ring-lbl {
-  font: 700 10px system-ui;
-  color: #637899;
+  font: 600 9.5px system-ui;
+  color: rgba(140, 160, 185, 0.65);
   white-space: nowrap;
-  text-shadow: 0 0 3px #000;
 }
 .tgt-reticle {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--c);
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--c);
   border-radius: 50%;
   position: relative;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.45);
 }
 .tgt-reticle::after {
   content: '';
   position: absolute;
-  inset: 3.5px;
+  inset: 2.5px;
   background: var(--c);
   border-radius: 50%;
 }
 
-/* МОДАЛЬНЕ ВІКНО ВХОДУ В АДМІН-ПАНЕЛЬ */
+/* Модальне вікно входу в Адмінку */
 #adminModal {
   position: fixed;
   z-index: 1500;
@@ -762,41 +571,38 @@ html, body {
 }
 .modal-card {
   width: 100%;
-  max-width: 360px;
-  background: #101827;
-  border: 1px solid rgba(56, 139, 253, 0.45);
-  border-radius: 16px;
-  padding: 18px 20px;
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.75);
+  max-width: 330px;
+  background: #0f1520;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 15px 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
 }
 .modal-card h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
+  margin: 0 0 5px;
+  font-size: 14.5px;
   color: #fff;
 }
 .modal-card p {
-  margin: 0 0 12px;
-  font-size: 12.5px;
+  margin: 0 0 10px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 #adminCodeIn {
   width: 100%;
-  background: #080c14;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #070a0f;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #fff;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
   outline: none;
-  margin-bottom: 8px;
-}
-#adminCodeIn:focus {
-  border-color: var(--accent);
+  margin-bottom: 6px;
 }
 #adminErr {
   color: #ff7b72;
-  font-size: 12px;
-  min-height: 18px;
+  font-size: 11px;
+  min-height: 15px;
   margin-bottom: 6px;
 }
 
@@ -807,16 +613,16 @@ html, body {
   display: none;
   background: radial-gradient(rgba(138, 17, 29, 0.94), rgba(40, 4, 8, 0.97));
   text-align: center;
-  padding: 20% 24px;
-  font-size: 23px;
+  padding: 25% 20px;
+  font-size: 20px;
   font-weight: 800;
 }
 #al button {
-  margin-top: 26px;
-  padding: 12px 28px;
-  border-radius: 12px;
+  margin-top: 20px;
+  padding: 10px 24px;
+  border-radius: 10px;
   border: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   background: #fff;
   color: #400;
@@ -831,141 +637,113 @@ html, body {
   <div id="wmOverlay"></div>
 </div>
 
-<!-- ВЕРХНІЙ ТАКТИЧНИЙ HUD -->
-<div id="topLeftHud">
-  <div class="top-row">
-    <div id="stampBadge">
-      <span class="brand-dot"></span>
-      <span>Станом на <b id="clock">--.--.---- --:--:--</b> · ОПЕРАТИВНИЙ РАДАР ZP</span>
-    </div>
-    <div id="aiBadge" title="Підключена нейромережа DeepSeek-V3 + Тактичний рушій">
-      🧠 <span id="aiProviderTx">DeepSeek-V3 Neural AI v11</span>
-    </div>
+<!-- МІНІМАЛІСТИЧНИЙ РАДАРНИЙ HUD У ВЕРХНЬОМУ КУТІ -->
+<div id="topHud">
+  <div class="hud-bar">
+    <span id="statusDot"></span>
+    <span id="stampText">Станом на <span id="clock">--.--.---- --:--:--</span></span>
+    <span id="banShort">Чисто</span>
   </div>
-
-  <div id="ban">
-    <span id="bantx">🟢 Повітряний простір Запоріжжя та області чистий</span>
-  </div>
-
   <div id="chips"></div>
-
   <div id="infocard">
-    <button class="close" id="infoCloseBtn" title="Закрити">✖</button>
+    <button class="close" id="infoCloseBtn">✖</button>
     <div id="infobody"></div>
   </div>
 </div>
 
-<!-- БОКОВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ -->
+<!-- КОМПАКТНІ КНОПКИ ІНСТРУМЕНТІВ СПРАВА -->
 <div id="btns">
-  <button class="b" id="bs" title="Звукове оповіщення та сирена">🔔</button>
-  <button class="b" id="brul" title="Лінійка підльоту (виміряти відстань і час до Запоріжжя)">📏</button>
-  <button class="b" id="bm" title="Моя геолокація">📍</button>
+  <button class="b" id="bs" title="Звукове сповіщення">🔔</button>
+  <button class="b" id="brul" title="Лінійка підльоту">📏</button>
+  <button class="b" id="bm" title="Моя геопозиція">📍</button>
   <button class="b" id="bh" title="Центрувати на Запоріжжі">🎯</button>
-  <button class="b" id="bl" title="Перемкнути стиль карти">🗺</button>
+  <button class="b" id="bl" title="Змінити тему карти">🗺</button>
 </div>
 
-<!-- ПАНЕЛЬ МОНІТОРИНГУ ТА ЗАХИЩЕНА АДМІН-ПАНЕЛЬ -->
+<!-- НИЖНЯ ШТОРКА (ЗГОРНУТА НА МОБІЛЬНОМУ ДО 50px, РОЗГОРТАЄТЬСЯ ДОТИКОМ) -->
 <div id="sheet">
   <div id="grip"><i></i></div>
-  <div class="panel-hdr">
-    <div class="panel-title">📡 ОПЕРАТИВНИЙ РАДАР ZP</div>
-    <div class="hdr-right">
-      <div class="panel-sub" id="connStatus">● DeepSeek AI</div>
-      <button id="adminLoginBtn" title="Вхід в адмін-панель">🔐 Адмін</button>
+  <div class="bar-top">
+    <div id="tabs">
+      <b class="on" data-t="list">🎯 Цілі <span id="tcnt"></span></b>
+      <b data-t="feed">📡 Стрічка</b>
+      <b data-t="admin" id="tabAdminBtn" hidden>🛠 Адмін</b>
+      <b data-t="chans" id="tabChansBtn" hidden>⚙️ Канали</b>
     </div>
+    <button id="adminLoginBtn">🔐</button>
   </div>
 
-  <div id="tabs">
-    <b class="on" data-t="list">🎯 Цілі <span id="tcnt"></span></b>
-    <b data-t="feed">📡 Стрічка</b>
-    <b data-t="admin" id="tabAdminBtn" hidden>🛠 Адмін-панель</b>
-    <b data-t="chans" id="tabChansBtn" hidden>⚙️ Канали</b>
-  </div>
-
-  <!-- РЯДОК ШВИДКОГО ВВЕДЕННЯ (ДОСТУПНИЙ ЛИШЕ АДМІНУ ПІСЛЯ ВВЕДЕННЯ КОДУ РАЗ І НАЗАВЖДИ) -->
   <div id="simbox">
     <div class="sim-input-row">
-      <input id="simin" placeholder="Адмін-команда (напр.: кабы с пришиба, курс зеленый, на остров)">
-      <button id="simbtn">На карту</button>
-      <button id="clrbtn" title="Очистити всі цілі">Очистити</button>
+      <input id="simin" placeholder="Команда (напр.: кабы на орехов, шахед на шевчик)">
+      <button id="simbtn">Пуск</button>
+      <button id="clrbtn">Очистити</button>
     </div>
     <div class="quick-bar" id="quickBar">
-      <button class="q-btn" data-q="КАБи з Пришиба">💣 КАБи з Пришиба</button>
-      <button class="q-btn" data-q="Реактив в Донецькій області на Пологи">⚡ Реактив Донецька → Пологи</button>
-      <button class="q-btn" data-q="БпЛА на Запоріжжя">🛵 БпЛА на Запоріжжя</button>
-      <button class="q-btn" data-q="курс Зелений">↪ Курс Зелений</button>
+      <button class="q-btn" data-q="КАБи на Оріхів">💣 КАБ на Оріхів</button>
+      <button class="q-btn" data-q="КАБи з Пришиба на Малокатеринівку">💣 КАБ Малокатеринівка</button>
+      <button class="q-btn" data-q="Реактив в Донецькій області на Пологи">⚡ Реактив → Пологи</button>
+      <button class="q-btn" data-q="БпЛА на Запоріжжя">🛵 БпЛА на ЗП</button>
+      <button class="q-btn" data-q="курс Зелений">↪ На Зелений</button>
       <button class="q-btn" data-q="на Шевчик">↪ На Шевчик</button>
       <button class="q-btn" data-q="на Острів">↪ На Острів</button>
       <button class="q-btn" data-q="на Бабурку">↪ На Бабурку</button>
-      <button class="q-btn" data-q="на Космос">↪ На Космос</button>
       <button class="q-btn" data-q="Збито">🛡 Збито</button>
     </div>
   </div>
 
   <div id="list" class="pane">
-    <div id="aiSummaryBox">
-      <div class="ai-h"><span>🧠 НЕЙРОМЕРЕЖА DEEPSEEK AI</span><span id="aiMs">Активна</span></div>
-      <div class="ai-main" id="aiSumTitle">Повітряний простір Запоріжжя чистий</div>
-      <div class="ai-det" id="aiSumDet">DeepSeek AI в реальному часі розпізнає райони Запоріжжя та пуски КАБів.</div>
-    </div>
     <div id="tracksList"></div>
   </div>
 
   <div id="feed" class="pane" hidden></div>
 
-  <!-- ВКЛАДКА АДМІН-ПАНЕЛІ (ВІДКРИВАЄТЬСЯ ПІСЛЯ ОДНОРАЗОВОГО ВВЕДЕННЯ КОДУ KDLEPL1@D) -->
   <div id="admin" class="pane" hidden>
     <div class="adm-box">
-      <h4>
-        <span>🖐 Перетягування та Керування на карті</span>
-        <span style="color:#56d364;font-size:11px">● Розблоковано</span>
-      </h4>
-      <div style="font-size:12px;color:#b8c7d9;margin-bottom:8px">
-        • <b>Переміщення об'єктів:</b> просто затисніть будь-який БпЛА чи КАБ мишкою/пальцем на карті і перетягніть у потрібне місце!<br>
-        • <b>Зміна вектора:</b> перетягніть кружок-приціл на кінці лінії курсу або натисніть на ціль і виберіть район.
+      <h4><span>🖐 Ручне розміщення та перетягування</span><span style="color:#56d364">Активно</span></h4>
+      <div style="font-size:11px;color:#9ca8b8;margin-bottom:7px">
+        Перетягуйте будь-яку мітку або її приціл пальцем/мишкою прямо по карті.
       </div>
-      <div style="font-size:11.5px;font-weight:700;color:#ffd875;margin-bottom:5px">➕ ДОДАТИ ЦІЛЬ КЛІКОМ НА КАРТУ:</div>
       <div class="adm-grid-2" id="spawnToolGrid">
-        <button class="adm-btn" data-spawn="geran2">🛵 Поставити Шахед</button>
-        <button class="adm-btn" data-spawn="geran3">⚡ Поставити Реактивний</button>
-        <button class="adm-btn" data-spawn="kab">💣 Поставити КАБ</button>
-        <button class="adm-btn" data-spawn="ballistic">🚀 Поставити Балістику</button>
+        <button class="adm-btn" data-spawn="geran2">🛵 + Шахед</button>
+        <button class="adm-btn" data-spawn="geran3">⚡ + Реактивний</button>
+        <button class="adm-btn" data-spawn="kab">💣 + КАБ</button>
+        <button class="adm-btn" data-spawn="ballistic">🚀 + Балістика</button>
       </div>
-      <div id="spawnHint" style="display:none;margin-top:7px;padding:6px 9px;border-radius:8px;background:rgba(227,179,65,.16);border:1px solid rgba(227,179,65,.45);color:#ffd875;font-size:12px;font-weight:600"></div>
+      <div id="spawnHint" style="display:none;margin-top:6px;padding:5px 8px;border-radius:6px;background:rgba(245,166,35,.16);color:#f5a623;font-size:11px;font-weight:600"></div>
     </div>
 
     <div class="adm-box" id="admSelectedBox">
-      <h4><span>🎯 Керування обраною ціллю</span><span id="admSelName" style="color:#ffd875">Оберіть ціль на карті</span></h4>
-      <div id="admSelControls" style="font-size:12px;color:var(--muted)">
-        Натисніть на будь-яку активну мітку на карті або в списку, щоб змінити її вектор, азимут (0°–360°) або швидкість.
+      <h4><span>🎯 Вектор обраної цілі</span><span id="admSelName" style="color:#f5a623">Не обрано</span></h4>
+      <div id="admSelControls" style="font-size:11px;color:var(--muted)">
+        Торкніться цілі на карті для точного виставлення вектора чи швидкості.
       </div>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
-      <span style="font-size:11.5px;color:var(--muted)">Сесія адміністратора збережена в браузері</span>
-      <button id="adminLogoutBtn" style="background:rgba(248,81,73,.14);border:1px solid rgba(248,81,73,.35);color:#ff7b72;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer">🔒 Вийти з адмінки</button>
+    <div style="display:flex;justify-content:flex-end">
+      <button id="adminLogoutBtn" style="background:rgba(248,81,73,.14);border:1px solid rgba(248,81,73,.35);color:#ff7b72;border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer">🔒 Вийти з адмінки</button>
     </div>
   </div>
 
   <div id="chans" class="pane" hidden>
-    <div style="display:flex;gap:6px;margin:4px 0 10px">
-      <input id="chanin" placeholder="Додати Telegram-канал (напр. @overativnoradarzp)" style="flex:1;background:#080d16;border:1px solid var(--border-subtle);color:var(--text);border-radius:8px;padding:7px 10px">
-      <button id="chanbtn" style="background:var(--green);border:0;color:#fff;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer">+ Додати</button>
+    <div style="display:flex;gap:5px;margin:2px 0 8px">
+      <input id="chanin" placeholder="Канал (напр. @overativnoradarzp)" style="flex:1;background:#080b10;border:1px solid var(--border-subtle);color:var(--text);border-radius:6px;padding:6px 8px;font-size:11.5px">
+      <button id="chanbtn" style="background:var(--green);border:0;color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;cursor:pointer;font-size:11.5px">+</button>
     </div>
     <div id="chanlist"></div>
   </div>
 </div>
 
-<!-- МОДАЛЬНЕ ВІКНО АВТОРИЗАЦІЇ АДМІНА (КОД ВВОДИТЬСЯ ОДИН РАЗ) -->
+<!-- МОДАЛЬНЕ ВІКНО АВТОРИЗАЦІЇ АДМІНА -->
 <div id="adminModal">
   <div class="modal-card">
-    <h3>🔐 Доступ до Адмін-панелі</h3>
-    <p>Введіть секретний код адміністратора один раз — браузер запам'ятає вас назавжди на цьому пристрої.</p>
-    <input type="password" id="adminCodeIn" placeholder="Введіть секретний код..." autocomplete="off">
+    <h3>🔐 Вхід в Адмін-панель</h3>
+    <p>Введіть секретний код один раз — доступ збережеться автоматично.</p>
+    <input type="password" id="adminCodeIn" placeholder="Секретний код..." autocomplete="off">
     <div id="adminErr"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button id="adminCancelBtn" style="background:var(--card);border:1px solid var(--border-subtle);color:var(--muted);border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer">Скасувати</button>
-      <button id="adminSubmitBtn" style="background:var(--accent);border:0;color:#fff;border-radius:9px;padding:8px 16px;font-weight:700;cursor:pointer">Увійти</button>
+    <div style="display:flex;gap:6px;justify-content:flex-end">
+      <button id="adminCancelBtn" style="background:var(--card);border:1px solid var(--border-subtle);color:var(--muted);border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer">Скасувати</button>
+      <button id="adminSubmitBtn" style="background:var(--accent);border:0;color:#fff;border-radius:7px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer">Увійти</button>
     </div>
   </div>
 </div>
@@ -983,7 +761,7 @@ if ('serviceWorker' in navigator) {
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ── ПЕРЕВІРКА ТА ЗБЕРЕЖЕННЯ АДМІН-ДОСТУПУ (КОД KDLEPL1@D ВВОДИТЬСЯ ОДИН РАЗ) ── */
+/* ── ОДНОРАЗОВА АВТОРИЗАЦІЯ АДМІНА (KDLEPL1@D) ── */
 const ADMIN_SECRET = 'KDLEPL1@D';
 const ADMIN_STORAGE_KEY = 'zp_radar_admin_token_v11';
 let isAdmin = false;
@@ -993,16 +771,25 @@ try {
   }
 } catch (_) {}
 
+function expandSheetOnMobile() {
+  if (window.innerWidth < 880) {
+    const r = document.documentElement.style;
+    if ((r.getPropertyValue('--sheet-h') || '50px') === '50px') {
+      r.setProperty('--sheet-h', '46%');
+    }
+  }
+}
+
 function applyAdminState() {
   const btn = $('adminLoginBtn');
   if (isAdmin) {
-    btn.textContent = '🛠 Адмін ✓';
+    btn.textContent = '🛠 Адмін';
     btn.classList.add('unlocked');
     $('simbox').style.display = 'block';
     $('tabAdminBtn').hidden = false;
     $('tabChansBtn').hidden = false;
   } else {
-    btn.textContent = '🔐 Адмін';
+    btn.textContent = '🔐';
     btn.classList.remove('unlocked');
     $('simbox').style.display = 'none';
     $('tabAdminBtn').hidden = true;
@@ -1011,7 +798,6 @@ function applyAdminState() {
       switchTab('list');
     }
   }
-  // Вмикаємо або вимикаємо перетягування (dragging) усіх маркерів на карті
   for (const id in objs) {
     const o = objs[id];
     if (o.mk && o.mk.dragging) {
@@ -1029,6 +815,7 @@ function applyAdminState() {
 
 $('adminLoginBtn').onclick = () => {
   if (isAdmin) {
+    expandSheetOnMobile();
     switchTab('admin');
     return;
   }
@@ -1049,9 +836,10 @@ function submitAdminCode() {
     try { localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_SECRET); } catch (_) {}
     $('adminModal').style.display = 'none';
     applyAdminState();
+    expandSheetOnMobile();
     switchTab('admin');
   } else {
-    $('adminErr').textContent = '❌ Невірний секретний код!';
+    $('adminErr').textContent = '❌ Невірний код!';
   }
 }
 $('adminSubmitBtn').onclick = submitAdminCode;
@@ -1064,43 +852,44 @@ $('adminLogoutBtn').onclick = () => {
 };
 
 const K = {
-  drone:   { n: 'БпЛА',         c: '#e3b341' },
-  kab:     { n: 'КАБ',          c: '#f85149' },
-  missile: { n: 'Ракета',       c: '#ff8a3d' },
-  strike:  { n: 'РСЗО/Обстріл', c: '#bc8cff' },
-  impact:  { n: 'Приліт',       c: '#ff5c5c' }
+  drone:   { n: 'БпЛА',   c: '#f5a623' },
+  kab:     { n: 'КАБ',    c: '#f85149' },
+  missile: { n: 'Ракета', c: '#ff6b3d' },
+  strike:  { n: 'РСЗО',   c: '#bc8cff' },
+  impact:  { n: 'Приліт', c: '#ff5c5c' }
 };
 
+/* Чіткі військові радарні силуети (трикутник Шахеда/Реактивного, силует КАБ, ракета) */
 const ICONS = {
-  delta:     c => '<path d="M0-11L10 9L4 7L0 10L-4 7L-10 9Z"/>',
-  decoy:     c => '<path d="M0-10L9 8L0 5L-9 8Z" fill-opacity=".55" stroke-dasharray="2 2"/>',
-  jet:       c => '<path d="M0-12L1.8-5L11 8L11 10L2 7L1.2 10L3.5 12L-3.5 12L-1.2 10L-2 7L-11 10L-11 8L-1.8-5Z"/>',
-  cruise:    c => '<path d="M0-12L1.6-7L1.6-2L10 3L10 5.5L1.6 3.5L1.6 8L4.5 10.5L4.5 12L0 11L-4.5 12L-4.5 10.5L-1.6 8L-1.6 3.5L-10 5.5L-10 3L-1.6-2L-1.6-7Z"/>',
-  xwing:     c => '<path d="M-10-10L-6-10L0-4L6-10L10-10L10-6L4 0L10 6L10 10L6 10L0 4L-6 10L-10 10L-10 6L-4 0L-10-6Z"/>',
-  flywing:   c => '<path d="M0-7L11 7L0 4L-11 7Z"/>',
-  plane:     c => '<path d="M0-10L1.6-4L10-1.5L10 1.5L1.6 .5L1.2 6L5 8L5 10L0 9L-5 10L-5 8L-1.2 6L-1.6 .5L-10 1.5L-10-1.5L-1.6-4Z"/>',
-  quad:      c => `<path d="M-6-6L6 6M6-6L-6 6" fill="none" stroke="${c}" stroke-width="2.2"/><circle cx="-7" cy="-7" r="3"/><circle cx="7" cy="-7" r="3"/><circle cx="-7" cy="7" r="3"/><circle cx="7" cy="7" r="3"/>`,
-  kab:       c => '<path d="M0-11L2.2-4L9 2L9 4.5L2.2 2.5L1.8 8.5L5 11L-5 11L-1.8 8.5L-2.2 2.5L-9 4.5L-9 2L-2.2-4Z"/>',
-  missile:   c => '<path d="M0-12L3.5 8L0 5L-3.5 8Z"/>',
-  dart:      c => '<path d="M0-13L2.5 4L0 2L-2.5 4Z"/><path d="M0 5L1.8 11L0 9.5L-1.8 11Z" fill-opacity=".6"/>',
-  ballistic: c => '<path d="M0-12L3 5L0 3L-3 5Z"/><path d="M0 6L2.2 12L0 10L-2.2 12Z" fill-opacity=".55"/>',
-  star:      c => '<path d="M0-9L2-3L8-4L3 0L6 7L0 4L-6 7L-3 0L-8-4L-2-3Z"/>'
+  delta:     c => '<path d="M0-10L8.5 8L0 4.5L-8.5 8Z"/>',
+  decoy:     c => '<path d="M0-9L7.5 7L0 4L-7.5 7Z" fill-opacity=".55"/>',
+  jet:       c => '<path d="M0-11L9 8L2 6L0 9.5L-2 6L-9 8Z"/>',
+  cruise:    c => '<path d="M0-11L1.5-5L9 2L9 4.5L1.5 3L1.5 8L4 10.5L-4 10.5L-1.5 8L-1.5 3L-9 4.5L-9 2L-1.5-5Z"/>',
+  xwing:     c => '<path d="M-8-8L0-2L8-8L2 0L8 8L0 2L-8 8L-2 0Z"/>',
+  flywing:   c => '<path d="M0-7L10 6L0 3L-10 6Z"/>',
+  plane:     c => '<path d="M0-10L1.5-3L9-1L9 1.5L1.5 .5L1.2 6L4.5 8.5L-4.5 8.5L-1.2 6L-1.5 .5L-9 1.5L-9-1L-1.5-3Z"/>',
+  quad:      c => `<path d="M-5-5L5 5M5-5L-5 5" fill="none" stroke="${c}" stroke-width="2"/><circle cx="-6" cy="-6" r="2.5"/><circle cx="6" cy="-6" r="2.5"/><circle cx="-6" cy="6" r="2.5"/><circle cx="6" cy="6" r="2.5"/>`,
+  kab:       c => '<path d="M0-11L2.2-4L8.5 1.5L8.5 4L2.2 2.2L1.8 8L4.5 10.5L-4.5 10.5L-1.8 8L-2.2 2.2L-8.5 4L-8.5 1.5L-2.2-4Z"/>',
+  missile:   c => '<path d="M0-11L3.5 8L0 5L-3.5 8Z"/>',
+  dart:      c => '<path d="M0-12L3 6L0 3.5L-3 6Z"/>',
+  ballistic: c => '<path d="M0-12L3.5 7L0 4L-3.5 7Z"/>',
+  star:      c => '<path d="M0-8L2-2.5L7.5-3L3 0.5L5 6L0 3L-5 6L-3 0.5L-7.5-3L-2-2.5Z"/>'
 };
 const NOROT = new Set(['star', 'quad']);
 
 function updateWatermark() {
   const mainTx = 'ОПЕРАТИВНИЙ РАДАР ZP';
   const subTx = 't.me/overativnoradarzp';
-  const isLight = (curMapKey === 'lt' || curMapKey === 'tac');
-  const strokeCol = isLight ? '#1a2636' : '#dce8f5';
-  const subCol = isLight ? '#2c3e55' : '#9bb0c9';
+  const isDark = (curMapKey === 'dk' || curMapKey === 'st');
+  const strokeCol = isDark ? '#c9d6e3' : '#1c2838';
+  const subCol = isDark ? '#8b9bb0' : '#33465e';
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="310" height="150">
-    <g transform="rotate(-25 155 75)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" text-anchor="middle">
-      <text x="85" y="46" font-size="14.5" font-weight="800" letter-spacing="1.2" fill="none" stroke="${strokeCol}" stroke-width="0.85">${mainTx}</text>
-      <text x="85" y="62" font-size="10.5" font-weight="600" fill="${subCol}">${subTx}</text>
-      <text x="240" y="118" font-size="14.5" font-weight="800" letter-spacing="1.2" fill="none" stroke="${strokeCol}" stroke-width="0.85">${mainTx}</text>
-      <text x="240" y="134" font-size="10.5" font-weight="600" fill="${subCol}">${subTx}</text>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="135">
+    <g transform="rotate(-25 140 67)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" text-anchor="middle">
+      <text x="75" y="42" font-size="13" font-weight="800" letter-spacing="1" fill="none" stroke="${strokeCol}" stroke-width="0.75">${mainTx}</text>
+      <text x="75" y="56" font-size="9.5" font-weight="600" fill="${subCol}">${subTx}</text>
+      <text x="215" y="106" font-size="13" font-weight="800" letter-spacing="1" fill="none" stroke="${strokeCol}" stroke-width="0.75">${mainTx}</text>
+      <text x="215" y="120" font-size="9.5" font-weight="600" fill="${subCol}">${subTx}</text>
     </g>
   </svg>`;
   const encoded = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
@@ -1117,31 +906,28 @@ const map = L.map('m', {
   zoomAnimation: true,
   fadeAnimation: false,
   markerZoomAnimation: true
-}).setView([47.76, 35.42], 9);
+}).setView([47.72, 35.52], 9);
 
 const TILES = {
   tac: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 18,
-    className: 'tactical-filter',
-    attribution: '© Esri · Оперативний Радар ZP'
+    className: 'tactical-topo'
   }),
-  dk: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 16,
-    attribution: '© Esri Dark · Оперативний Радар ZP'
+  dk: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18,
+    className: 'radar-dark'
   }),
   st: L.layerGroup([
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18,
-      className: 'sat-filter',
-      attribution: '© Esri Satellite'
+      className: 'sat-filter'
     }),
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18
     })
   ]),
   lt: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 18,
-    attribution: '© Esri Topo'
+    maxZoom: 18
   })
 };
 
@@ -1163,22 +949,13 @@ let D = {
   tracks: [],
   feed: [],
   oblast: [[47.40,34.30],[47.56,34.46],[47.72,34.80],[47.98,35.02],[48.14,35.20],[48.10,35.50],[47.98,35.80],[48.02,36.20],[47.95,36.50],[47.72,36.78],[47.40,36.96],[47.05,37.05],[46.80,36.95],[46.58,36.55],[46.52,36.00],[46.42,35.45],[46.38,35.00],[46.55,34.75],[46.90,34.78],[47.15,34.50]],
-  frontline: [[47.49,34.40],[47.50,34.85],[47.53,35.25],[47.54,35.36],[47.51,35.55],[47.52,35.78],[47.51,35.95],[47.61,36.15],[47.64,36.32],[47.67,36.60],[47.69,36.95]],
+  frontline: [[47.49,34.40],[47.50,34.85],[47.53,35.25],[47.54,35.36],[47.51,35.55],[47.52,35.78],[47.51,35.95],[47.61,36.15],[47.64,36.32],[47.67,36.60],[47.69,36.95],[47.82,36.98]],
   channels: [
-    { name: 'overativnoradarzp', ok: true, checked: 'онлайн', last: 'Моніторинг повітряного простору Запоріжжя та області 24/7' },
+    { name: 'overativnoradarzp', ok: true, checked: 'онлайн', last: 'Моніторинг повітряного простору Запоріжжя та області' },
     { name: 'eyes_everywhere_ua', ok: true, checked: 'онлайн', last: 'Підключено до потоку даних' },
-    { name: 'kpszsu', ok: true, checked: 'онлайн', last: 'Повітряні Сили ЗСУ — моніторинг' },
+    { name: 'kpszsu', ok: true, checked: 'онлайн', last: 'Повітряні Сили ЗСУ' },
     { name: 'vanek_nikolaev', ok: true, checked: 'онлайн', last: 'Моніторинг південного напрямку' }
-  ],
-  ai: {
-    provider: 'DeepSeek-V3 Neural AI v11',
-    ms: 1,
-    summary: {
-      level: 'green',
-      headline: 'Повітряний простір Запоріжжя та області чистий',
-      details: 'DeepSeek AI розуміє всі райони Запоріжжя (Шевчик, Зелений Яр, Острів Хортиця, Бабурка, Космос, Кічкас), пуски КАБів та сусідні області.'
-    }
-  }
+  ]
 };
 
 let snapT = performance.now();
@@ -1209,7 +986,7 @@ function hav(a, b, c, d) {
 }
 function brg(a, b, c, d) {
   const p = Math.PI / 180;
-  const y = Math.sin((d - b) * p) * Math.cos(c * p);
+  const y = Math.sin((d - b) * p) * math.cos(c * p);
   const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
@@ -1217,9 +994,9 @@ function fwdPt(la, lo, hDeg, km) {
   const r = hDeg * Math.PI / 180;
   return [la + km * Math.cos(r) / 111.2, lo + km * Math.sin(r) / (111.2 * Math.cos(la * Math.PI / 180))];
 }
-function conePts(la, lo, hdg, distKm, halfDeg = 16) {
+function conePts(la, lo, hdg, distKm, halfDeg = 14) {
   const pts = [[la, lo]];
-  for (let a = -halfDeg; a <= halfDeg; a += 6) {
+  for (let a = -halfDeg; a <= halfDeg; a += 7) {
     pts.push(fwdPt(la, lo, (hdg + a + 360) % 360, distKm));
   }
   pts.push([la, lo]);
@@ -1235,11 +1012,11 @@ function syncRingsVisibility() {
 }
 
 function initRings(h) {
-  [20, 45, 70].forEach(r => {
+  [25, 50].forEach(r => {
     L.circle([h[1], h[2]], {
       renderer: canvasRenderer,
       radius: r * 1000,
-      color: '#34455e',
+      color: 'rgba(90, 115, 145, 0.35)',
       weight: 1,
       dashArray: '4 6',
       fill: false,
@@ -1250,19 +1027,11 @@ function initRings(h) {
       icon: L.divIcon({
         className: '',
         html: `<span class="ring-lbl">${r} км</span>`,
-        iconSize: [40, 14],
-        iconAnchor: [20, 7]
+        iconSize: [36, 12],
+        iconAnchor: [18, 6]
       })
     }).addTo(ringsGrp);
   });
-  L.circleMarker([h[1], h[2]], {
-    renderer: canvasRenderer,
-    radius: 5,
-    color: '#3fb950',
-    weight: 2,
-    fillColor: '#2ea043',
-    fillOpacity: 0.95
-  }).addTo(map).bindTooltip('Запоріжжя (Центр)');
 }
 
 function ext(t, dt) {
@@ -1277,52 +1046,49 @@ function ext(t, dt) {
   };
 }
 
+/* Компактний радарний маркер (як на справжніх моніторингових картах) */
 function icon(t, hdgOvr) {
-  const c = (t.ended ? '#8b949e' : t.col || K[t.kind]?.c || '#e3b341');
-  const cnt = t.cnt ? ' ×' + t.cnt : '';
-  const destLabel = t.to ? ('→ ' + t.to) : (t.status ? t.status : ('над ' + t.frm + ' (очікує курс)'));
-  const lab = [
-    (t.name || K[t.kind]?.n || 'Ціль') + cnt,
-    destLabel,
-    t.eta > 0 && !t.ended ? '~' + fmt(t.eta) : ''
-  ].filter(Boolean).join(' · ');
+  const c = (t.ended ? '#7d8998' : t.col || K[t.kind]?.c || '#f5a623');
+  const cnt = t.cnt ? '×' + t.cnt : '';
+  const shortName = (t.name || K[t.kind]?.n || 'Ціль') + cnt;
+  const lab = t.to ? `${shortName} → ${t.to}` : shortName;
   const g = (ICONS[t.ico] || ICONS.delta)(c);
   const rot = NOROT.has(t.ico) || t.hdg == null ? 0 : (hdgOvr ?? t.hdg);
-  const op = t.ended ? 0.6 : 1;
+  const op = t.ended ? 0.55 : 1;
   return L.divIcon({
     className: '',
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    html: `<div class="mk${isAdmin ? ' admin-drag' : ''}" style="--c:${c};opacity:${op}"><i class="pulse-ring"></i><svg viewBox="-13 -13 26 26" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#080b10" stroke-width="1.35" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    html: `<div class="mk${isAdmin ? ' admin-drag' : ''}" style="--c:${c};opacity:${op}"><svg viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#070a0f" stroke-width="1.4" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`
   });
 }
 
 const LOCAL_PLACES = [
-  { name: 'Донецька обл. (східний рубіж)', lat: 47.685, lon: 36.960, rx: /(?:донецьк\w*|донецк\w*|лонцецьк\w*|лонецьк\w*|лонецк\w*|донец\w*)\s*(?:обл\w*|напрям\w*)?|донеччин\w*/i, neighbor: true },
-  { name: 'Дніпропетровська обл. (північний рубіж)', lat: 48.165, lon: 35.420, rx: /(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*/i, neighbor: true },
-  { name: 'Херсонська обл. (західний рубіж)', lat: 47.260, lon: 34.250, rx: /(?:херсонськ\w*|херсонск\w*)\s*(?:обл\w*|напрям\w*)?|херсонщ\w*/i, neighbor: true },
-  { name: 'Зелений Яр (ЗП)', lat: 47.849, lon: 35.208, rx: /зелен\w*\s+яр\w*|зелен\w*\s+га[йю]\w*|\bзелен(?:ий|ый|ого|ому|им|ым|ім|е|ое|а|ую|ій|ом|ка|ку)\b|\bзелён(?:ый|ого|ому|ым|ом)\b/i, zpDist: true },
-  { name: 'Шевченківський р-н / Шевчик (ЗП)', lat: 47.828, lon: 35.238, rx: /шевченківськ\w*|шевченковск\w*|шевчик\w*|шевчік\w*|\b[123]-?й\s+шевчик\w*/i, zpDist: true },
-  { name: 'Хортицький р-н / Бабурка (ЗП)', lat: 47.816, lon: 35.025, rx: /бабурк\w*|бабурц\w*|хортицьк\w+\s*(?:р-?н|район|мкрн)\w*|хортицк\w+\s*(?:р-?н|район|мкрн)\w*/i, zpDist: true },
-  { name: 'Верхня Хортиця (ЗП)', lat: 47.855, lon: 35.015, rx: /верхн\w+\s+хортиц\w*/i, zpDist: true },
-  { name: 'Острів Хортиця (ЗП)', lat: 47.822, lon: 35.075, rx: /острів\s+хортиц\w*|остров\s+хортиц\w*|\bхортиц(?:я|і|ю|ею|ей|у|и)\b|\bострів\b|\bостров(?:а|у|ом|е|і)?\b/i, zpDist: true },
-  { name: 'Аеропорт / Мокрянка (ЗП)', lat: 47.866, lon: 35.312, rx: /аеропорт\w*|аэропорт\w*|мокрянк\w*/i, zpDist: true },
-  { name: 'Селище ДД / Димитрова (ЗП)', lat: 47.836, lon: 35.195, rx: /димитров\w*|дімітров\w*|\bдд\b/i, zpDist: true },
-  { name: 'Мотор Січ / Іванівка (ЗП)', lat: 47.821, lon: 35.186, rx: /мотор\s*січ\w*|мотор\s*сич\w*|\bмотор\b|іванівк\w+|ивановк\w+/i, zpDist: true },
-  { name: 'Заводський р-н / Кічкас (ЗП)', lat: 47.888, lon: 35.158, rx: /заводськ\w+|заводск\w+|кічкас\w*|кичкас\w*|павло-?кічкас\w*/i, zpDist: true },
-  { name: 'Промзона / Заводи (ЗП)', lat: 47.865, lon: 35.168, rx: /промзон\w*|запоріжстал\w*|запорожстал\w*|коксохім\w*/i, zpDist: true },
-  { name: 'Бородінський мкрн / Бородок (ЗП)', lat: 47.882, lon: 35.075, rx: /бородінськ\w*|бородинск\w*|бородок\w*/i, zpDist: true },
-  { name: 'Осипенківський мкрн / Осипок (ЗП)', lat: 47.868, lon: 35.042, rx: /осипенківськ\w*|осипенковск\w*|осипок\w*|осіпок\w*/i, zpDist: true },
-  { name: 'Великий Луг (ЗП)', lat: 47.908, lon: 35.092, rx: /велик\w+\s+луг\w*/i, zpDist: true },
-  { name: 'Дніпровський р-н / Правий берег (ЗП)', lat: 47.868, lon: 35.062, rx: /дніпровськ\w+\s+р\w*|днепровск\w+\s+р\w*|прав\w+\s+берег\w*|\bна\s+правий\b|\bна\s+правый\b|\bправий\b|\bправый\b/i, zpDist: true },
-  { name: 'ДніпроГЕС / Гребля (ЗП)', lat: 47.869, lon: 35.086, rx: /дніпрогес\w*|днепрогэс\w*|гребл\w+|дамб\w+|плотин\w*/i, zpDist: true },
-  { name: 'Південний мкрн / Піски (ЗП)', lat: 47.768, lon: 35.192, rx: /південн\w+\s+мкрн\w*|южн\w+\s+мкрн\w*|\bпіск(?:и|ів|ах|ам)\b|\bпеск(?:и|ів|ам|ах)\b|\bюжн(?:ий|ый)\b/i, zpDist: true },
-  { name: 'Комунарський р-н / Космос (ЗП)', lat: 47.785, lon: 35.185, rx: /комунарськ\w*|коммунарск\w*|космос\w*/i, zpDist: true },
-  { name: 'Олександрівський р-н / Малий ринок (ЗП)', lat: 47.815, lon: 35.152, rx: /олександрівськ\w+|александровск\w+|мал\w+\s+ринок\w*|мал\w+\s+рынок\w*|анголенк\w*|вокзал\w*/i, zpDist: true },
-  { name: 'Вознесенівський р-н / Центр (ЗП)', lat: 47.842, lon: 35.128, rx: /вознесенівськ\w*|вознесеновск\w*|фестивальн\w*|радуг\w*|райдуг\w*|металург\w*|\bцентр\w*\b/i, zpDist: true },
+  { name: 'Донецька обл.', lat: 47.685, lon: 36.960, rx: /(?:донецьк\w*|донецк\w*|лонцецьк\w*|лонецьк\w*|лонецк\w*|донец\w*)\s*(?:обл\w*|напрям\w*)?|донеччин\w*/i, neighbor: true },
+  { name: 'Дніпропетровська обл.', lat: 48.165, lon: 35.420, rx: /(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*/i, neighbor: true },
+  { name: 'Херсонська обл.', lat: 47.260, lon: 34.250, rx: /(?:херсонськ\w*|херсонск\w*)\s*(?:обл\w*|напрям\w*)?|херсонщ\w*/i, neighbor: true },
+  { name: 'Зелений Яр', lat: 47.849, lon: 35.208, rx: /зелен\w*\s+яр\w*|зелен\w*\s+га[йю]\w*|\bзелен(?:ий|ый|ого|ому|им|ым|ім|е|ое|а|ую|ій|ом|ка|ку)\b|\bзелён(?:ый|ого|ому|ым|ом)\b/i, zpDist: true },
+  { name: 'Шевчик', lat: 47.828, lon: 35.238, rx: /шевченківськ\w*|шевченковск\w*|шевчик\w*|шевчік\w*|\b[123]-?й\s+шевчик\w*/i, zpDist: true },
+  { name: 'Бабурка', lat: 47.816, lon: 35.025, rx: /бабурк\w*|бабурц\w*|хортицьк\w+\s*(?:р-?н|район|мкрн)\w*|хортицк\w+\s*(?:р-?н|район|мкрн)\w*/i, zpDist: true },
+  { name: 'Верхня Хортиця', lat: 47.855, lon: 35.015, rx: /верхн\w+\s+хортиц\w*/i, zpDist: true },
+  { name: 'Острів Хортиця', lat: 47.822, lon: 35.075, rx: /острів\s+хортиц\w*|остров\s+хортиц\w*|\bхортиц(?:я|і|ю|ею|ей|у|и)\b|\bострів\b|\bостров(?:а|у|ом|е|і)?\b/i, zpDist: true },
+  { name: 'Аеропорт / Мокрянка', lat: 47.866, lon: 35.312, rx: /аеропорт\w*|аэропорт\w*|мокрянк\w*/i, zpDist: true },
+  { name: 'Селище ДД', lat: 47.836, lon: 35.195, rx: /димитров\w*|дімітров\w*|\bдд\b/i, zpDist: true },
+  { name: 'Мотор Січ', lat: 47.821, lon: 35.186, rx: /мотор\s*січ\w*|мотор\s*сич\w*|\bмотор\b|іванівк\w+|ивановк\w+/i, zpDist: true },
+  { name: 'Кічкас', lat: 47.888, lon: 35.158, rx: /заводськ\w+|заводск\w+|кічкас\w*|кичкас\w*|павло-?кічкас\w*/i, zpDist: true },
+  { name: 'Промзона', lat: 47.865, lon: 35.168, rx: /промзон\w*|запоріжстал\w*|запорожстал\w*|коксохім\w*/i, zpDist: true },
+  { name: 'Бородок', lat: 47.882, lon: 35.075, rx: /бородінськ\w*|бородинск\w*|бородок\w*/i, zpDist: true },
+  { name: 'Осипок', lat: 47.868, lon: 35.042, rx: /осипенківськ\w*|осипенковск\w*|осипок\w*|осіпок\w*/i, zpDist: true },
+  { name: 'Великий Луг', lat: 47.908, lon: 35.092, rx: /велик\w+\s+луг\w*/i, zpDist: true },
+  { name: 'Правий берег', lat: 47.868, lon: 35.062, rx: /дніпровськ\w+\s+р\w*|днепровск\w+\s+р\w*|прав\w+\s+берег\w*|\bна\s+правий\b|\bна\s+правый\b|\bправий\b|\bправый\b/i, zpDist: true },
+  { name: 'ДніпроГЕС', lat: 47.869, lon: 35.086, rx: /дніпрогес\w*|днепрогэс\w*|гребл\w+|дамб\w+|плотин\w*/i, zpDist: true },
+  { name: 'Піски / Південний', lat: 47.768, lon: 35.192, rx: /південн\w+\s+мкрн\w*|южн\w+\s+мкрн\w*|\bпіск(?:и|ів|ах|ам)\b|\bпеск(?:и|ів|ам|ах)\b|\bюжн(?:ий|ый)\b/i, zpDist: true },
+  { name: 'Космос', lat: 47.785, lon: 35.185, rx: /комунарськ\w*|коммунарск\w*|космос\w*/i, zpDist: true },
+  { name: 'Малий ринок / Анголенко', lat: 47.815, lon: 35.152, rx: /олександрівськ\w+|александровск\w+|мал\w+\s+ринок\w*|мал\w+\s+рынок\w*|анголенк\w*|вокзал\w*/i, zpDist: true },
+  { name: 'Центр (ЗП)', lat: 47.842, lon: 35.128, rx: /вознесенівськ\w*|вознесеновск\w*|фестивальн\w*|радуг\w*|райдуг\w*|металург\w*|\bцентр\w*\b/i, zpDist: true },
   { name: 'Пологи', lat: 47.482, lon: 36.254, rx: /полог\w*/i },
   { name: 'Гуляйполе', lat: 47.661, lon: 36.259, rx: /гуляйпол\w*|гуляйпіл\w*/i },
-  { name: 'Оріхів', lat: 47.567, lon: 35.784, rx: /оріхів\w*|орехов\w*/i },
+  { name: 'Оріхів', lat: 47.567, lon: 35.784, rx: /оріхів\w*|орехов\w*|оріхов\w*/i },
   { name: 'Комишуваха', lat: 47.717, lon: 35.529, rx: /комишува\w*|камышева\w*/i },
   { name: 'Вільнянськ', lat: 47.945, lon: 35.433, rx: /вільнянськ\w*|вольнянск\w*/i },
   { name: 'Новомиколаївка', lat: 47.976, lon: 35.908, rx: /новомиколаївк\w*|новониколаевк\w*/i },
@@ -1341,7 +1107,7 @@ const LOCAL_PLACES = [
   { name: 'Токмак', lat: 47.254, lon: 35.704, rx: /токмак\w*/i, launch: true },
   { name: 'Молочанськ', lat: 47.194, lon: 35.624, rx: /молочанськ\w*|молочанск\w*/i, launch: true },
   { name: 'Енергодар', lat: 47.499, lon: 34.658, rx: /енергодар\w*|энергодар\w*|\bзаес\b/i },
-  { name: 'Запоріжжя', lat: 47.838, lon: 35.139, rx: /запоріж\w*|запорож\w*|\bзп\b|\bмісто\b|\bгород\b/i }
+  { name: 'Запоріжжя', lat: 47.838, lon: 35.139, rx: /запоріжж(?:я|і|ям|ю)\b|запорожь(?:е|я|ю|ем)\b|\bзп\b/i }
 ];
 
 function nearestLocalPlace(lat, lon) {
@@ -1349,7 +1115,7 @@ function nearestLocalPlace(lat, lon) {
   for (const p of LOCAL_PLACES) {
     if (p.name === 'Запоріжжя') continue;
     const d = hav(lat, lon, p.lat, p.lon);
-    if (d < minD) { minD = d; best = p.name.replace(' (ЗП)', ''); }
+    if (d < minD) { minD = d; best = p.name; }
   }
   if (minD <= 6.5) return best;
   if (hav(lat, lon, 47.838, 35.139) <= 9.0) return 'Запоріжжя';
@@ -1367,7 +1133,7 @@ function localPredictThreats(lat, lon, hdg) {
     if (d >= 1.0 && d <= 24) {
       const b = brg(lat, lon, p.lat, p.lon);
       const diff = Math.abs(((b - hdg + 540) % 360) - 180);
-      if (diff <= 22) res.push({ d, name: p.name.replace(' (ЗП)', ''), score: d + diff * 0.25 });
+      if (diff <= 22) res.push({ d, name: p.name, score: d + diff * 0.25 });
     }
   }
   res.sort((a, b) => a.score - b.score);
@@ -1379,13 +1145,13 @@ function runLocalAiIngest(text) {
   if (!tl) return;
 
   if (/збит|сбит|мінус|минус|чисто|відбій|отбой/i.test(tl)) {
-    D.tracks.forEach(t => {
-      t.ended = true;
-      t.v = 0;
-      t.status = '🛡 Збито / Чисто';
-    });
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'адмін', text, kinds: ['drone'], place: 'Запоріжжя' });
-    rebuildLocalAiSummary();
+    if (D.tracks.length) {
+      const last = D.tracks[D.tracks.length - 1];
+      last.ended = true;
+      last.v = 0;
+      last.status = '🛡 Збито';
+    }
+    D.feed.unshift({ t: Date.now() / 1000, ch: 'радар', text, kinds: ['drone'], place: '' });
     render(D);
     return;
   }
@@ -1402,9 +1168,17 @@ function runLocalAiIngest(text) {
     if (m) matched.push({ idx: m.index, len: m[0].length, place: p });
   }
   matched.sort((a, b) => a.idx - b.idx || b.len - a.len);
-  const uniquePlaces = [];
+  let uniquePlaces = [];
   for (const m of matched) {
     if (!uniquePlaces.some(u => u.place.name === m.place.name)) uniquePlaces.push(m);
+  }
+  if (uniquePlaces.length >= 2) {
+    const filtered = uniquePlaces.filter(u => {
+      if (u.place.name !== 'Запоріжжя') return true;
+      const pre = tl.slice(Math.max(0, u.idx - 30), u.idx);
+      return /(?:на|до|курс|вектор|над)\s*$/i.test(pre);
+    });
+    if (filtered.length) uniquePlaces = filtered;
   }
 
   let fromPlace = null, toPlace = null;
@@ -1412,7 +1186,7 @@ function runLocalAiIngest(text) {
     const pre = tl.slice(Math.max(0, item.idx - 42), item.idx);
     if ((item.place.neighbor || item.place.launch) && !/(?:\bна|\bдо|\bкурс|\bвектор)\s*$/i.test(pre)) {
       fromPlace = item.place;
-    } else if (/(?:курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|напрям\w*(?:\s+на)?|\bна|\bдо|\bв\s+бік|\bу\s+бік|\bв\s+сторону|поверну\w*\s+на|доверну\w*\s+на|->|→)\s*$/i.test(pre)) {
+    } else if (/(?:курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|напрям\w*(?:\s+на)?|\bна|\bдо|\bв\s+бік|\bу\s+бік|\bв\s+сторону|прилетів\s+на|прилетел\s+на|поверну\w*\s+на|доверну\w*\s+на|->|→)\s*$/i.test(pre)) {
       toPlace = item.place;
     } else if (/(?:\bз|\bіз|\bвід|\bс|\bиз|\bз-?під|\bиз-?под|\bчерез|\bповз|\bнад|\bбіля)\s*$/i.test(pre)) {
       fromPlace = item.place;
@@ -1437,47 +1211,48 @@ function runLocalAiIngest(text) {
 
   if (isKab && fromPlace && !toPlace) {
     if (fromPlace.lon <= 35.45) {
-      toPlace = { name: 'Малокатеринівка / Кушугум', lat: 47.685, lon: 35.235 };
-    } else if (fromPlace.lon <= 35.95) {
+      toPlace = { name: 'Малокатеринівка', lat: 47.659, lon: 35.260 };
+    } else if (fromPlace.lon <= 35.98) {
       toPlace = { name: 'Оріхів', lat: 47.567, lon: 35.784 };
     } else {
       toPlace = { name: 'Гуляйполе', lat: 47.661, lon: 36.259 };
     }
   } else if (!isKab && fromPlace && !toPlace && fromPlace.neighbor) {
     if (fromPlace.name.startsWith('Донецька')) {
-      toPlace = { name: 'Пологи / Гуляйполе', lat: 47.560, lon: 36.255 };
+      toPlace = { name: 'Пологи', lat: 47.482, lon: 36.254 };
     } else if (fromPlace.name.startsWith('Дніпропетровська')) {
       toPlace = { name: 'Вільнянськ', lat: 47.945, lon: 35.433 };
     }
   }
 
   const kind = isKab ? 'kab' : (isMissile ? 'missile' : 'drone');
-  const activeSame = D.tracks.filter(t => !t.ended && t.kind === kind);
+  const activeDrones = D.tracks.filter(t => !t.ended && t.kind === 'drone');
 
-  const canUpdateExisting = activeSame.length > 0 && (
+  // Оновлення курсу дозволено ТІЛЬКИ для БпЛА (КАБи завжди летять за своїм пуском і ніколи не змішуються з Шахедами!)
+  const canUpdateDrone = (kind === 'drone') && activeDrones.length > 0 && (
     (!fromPlace && toPlace) ||
     isLoiter ||
-    (fromPlace && hav(fromPlace.lat, fromPlace.lon, activeSame[activeSame.length - 1].lat, activeSame[activeSame.length - 1].lon) <= 35)
+    (fromPlace && hav(fromPlace.lat, fromPlace.lon, activeDrones[activeDrones.length - 1].lat, activeDrones[activeDrones.length - 1].lon) <= 30)
   );
 
-  if (canUpdateExisting) {
-    const t = activeSame[activeSame.length - 1];
+  if (canUpdateDrone) {
+    const t = activeDrones[activeDrones.length - 1];
     if (isJet) {
-      t.name = 'Реактивний Шахед (Герань-3)';
+      t.name = 'Реактивний';
       t.ico = 'jet';
-      t.col = '#ff5533';
+      t.col = '#ff4444';
       t.v = 640;
     }
     if (fromPlace && !fromPlace.name.startsWith('підліт')) {
       t.lat = fromPlace.lat;
       t.lon = fromPlace.lon;
-      t.frm = fromPlace.name.replace(' (ЗП)', '');
+      t.frm = fromPlace.name;
     }
     if (isLoiter || (fromPlace && !toPlace)) {
       t.goal = null;
       t.to = null;
       t.hdg = null;
-      t.status = `Над ${t.frm} (очікує курс)`;
+      t.status = `Над ${t.frm}`;
       t.eta = null;
       t.threats = [];
     } else if (toPlace) {
@@ -1491,49 +1266,50 @@ function runLocalAiIngest(text) {
         t.lat = sla; t.lon = slo;
       }
       t.goal = [gla, glo];
-      t.to = toPlace.name.replace(' (ЗП)', '');
+      t.to = toPlace.name;
       t.hdg = Math.round(brg(t.lat, t.lon, gla, glo));
       const distGoal = hav(t.lat, t.lon, gla, glo);
       t.eta = Math.max(10, Math.round(distGoal / t.v * 3600));
-      t.status = `↪ Курс на ${t.to}`;
+      t.status = null;
       t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
     }
     t.text = text;
     t.age = 0;
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'адмін', text, kinds: [kind], place: `${t.frm}${t.to ? ' → ' + t.to : ''}` });
-    rebuildLocalAiSummary();
+    D.feed.unshift({ t: Date.now() / 1000, ch: 'радар', text, kinds: [kind], place: `${t.frm}${t.to ? ' → ' + t.to : ''}` });
     render(D);
     return;
   }
 
   let sLat, sLon, sFrm, gLat = null, gLon = null, gName = null;
   if (fromPlace && toPlace) {
-    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name.replace(' (ЗП)', '');
-    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name.replace(' (ЗП)', '');
+    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name;
+    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name;
   } else if (!fromPlace && toPlace) {
-    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name.replace(' (ЗП)', '');
+    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name;
     if (isKab) {
-      sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб (пусковий рубіж)';
+      if (toPlace.lon <= 35.38) { sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб'; }
+      else if (toPlace.lon <= 35.98) { sLat = 47.254; sLon = 35.704; sFrm = 'Токмак'; }
+      else { sLat = 47.382; sLon = 36.418; sFrm = 'Кінські Роздори'; }
     } else if (toPlace.name === 'Запоріжжя') {
       const [ala, alo] = fwdPt(47.838, 35.139, 148, 14.5);
-      sLat = ala; sLon = alo; sFrm = 'підліт до м. Запоріжжя';
+      sLat = ala; sLon = alo; sFrm = 'підліт до ЗП';
       const [ela, elo] = fwdPt(47.838, 35.139, 148, 4.2);
       gLat = ela; gLon = elo;
     } else {
       const inBrg = toPlace.lon >= 35.8 ? 115 : 148;
-      const dist = toPlace.zpDist ? 6.5 : 15.0;
+      const dist = toPlace.zpDist ? 6.5 : 14.0;
       const [ala, alo] = fwdPt(toPlace.lat, toPlace.lon, inBrg, dist);
       sLat = ala; sLon = alo; sFrm = 'підліт до ' + gName;
     }
   } else if (fromPlace) {
-    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name.replace(' (ЗП)', '');
+    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name;
   } else {
     if (isKab) {
-      sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб (пусковий рубіж)';
-      gLat = 47.685; gLon = 35.235; gName = 'Малокатеринівка / Кушугум';
+      sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб';
+      gLat = 47.659; gLon = 35.260; gName = 'Малокатеринівка';
     } else {
       const [ala, alo] = fwdPt(47.838, 35.139, 148, 14.5);
-      sLat = ala; sLon = alo; sFrm = 'підліт до м. Запоріжжя';
+      sLat = ala; sLon = alo; sFrm = 'підліт до ЗП';
       const [ela, elo] = fwdPt(47.838, 35.139, 148, 4.2);
       gLat = ela; gLon = elo; gName = 'Запоріжжя';
     }
@@ -1547,9 +1323,9 @@ function runLocalAiIngest(text) {
   const newTrack = {
     id: localIdSeq++,
     kind,
-    name: isKab ? 'КАБ' : (isMissile ? 'Балістика / Ракета' : (isJet ? 'Реактивний Шахед (Герань-3)' : 'Шахед (БпЛА)')),
+    name: isKab ? 'КАБ' : (isMissile ? 'Ракета' : (isJet ? 'Реактивний' : 'Шахед')),
     ico: isKab ? 'kab' : (isMissile ? 'ballistic' : (isJet ? 'jet' : 'delta')),
-    col: isJet ? '#ff5533' : K[kind].c,
+    col: isJet ? '#ff4444' : K[kind].c,
     lat: sLat,
     lon: sLon,
     unc: 1.8,
@@ -1562,13 +1338,12 @@ function runLocalAiIngest(text) {
     fx: isKab ? [[sLat, sLon], [sLat, sLon]] : [[sLat, sLon]],
     n: 1,
     chs: ['overativnoradarzp'],
-    conf: 88,
     age: 0,
     text,
     eta,
     etah: hdg != null ? Math.round(homeDist / v * 3600) : null,
     ended: false,
-    status: hdg == null ? `Над ${sFrm} (очікує курс)` : null,
+    status: hdg == null ? `Над ${sFrm}` : null,
     home: homeDist,
     threats: localPredictThreats(sLat, sLon, hdg),
     alt: isKab ? 7500 : null
@@ -1576,7 +1351,6 @@ function runLocalAiIngest(text) {
 
   D.tracks.push(newTrack);
   D.feed.unshift({ t: Date.now() / 1000, ch: 'overativnoradarzp', text, kinds: [kind], place: `${sFrm}${gName ? ' → ' + gName : ''}` });
-  rebuildLocalAiSummary();
   render(D);
 }
 
@@ -1596,12 +1370,12 @@ setInterval(() => {
         t.goal = null;
         t.hdg = null;
         t.eta = null;
-        t.status = `Над ${t.frm} (очікує курс)`;
+        t.status = `Над ${t.frm}`;
         t.threats = [];
       } else {
-        const [gla, glo] = fwdPt(t.lat, t.lon, t.hdg, 14);
+        const [gla, glo] = fwdPt(t.lat, t.lon, t.hdg, 6);
         t.goal = [gla, glo];
-        t.status = `Пройшов ${t.frm} · у повітрі`;
+        t.status = `Район ${t.frm}`;
       }
       reachedAny = true;
     } else {
@@ -1614,58 +1388,35 @@ setInterval(() => {
     t.home = +(hav(t.lat, t.lon, 47.838, 35.139).toFixed(1));
   }
   snapT = performance.now();
-  if (reachedAny) {
-    rebuildLocalAiSummary();
-    render(D);
-  }
+  if (reachedAny) render(D);
 }, 1000);
-
-function rebuildLocalAiSummary() {
-  const act = (D.tracks || []).filter(t => !t.ended);
-  if (!act.length) {
-    D.ai.summary = {
-      level: 'green',
-      headline: 'Повітряний простір Запоріжжя та області чистий',
-      details: 'DeepSeek AI не фіксує активних БпЛА, КАБів чи ракетних цілей.'
-    };
-    return;
-  }
-  const t0 = act[act.length - 1];
-  const th = (t0.threats && t0.threats.length) ? `Сектор загрози за курсом: ${t0.threats.join(', ')}.` : 'Очікується уточнення вектора.';
-  D.ai.summary = {
-    level: t0.kind === 'kab' ? 'red' : 'amber',
-    headline: `Активних цілей: ${act.length} · ${t0.name} (${t0.frm}${t0.to ? ' → ' + t0.to : ' · очікує курс'})`,
-    details: `Відстань до центру Запоріжжя: ${t0.home} км. ${th}`
-  };
-}
 
 function buildAdminVectorControlsHtml(t) {
   const curHdg = t.hdg != null ? Math.round(t.hdg) : 330;
   const curV = t.v || 185;
   return `
-    <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border-subtle)">
-      <div style="font-size:11px;font-weight:700;color:#79c0ff;margin-bottom:4px">🛠 АДМІН: ВИСТАВИТИ ВЕКТОР / КУРС ЦІЛІ:</div>
+    <div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border-subtle)">
+      <div style="font-size:10.5px;font-weight:700;color:#79c0ff;margin-bottom:4px">ВИСТАВИТИ ВЕКТОР / КУРС:</div>
       <div class="steer-grid" data-steer-for="${t.id}">
-        <button class="st-pill" data-st="Зелений Яр" data-lat="47.849" data-lon="35.208">↪ Зелений Яр</button>
+        <button class="st-pill" data-st="Зелений Яр" data-lat="47.849" data-lon="35.208">↪ Зелений</button>
         <button class="st-pill" data-st="Шевчик" data-lat="47.828" data-lon="35.238">↪ Шевчик</button>
         <button class="st-pill" data-st="Острів Хортиця" data-lat="47.822" data-lon="35.075">↪ Острів</button>
         <button class="st-pill" data-st="Бабурка" data-lat="47.816" data-lon="35.025">↪ Бабурка</button>
         <button class="st-pill" data-st="Космос" data-lat="47.785" data-lon="35.185">↪ Космос</button>
         <button class="st-pill" data-st="Кічкас" data-lat="47.888" data-lon="35.158">↪ Кічкас</button>
-        <button class="st-pill" data-st="Правий берег" data-lat="47.868" data-lon="35.062">↪ Правий берег</button>
-        <button class="st-pill" data-st="Центр" data-lat="47.842" data-lon="35.128">↪ Центр</button>
+        <button class="st-pill" data-st="Правий берег" data-lat="47.868" data-lon="35.062">↪ Правий</button>
+        <button class="st-pill" data-st="Центр (ЗП)" data-lat="47.842" data-lon="35.128">↪ Центр</button>
         <button class="st-pill" data-loiter="1">🔄 Кружляє</button>
-        <button class="st-pill pick-map-goal" style="border-color:#e3b341;color:#ffd875">📍 Вказати на карті</button>
+        <button class="st-pill pick-map-goal" style="border-color:#f5a623;color:#f5a623">📍 На карті</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px">
-        <span style="min-width:88px;color:var(--muted)">Азимут: <b id="hdgVal_${t.id}" style="color:#fff">${curHdg}°</b></span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px">
+        <span style="min-width:78px;color:var(--muted)">Курс: <b id="hdgVal_${t.id}" style="color:#fff">${curHdg}°</b></span>
         <input type="range" min="0" max="359" value="${curHdg}" data-hdg-slider="${t.id}" style="flex:1;accent-color:var(--accent)">
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:11.5px">
-        <span style="min-width:88px;color:var(--muted)">Швидкість: <b id="spdVal_${t.id}" style="color:#fff">${curV}</b></span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px">
+        <span style="min-width:78px;color:var(--muted)">Швидкість: <b id="spdVal_${t.id}" style="color:#fff">${curV}</b></span>
         <input type="range" min="80" max="1200" step="10" value="${Math.min(1200, curV)}" data-spd-slider="${t.id}" style="flex:1;accent-color:var(--amber)">
       </div>
-      <div style="font-size:11px;color:#8b9bb0;margin-top:5px">💡 Ви також можете просто перетягнути саму іконку цілі або її приціл мишкою прямо по карті!</div>
     </div>`;
 }
 
@@ -1678,7 +1429,7 @@ function attachVectorControlEvents(container, t) {
       if (btn.classList.contains('pick-map-goal')) {
         mapSteerTrackId = t.id;
         btn.classList.add('active');
-        btn.textContent = '👆 Клікніть точку на карті...';
+        btn.textContent = '👆 Торкніться карти...';
         return;
       }
       if (btn.dataset.loiter) {
@@ -1708,43 +1459,29 @@ function attachVectorControlEvents(container, t) {
 
 function showTargetInfo(t) {
   selectedTrackId = t.id;
-  const chs = t.chs && t.chs.length ? t.chs.join(', ') : 'overativnoradarzp';
-  const threatsHtml = (t.threats && t.threats.length)
-    ? `<div style="margin-top:6px"><span style="font-size:11px;color:#8b9bb0">🧠 DeepSeek-прогноз по курсу:</span><div class="threat-pills">${t.threats.map(x => `<span class="th-pill">⚠️ ${esc(x)}</span>`).join('')}</div></div>`
-    : '';
-
-  // Векторні кнопки та кнопка видалення показуються ЛИШЕ адміністратору!
   const adminControlsHtml = isAdmin ? buildAdminVectorControlsHtml(t) : '';
   const deleteBtnHtml = isAdmin
-    ? `<button id="dismissTargetBtn" style="background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.45);color:#ff7b72;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">✖ Прибрати ціль</button>`
+    ? `<button id="dismissTargetBtn" style="background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.45);color:#ff7b72;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer">✖ Прибрати</button>`
     : '';
 
   $('infobody').innerHTML = `
-    <div style="font-weight:800;font-size:14.5px;color:${t.col};margin-bottom:4px">
+    <div style="font-weight:800;font-size:13px;color:${t.col};margin-bottom:3px">
       ${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}
-      <span class="conf-b">AI ${t.conf || 88}%</span>
     </div>
-    <div style="font-size:12.5px;color:var(--text)">
-      Маршрут: <b>${esc(t.frm)}</b>${t.to ? ' → <b style="color:#79c0ff">' + esc(t.to) + '</b>' : ' <span style="color:#ffd875">(очікує курс)</span>'}
+    <div style="font-size:12px;color:var(--text)">
+      <b>${esc(t.frm)}</b>${t.to ? ' → <b style="color:#79c0ff">' + esc(t.to) + '</b>' : ' <span style="color:#f5a623">(очікує курс)</span>'}
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-top:3px">
-      Швидкість: <b>${t.v && t.hdg != null ? t.v + ' км/год' : 'очікує вектор'}</b> · Курс: <b>${t.hdg != null ? t.hdg + '°' : 'немає'}</b> · До центру ЗП: <b>${t.home} км</b>${t.eta ? ' (~' + fmt(t.eta) + ')' : ''}
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">
+      ${t.v && t.hdg != null ? t.v + ' км/год · ' : ''}${t.hdg != null ? 'курс ' + t.hdg + '° · ' : ''}до ЗП: <b>${t.home} км</b>${t.eta ? ' (~' + fmt(t.eta) + ')' : ''}
     </div>
-    ${threatsHtml}
     ${adminControlsHtml}
-    <div style="font-size:11.5px;color:#b1bac4;margin-top:8px;padding:6px 8px;background:#080c14;border-radius:8px">${esc(t.text)}</div>
-    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:11px;color:#56d364">Джерело: @${esc(chs)}</span>
-      ${deleteBtnHtml}
-    </div>`;
+    ${deleteBtnHtml ? `<div style="margin-top:7px;display:flex;justify-content:flex-end">${deleteBtnHtml}</div>` : ''}`;
   $('infocard').style.display = 'block';
 
   if (isAdmin) {
     const dBtn = $('dismissTargetBtn');
     if (dBtn) dBtn.onclick = () => dismissTrack(t.id);
     attachVectorControlEvents($('infobody'), t);
-
-    // Також оновлюємо блок обраної цілі у вкладці Адмін-панель
     $('admSelName').textContent = `${t.name} (${t.frm}${t.to ? ' → ' + t.to : ''})`;
     $('admSelControls').innerHTML = buildAdminVectorControlsHtml(t);
     attachVectorControlEvents($('admSelControls'), t);
@@ -1776,7 +1513,6 @@ async function moveTrackPosition(id, lat, lon) {
     t.hdg = Math.round(brg(lat, lon, t.goal[0], t.goal[1]));
     t.threats = localPredictThreats(lat, lon, t.hdg);
   }
-  rebuildLocalAiSummary();
   render(D);
 }
 
@@ -1806,7 +1542,7 @@ async function steerTrack(id, opts) {
     t.to = null;
     t.hdg = null;
     t.eta = null;
-    t.status = `Кружляє над ${t.frm}`;
+    t.status = `Кружляє (${t.frm})`;
     t.threats = [];
   } else if (opts.hdg != null && opts.lat == null) {
     const h = opts.hdg % 360;
@@ -1815,7 +1551,7 @@ async function steerTrack(id, opts) {
     t.to = `курс ${Math.round(h)}°`;
     t.hdg = Math.round(h);
     t.eta = Math.round(18 / (t.v || 185) * 3600);
-    t.status = `↪ Вектор ${Math.round(h)}°`;
+    t.status = null;
     t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
   } else if (opts.lat != null && opts.lon != null) {
     t.goal = [opts.lat, opts.lon];
@@ -1823,10 +1559,9 @@ async function steerTrack(id, opts) {
     t.hdg = Math.round(brg(t.lat, t.lon, opts.lat, opts.lon));
     const d = hav(t.lat, t.lon, opts.lat, opts.lon);
     t.eta = Math.max(10, Math.round(d / (t.v || 185) * 3600));
-    t.status = `↪ Курс на ${t.to}`;
+    t.status = null;
     t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
   }
-  rebuildLocalAiSummary();
   render(D);
   showTargetInfo(t);
 }
@@ -1866,9 +1601,9 @@ async function spawnTrackAt(subId, lat, lon) {
   const newT = {
     id: localIdSeq++,
     kind,
-    name: isKab ? 'КАБ' : (isBal ? 'Балістика' : (isJet ? 'Реактивний Шахед' : 'Шахед (БпЛА)')),
+    name: isKab ? 'КАБ' : (isBal ? 'Балістика' : (isJet ? 'Реактивний' : 'Шахед')),
     ico: isKab ? 'kab' : (isBal ? 'ballistic' : (isJet ? 'jet' : 'delta')),
-    col: isJet ? '#ff5533' : K[kind].c,
+    col: isJet ? '#ff4444' : K[kind].c,
     lat,
     lon,
     unc: 1.5,
@@ -1880,10 +1615,9 @@ async function spawnTrackAt(subId, lat, lon) {
     to: 'Запоріжжя',
     fx: [[lat, lon], [lat, lon]],
     n: 1,
-    chs: ['адмін'],
-    conf: 95,
+    chs: ['радар'],
     age: 0,
-    text: `[Адмін] ${frmName} → Запоріжжя`,
+    text: `${frmName} → Запоріжжя`,
     eta: Math.max(10, Math.round(homeDist / v * 3600)),
     etah: Math.max(10, Math.round(homeDist / v * 3600)),
     ended: false,
@@ -1893,7 +1627,6 @@ async function spawnTrackAt(subId, lat, lon) {
     alt: isKab ? 7500 : null
   };
   D.tracks.push(newT);
-  rebuildLocalAiSummary();
   render(D);
   showTargetInfo(newT);
 }
@@ -1914,7 +1647,6 @@ async function dismissTrack(id) {
     }
   } catch (_) {}
   D.tracks = D.tracks.filter(x => x.id !== id);
-  rebuildLocalAiSummary();
   render(D);
 }
 
@@ -1930,33 +1662,33 @@ function render(d) {
   if (!oblOk && d.oblast) {
     L.polygon(d.oblast, {
       renderer: canvasRenderer,
-      color: '#384c6b',
-      weight: 1.5,
+      color: 'rgba(80, 105, 138, 0.45)',
+      weight: 1.2,
       fill: false,
       dashArray: '4 6',
       interactive: false
     }).addTo(map);
     oblOk = 1;
   }
+  /* Заливка окупованої зони та чітка червона лінія фронту (ЛБЗ) як на справжніх OSINT-радарах */
   if (!frontOk && d.frontline) {
+    const occPoly = [...d.frontline, [46.20, 37.10], [46.10, 34.30]];
+    L.polygon(occPoly, {
+      renderer: canvasRenderer,
+      color: 'transparent',
+      weight: 0,
+      fillColor: '#d93829',
+      fillOpacity: 0.16,
+      interactive: false
+    }).addTo(frontGrp);
     L.polyline(d.frontline, {
       renderer: canvasRenderer,
-      color: '#f85149',
-      weight: 2.4,
-      opacity: 0.72,
-      dashArray: '8 6',
+      color: '#e03e2d',
+      weight: 2.2,
+      opacity: 0.85,
       interactive: false
-    }).addTo(frontGrp).bindTooltip('Лінія бойового зіткнення (ЛБЗ)');
+    }).addTo(frontGrp);
     frontOk = 1;
-  }
-
-  if (d.ai) {
-    $('aiProviderTx').textContent = d.ai.provider || 'DeepSeek-V3 Neural AI v11';
-    if (d.ai.ms != null) $('aiMs').textContent = d.ai.ms + ' мс';
-    if (d.ai.summary) {
-      $('aiSumTitle').textContent = d.ai.summary.headline;
-      $('aiSumDet').textContent = d.ai.summary.details;
-    }
   }
 
   const vTracks = visibleTracks();
@@ -1964,48 +1696,37 @@ function render(d) {
   for (const t of vTracks) {
     ids.add(t.id);
     let o = objs[t.id];
-    const c = t.col || K[t.kind]?.c || '#e3b341';
+    const c = t.col || K[t.kind]?.c || '#f5a623';
     if (!o) {
       o = {
         g: L.layerGroup().addTo(map),
         mk: L.marker([t.lat, t.lon], { icon: icon(t), draggable: isAdmin, keyboard: false }),
-        cone: L.polygon([], { renderer: canvasRenderer, color: c, weight: 0, fillColor: c, fillOpacity: 0.14, interactive: false }),
-        tr: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.6, opacity: 0.4 }),
-        ln: L.polyline([], { renderer: canvasRenderer, color: c, weight: 2.2, opacity: 0.88, dashArray: '6 6', interactive: false }),
+        cone: L.polygon([], { renderer: canvasRenderer, color: c, weight: 0, fillColor: c, fillOpacity: 0.13, interactive: false }),
+        tr: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.4, opacity: 0.35 }),
+        ln: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.8, opacity: 0.85, dashArray: '5 5', interactive: false }),
         ret: L.marker([t.lat, t.lon], {
           draggable: isAdmin,
           opacity: 0,
           icon: L.divIcon({
             className: '',
-            html: `<div class="tgt-reticle" style="--c:${c}" title="Перетягніть приціл для зміни вектора"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
+            html: `<div class="tgt-reticle" style="--c:${c}"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
           })
-        }),
-        un: L.circle([t.lat, t.lon], {
-          renderer: canvasRenderer,
-          radius: 0,
-          color: c,
-          weight: 1,
-          opacity: 0.35,
-          fillOpacity: 0.06,
-          interactive: false
         })
       };
       o.mk.on('click', () => showTargetInfo(o.t));
 
-      /* ПЕРЕТЯГУВАННЯ ОБ'ЄКТА (DRAG & DROP ЦІЛІ НА КАРТІ В АДМІН-РЕЖИМІ) */
       o.mk.on('dragstart', () => { isDraggingTarget = true; });
       o.mk.on('drag', ev => {
         const ll = ev.target.getLatLng();
         o.t.lat = ll.lat;
         o.t.lon = ll.lng;
-        o.un.setLatLng(ll);
         if (o.t.goal) {
           o.ln.setLatLngs([[ll.lat, ll.lng], o.t.goal]);
           const newH = brg(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1]);
           o.t.hdg = Math.round(newH);
-          o.cone.setLatLngs(conePts(ll.lat, ll.lng, newH, Math.min(18, hav(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1])), 16));
+          o.cone.setLatLngs(conePts(ll.lat, ll.lng, newH, Math.min(16, hav(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1])), 14));
           const el = o.mk.getElement();
           const svg = el && el.querySelector('svg');
           if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
@@ -2017,14 +1738,13 @@ function render(d) {
         await moveTrackPosition(o.t.id, ll.lat, ll.lng);
       });
 
-      /* ПЕРЕТЯГУВАННЯ ПРИЦІЛУ ВЕКТОРА (ЗМІНА КУРСУ МИШКОЮ ПРЯМО НА КАРТІ) */
       o.ret.on('dragstart', () => { isDraggingTarget = true; });
       o.ret.on('drag', ev => {
         const gll = ev.target.getLatLng();
         const pos = o.mk.getLatLng();
         o.ln.setLatLngs([[pos.lat, pos.lng], [gll.lat, gll.lng]]);
         const newH = brg(pos.lat, pos.lng, gll.lat, gll.lng);
-        o.cone.setLatLngs(conePts(pos.lat, pos.lng, newH, Math.min(18, hav(pos.lat, pos.lng, gll.lat, gll.lng)), 16));
+        o.cone.setLatLngs(conePts(pos.lat, pos.lng, newH, Math.min(16, hav(pos.lat, pos.lng, gll.lat, gll.lng)), 14));
         const el = o.mk.getElement();
         const svg = el && el.querySelector('svg');
         if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
@@ -2035,17 +1755,16 @@ function render(d) {
         await steerTrack(o.t.id, { lat: gll.lat, lon: gll.lng, name: nearestLocalPlace(gll.lat, gll.lng) });
       });
 
-      o.g.addLayer(o.un).addLayer(o.cone).addLayer(o.tr).addLayer(o.ln).addLayer(o.ret).addLayer(o.mk);
+      o.g.addLayer(o.cone).addLayer(o.tr).addLayer(o.ln).addLayer(o.ret).addLayer(o.mk);
       objs[t.id] = o;
     }
     o.t = t;
     o.mk.setIcon(icon(t));
     if (o.mk.dragging) { isAdmin ? o.mk.dragging.enable() : o.mk.dragging.disable(); }
     if (o.ret.dragging) { isAdmin ? o.ret.dragging.enable() : o.ret.dragging.disable(); }
-    o.un.setRadius(t.ended ? 350 : (t.unc || 1.8) * 1000);
     if (t.goal && !t.ended && t.kind !== 'strike') {
       o.ret.setLatLng(t.goal);
-      o.ret.setOpacity(0.92);
+      o.ret.setOpacity(0.9);
     } else {
       o.ret.setOpacity(0);
     }
@@ -2071,12 +1790,11 @@ function tick() {
     const o = objs[id], t = o.t;
     const st = ext(t, dt), p = st.pos;
     o.mk.setLatLng(p);
-    o.un.setLatLng(p);
     o.tr.setLatLngs(t.fx && t.fx.length > 1 && !t.ended ? [t.fx[0], p] : []);
     o.ln.setLatLngs(t.goal && !t.ended && t.kind !== 'strike' ? [p, t.goal] : []);
     if (!t.ended && t.hdg != null && t.v > 0) {
-      const cDist = t.goal ? Math.min(18, Math.max(3.5, hav(p[0], p[1], t.goal[0], t.goal[1]))) : 9;
-      o.cone.setLatLngs(conePts(p[0], p[1], st.hdg, cDist, t.kind === 'kab' ? 11 : 17));
+      const cDist = t.goal ? Math.min(16, Math.max(3, hav(p[0], p[1], t.goal[0], t.goal[1]))) : 8;
+      o.cone.setLatLngs(conePts(p[0], p[1], st.hdg, cDist, t.kind === 'kab' ? 10 : 14));
     } else {
       o.cone.setLatLngs([]);
     }
@@ -2095,8 +1813,8 @@ function chips() {
   const actCnt = (D.tracks || []).filter(t => !t.ended).length;
   $('tcnt').textContent = actCnt ? `(${actCnt})` : '';
   $('chips').innerHTML = Object.keys(K).map(k =>
-    `<span class="chip${hidden.has(k) ? ' off' : ''}" data-k="${k}" style="border-color:${K[k].c}55">
-      <i style="width:8px;height:8px;border-radius:50%;background:${K[k].c};display:inline-block"></i>
+    `<span class="chip${hidden.has(k) ? ' off' : ''}" data-k="${k}">
+      <i style="width:6px;height:6px;border-radius:50%;background:${K[k].c};display:inline-block"></i>
       ${K[k].n} <b>${c[k] || 0}</b>
     </span>`
   ).join('');
@@ -2111,52 +1829,37 @@ $('chips').onclick = e => {
 };
 
 function banner() {
-  const b = $('ban'), tx = $('bantx'), h = D.home;
-  if (!h) return;
-  const kabs = (D.tracks || []).filter(t => t.kind === 'kab' && !t.ended && !t.short && t.goal && hav(t.goal[0], t.goal[1], h[1], h[2]) < 28);
-  if (kabs.length) {
-    const t = kabs.sort((a, b) => (a.eta ?? 1e9) - (b.eta ?? 1e9))[0];
-    b.className = 'rd';
-    tx.textContent = `🚨 КАБ у напрямку ${t.to || h[0]} (пуск: ${t.frm}) · ${t.home} км до ЗП${t.eta != null ? ' · ~' + fmt(t.eta) : ''}${t.alt ? ' · ' + t.alt + ' м' : ''}`;
+  const dot = $('statusDot'), tx = $('banShort');
+  const act = (D.tracks || []).filter(t => !t.ended && t.kind !== 'strike' && t.kind !== 'impact');
+  if (!act.length) {
+    dot.className = '';
+    tx.textContent = 'Чисто';
     return;
   }
-  const dr = (D.tracks || []).filter(t => t.kind !== 'strike' && t.kind !== 'impact' && !t.ended);
-  if (dr.length) {
-    const n = dr.slice().sort((a, b) => a.home - b.home)[0];
-    const th = dr.filter(t => t.etah != null).sort((a, b) => a.etah - b.etah)[0];
-    b.className = 'am';
-    tx.textContent = th
-      ? `⚠️ ${th.name}${th.cnt ? ' ×' + th.cnt : ''} (${th.frm}${th.to ? ' → ' + th.to : ''}) · ${th.home} км до центру ЗП · підліт ~${fmt(th.eta || th.etah)}`
-      : `🟡 Активних цілей: ${dr.length} · ${n.name}${n.cnt ? ' ×' + n.cnt : ''} (${n.frm}${n.to ? ' → ' + n.to : ' · очікує курс'}) — ${n.home} км до ЗП`;
-  } else {
-    b.className = '';
-    tx.textContent = '🟢 Спокійно: у повітряному просторі Запорізької обл. активних цілей немає';
+  const kabs = act.filter(t => t.kind === 'kab');
+  if (kabs.length) {
+    const k0 = kabs[0];
+    dot.className = 'rd';
+    tx.textContent = `КАБ → ${k0.to || k0.frm}`;
+    return;
   }
+  dot.className = 'am';
+  tx.textContent = `Цілей: ${act.length}`;
 }
 
 function list() {
   const rows = visibleTracks().sort((a, b) => (a.ended ? 1 : 0) - (b.ended ? 1 : 0) || (a.kind === 'kab' ? 0 : 1) - (b.kind === 'kab' ? 0 : 1) || a.home - b.home);
   $('tracksList').innerHTML = rows.map(t => {
     const e = t.eta > 0 ? t.eta : t.etah;
-    const chs = t.chs && t.chs.length ? t.chs : [];
-    const thPills = (t.threats && t.threats.length && !t.ended)
-      ? `<div class="threat-pills">${t.threats.map(x => `<span class="th-pill">🎯 ${esc(x)}</span>`).join('')}</div>`
-      : '';
-    const delBtn = isAdmin ? `<button class="del-b" data-del="${t.id}" title="Прибрати мітку">✖</button>` : '';
+    const delBtn = isAdmin ? `<button class="del-b" data-del="${t.id}">✖</button>` : '';
     return `<div class="r-card" data-id="${t.id}">
       ${delBtn}
-      <b style="color:${t.ended ? '#8b949e' : t.col}">${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}</b>
-      ${t.status ? `<span class="st-b">${esc(t.status)}</span>` : ''}
-      ${chs.length > 1 ? `<span class="ch-b">✓ ${chs.length} кан.</span>` : ''}
-      <span class="conf-b">AI ${t.conf || 88}%</span>
-      <div style="margin-top:4px;font-size:13px">
-        <span>${esc(t.frm)}</span>${t.to ? ` → <b style="color:#79c0ff">${esc(t.to)}</b>` : ' <span style="color:#ffd875">(очікує курс)</span>'}
-      </div>
-      ${thPills}
-      <small>${t.hdg != null && !t.ended ? 'Курс ' + t.hdg + '° · ' : (!t.ended ? 'Очікує вектор · ' : '')}${t.v && t.hdg != null && !t.ended ? t.v + ' км/год · ' : ''}до центру ${esc(D.home[0])}: <b>${t.home} км</b>${e != null && !t.ended ? ' · ~<b>' + fmt(e) + '</b>' : ''}</small>
+      <b style="color:${t.ended ? '#7d8998' : t.col}">${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}</b>
+      <span style="margin-left:5px">${esc(t.frm)}${t.to ? ` → <b style="color:#79c0ff">${esc(t.to)}</b>` : ''}</span>
+      <small>${t.hdg != null && !t.ended ? 'Курс ' + t.hdg + '° · ' : ''}${t.v && t.hdg != null && !t.ended ? t.v + ' км/год · ' : ''}до ЗП: <b>${t.home} км</b>${e != null && !t.ended ? ' (~' + fmt(e) + ')' : ''}</small>
       <div class="tx">${esc(t.text)}</div>
     </div>`;
-  }).join('') || '<div style="text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border-subtle);border-radius:11px">Активних повітряних цілей у Запорізькій області наразі немає.</div>';
+  }).join('') || '<div style="text-align:center;color:var(--muted);padding:16px 8px;font-size:11.5px">У повітряному просторі Запорізької області активних цілей немає.</div>';
 }
 
 $('tracksList').onclick = e => {
@@ -2169,7 +1872,7 @@ $('tracksList').onclick = e => {
   const r = e.target.closest('.r-card');
   if (r && objs[r.dataset.id]) {
     const o = objs[r.dataset.id];
-    map.flyTo(o.mk.getLatLng(), Math.max(map.getZoom(), 11), { duration: 0.5 });
+    map.flyTo(o.mk.getLatLng(), Math.max(map.getZoom(), 11), { duration: 0.4 });
     showTargetInfo(o.t);
   }
 };
@@ -2177,14 +1880,10 @@ $('tracksList').onclick = e => {
 function feed() {
   $('feed').innerHTML = (D.feed || []).map(f =>
     `<div class="r-card" style="cursor:default">
-      <small>${new Date(f.t * 1000).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · <b style="color:#79c0ff">@${esc(f.ch)}</b></small>
+      <small>${new Date(f.t * 1000).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · <b style="color:#79c0ff">@${esc(f.ch)}</b> ${f.place ? '· ' + esc(f.place) : ''}</small>
       <div class="tx">${esc(f.text)}</div>
-      <div style="margin-top:5px">
-        ${(f.kinds || []).map(k => K[k] ? `<span class="k" style="color:${K[k].c}">${K[k].n}</span>` : '').join('')}
-        <small style="display:inline">${esc(f.place)}</small>
-      </div>
     </div>`
-  ).join('') || '<div style="color:var(--muted);text-align:center;padding:20px">Стрічка подій порожня</div>';
+  ).join('') || '<div style="color:var(--muted);text-align:center;padding:16px">Стрічка подій порожня</div>';
 }
 
 function renderChans() {
@@ -2192,8 +1891,8 @@ function renderChans() {
   $('chanlist').innerHTML = D.channels.map(c =>
     `<div class="r-card" style="cursor:default">
       <b style="color:${c.ok ? '#56d364' : '#f85149'}">● @${esc(c.name)}</b>
-      <small style="display:inline;margin-left:6px">опитано: ${esc(c.checked)}</small>
-      <div class="tx">${esc(c.last || 'Очікування нових повідомлень…')}</div>
+      <small style="display:inline;margin-left:6px">${esc(c.checked)}</small>
+      <div class="tx">${esc(c.last || 'Очікування…')}</div>
     </div>`
   ).join('');
 }
@@ -2206,17 +1905,18 @@ function switchTab(t) {
 $('tabs').onclick = e => {
   const b = e.target.closest('b');
   if (!b || b.hidden) return;
+  expandSheetOnMobile();
   switchTab(b.dataset.t);
 };
 
 $('grip').onclick = () => {
   const r = document.documentElement.style;
-  const cur = r.getPropertyValue('--sheet-h') || '42%';
-  const next = cur === '42%' ? '68%' : (cur === '68%' ? '58px' : '42%');
+  const cur = r.getPropertyValue('--sheet-h') || '50px';
+  const next = cur === '50px' ? '46%' : (cur === '46%' ? '72%' : '50px');
   r.setProperty('--sheet-h', next);
 };
 
-$('bh').onclick = () => D.home && map.flyTo([D.home[1], D.home[2]], 11, { duration: 0.6 });
+$('bh').onclick = () => D.home && map.flyTo([D.home[1], D.home[2]], 11, { duration: 0.5 });
 
 function setMapStyle(k) {
   if (!TILES[k]) return;
@@ -2231,7 +1931,6 @@ $('bl').onclick = () => {
   setMapStyle(order[(order.indexOf(curMapKey) + 1) % order.length]);
 };
 
-/* Кнопки ручного спавну цілі на карті в Адмін-панелі */
 $('spawnToolGrid').onclick = e => {
   if (!isAdmin) return;
   const b = e.target.closest('[data-spawn]');
@@ -2244,7 +1943,7 @@ $('spawnToolGrid').onclick = e => {
   } else {
     pendingSpawnSub = sub;
     [...$('spawnToolGrid').querySelectorAll('.adm-btn')].forEach(x => x.classList.toggle('active', x === b));
-    $('spawnHint').textContent = '👆 Клікніть будь-де на карті, щоб розмістити ціль (потім її можна перетягувати мишкою та міняти вектор)!';
+    $('spawnHint').textContent = '👆 Торкніться карти, щоб поставити ціль';
     $('spawnHint').style.display = 'block';
   }
 };
@@ -2263,12 +1962,15 @@ $('brul').onclick = () => {
     clearRuler();
     $('infocard').style.display = 'none';
   } else {
-    $('infobody').innerHTML = '<b>📏 Лінійка підльоту:</b> натисніть будь-яку точку на карті, щоб розрахувати відстань і час підльоту Шахеда, Реактивного БпЛА, КАБа та Балістики до Запоріжжя.';
+    $('infobody').innerHTML = '<b>📏 Лінійка:</b> торкніться будь-якої точки на карті для розрахунку підльоту до Запоріжжя.';
     $('infocard').style.display = 'block';
   }
 };
 
 map.on('click', async e => {
+  if (window.innerWidth < 880 && !pendingSpawnSub && mapSteerTrackId == null && !rulerOn) {
+    document.documentElement.style.setProperty('--sheet-h', '50px');
+  }
   if (isAdmin && pendingSpawnSub) {
     const s = pendingSpawnSub;
     pendingSpawnSub = null;
@@ -2294,27 +1996,26 @@ map.on('click', async e => {
   const refName = me ? 'Вашої геопозиції' : D.home[0];
   const dKm = hav(p[0], p[1], ref[0], ref[1]);
   const bDeg = Math.round(brg(p[0], p[1], ref[0], ref[1]));
-  L.circleMarker(p, { renderer: canvasRenderer, radius: 5, color: '#58a6ff', fillColor: '#58a6ff', fillOpacity: 1 }).addTo(rulerLayer);
-  L.polyline([p, ref], { renderer: canvasRenderer, color: '#58a6ff', weight: 2, dashArray: '5 5' }).addTo(rulerLayer);
+  L.circleMarker(p, { renderer: canvasRenderer, radius: 4, color: '#58a6ff', fillColor: '#58a6ff', fillOpacity: 1 }).addTo(rulerLayer);
+  L.polyline([p, ref], { renderer: canvasRenderer, color: '#58a6ff', weight: 1.8, dashArray: '4 4' }).addTo(rulerLayer);
   const tShahed = Math.round(dKm / 185 * 3600);
   const tJet = Math.round(dKm / 640 * 3600);
   const tKab = Math.round(dKm / 680 * 3600);
   const tBal = Math.round(dKm / 3800 * 3600);
   $('infobody').innerHTML = `
-    <div style="font-weight:700;color:#79c0ff;margin-bottom:4px">📏 Розрахунок підльоту до ${esc(refName)}</div>
-    <div>Відстань: <b>${dKm.toFixed(1)} км</b> · Азимут: <b>${bDeg}°</b></div>
-    <div style="margin-top:6px;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:5px">
-      <span>🛵 Шахед (185 км/г): <b>~${fmt(tShahed)}</b></span>
-      <span>⚡ Реактивний (640 км/г): <b>~${fmt(tJet)}</b></span>
-      <span>💣 КАБ (680 км/г): <b>~${fmt(tKab)}</b></span>
-      <span>🚀 Балістика (3800 км/г): <b>~${fmt(tBal)}</b></span>
+    <div style="font-weight:700;color:#79c0ff;margin-bottom:3px">📏 Підліт до ${esc(refName)}: <b>${dKm.toFixed(1)} км</b> (${bDeg}°)</div>
+    <div style="font-size:11px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+      <span>🛵 Шахед: <b>~${fmt(tShahed)}</b></span>
+      <span>⚡ Реактивний: <b>~${fmt(tJet)}</b></span>
+      <span>💣 КАБ: <b>~${fmt(tKab)}</b></span>
+      <span>🚀 Балістика: <b>~${fmt(tBal)}</b></span>
     </div>`;
   $('infocard').style.display = 'block';
 });
 
 $('bm').onclick = () => navigator.geolocation && navigator.geolocation.watchPosition(p => {
   me = [p.coords.latitude, p.coords.longitude];
-  if (!meMk) meMk = L.circleMarker(me, { renderer: canvasRenderer, radius: 7, color: '#fff', fillColor: '#2f81f7', fillOpacity: 1, weight: 2 }).addTo(map).bindTooltip('Ви');
+  if (!meMk) meMk = L.circleMarker(me, { renderer: canvasRenderer, radius: 6, color: '#fff', fillColor: '#2f81f7', fillOpacity: 1, weight: 2 }).addTo(map).bindTooltip('Ви');
   meMk.setLatLng(me);
   list();
 }, () => {}, { enableHighAccuracy: true });
@@ -2368,7 +2069,6 @@ $('clrbtn').onclick = async () => {
     }
   } catch (_) {}
   D.tracks = [];
-  rebuildLocalAiSummary();
   render(D);
 };
 
@@ -2390,7 +2090,7 @@ $('chanbtn').onclick = async () => {
     }
   } catch (_) {}
   if (!D.channels.some(c => c.name === v)) {
-    D.channels.push({ name: v, ok: true, checked: 'щойно', last: 'Канал додано до моніторингу' });
+    D.channels.push({ name: v, ok: true, checked: 'щойно', last: 'Додано' });
     renderChans();
   }
 };
@@ -2415,7 +2115,7 @@ function alarm(a) {
   alarmT = setInterval(beep, 750);
   if (window.speechSynthesis) {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance('Увага! Загроза КАБ для Запоріжжя!');
+    const u = new SpeechSynthesisUtterance('Увага! Загроза КАБ!');
     u.lang = 'uk-UA';
     speechSynthesis.speak(u);
   }
@@ -2450,11 +2150,7 @@ function connect() {
     }
     const es = new EventSource('/events');
     esInstance = es;
-    es.onopen = () => {
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
-    };
     es.onmessage = e => {
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
       render(JSON.parse(e.data));
     };
     es.addEventListener('alert', e => alarm(JSON.parse(e.data)));
@@ -2469,7 +2165,6 @@ setInterval(async () => {
     const r = await fetch('/state', { cache: 'no-store' });
     if (r.ok) {
       const st = await r.json();
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
       render(st);
     }
   } catch (_) {}
