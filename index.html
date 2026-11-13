@@ -502,7 +502,7 @@ html, body, #map {
   </div>
 </div>
 
-<!-- ПРАВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ (ЧИСТІ SVG ВЕКТОРИ) -->
+<!-- ПРАВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ -->
 <div id="map-tools">
   <button class="tool-btn" id="sndbtn" title="Звукове оповіщення тривоги">
     <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
@@ -550,13 +550,9 @@ html, body, #map {
     </div>
   </div>
 
-  <!-- ВКЛАДКА 1: ЦІЛІ -->
   <div id="pane-targets" class="pane active"></div>
-
-  <!-- ВКЛАДКА 2: СТРІЧКА -->
   <div id="pane-feed" class="pane"></div>
 
-  <!-- ВКЛАДКА 3: ШАРИ ТА КАРТА -->
   <div id="pane-layers" class="pane">
     <div class="sec-box">
       <div class="sec-title">Режим картографічної підкладки</div>
@@ -585,7 +581,6 @@ html, body, #map {
     </div>
   </div>
 
-  <!-- ВКЛАДКА 4: ЗАХИЩЕНА АДМІН-ПАНЕЛЬ -->
   <div id="pane-admin" class="pane">
     <div id="admin-lock-box" class="sec-box">
       <div class="sec-title">Авторизація оператора радара</div>
@@ -600,7 +595,6 @@ html, body, #map {
     </div>
 
     <div id="admin-controls-wrap" style="display:none;flex-direction:column;gap:7px">
-      <!-- Ручне введення повідомлення -->
       <div class="sec-box">
         <div class="sec-title">Оперативна команда / тест зведення</div>
         <div style="display:flex;gap:4px">
@@ -620,7 +614,6 @@ html, body, #map {
         </div>
       </div>
 
-      <!-- СПАВН РІЗНИХ БПЛА ТА ОЗБРОЄННЯ (10 ТИПІВ З ВЕКТОРНИМИ СИЛУЕТАМИ) -->
       <div class="sec-box">
         <div class="sec-title">
           <span>Арсенал спавну БпЛА та ракет</span>
@@ -675,7 +668,6 @@ html, body, #map {
         </div>
       </div>
 
-      <!-- Управління вектором обраної цілі -->
       <div class="sec-box" id="vector-ctrl-box">
         <div class="sec-title">
           <span>Вектор обраної цілі</span>
@@ -707,7 +699,6 @@ html, body, #map {
         </div>
       </div>
 
-      <!-- Додавання Telegram-каналу -->
       <div class="sec-box">
         <div class="sec-title">Моніторинг Telegram-каналів</div>
         <div style="display:flex;gap:4px">
@@ -724,7 +715,6 @@ html, body, #map {
 const HOME_DEFAULT = ["Запоріжжя", 47.838, 35.139];
 let home = HOME_DEFAULT;
 
-// ── КАРТА LEAFLET З CANVAS-ПРИСКОРЕННЯМ ──
 const canvasRenderer = L.canvas({ padding: 0.45 });
 const map = L.map('map', {
   zoomControl: false,
@@ -819,7 +809,7 @@ function drawStaticLayers() {
   }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top" }).addTo(staticLayerGroup);
 
   if (showRings && map.getZoom() < 12) {
-    [[20, '#10b981', '20 км'], [45, '#f59e0b', '45 км'], [70, '#ef4444', '70 км']].forEach(([rKm, col]) => {
+    [[20, '#10b981'], [45, '#f59e0b'], [70, '#ef4444']].forEach(([rKm, col]) => {
       L.circle([home[1], home[2]], {
         radius: rKm * 1000, color: col, weight: 1, opacity: 0.32, fill: false, dashArray: '5,6', interactive: false, renderer: canvasRenderer
       }).addTo(ringsLayerGroup);
@@ -854,10 +844,10 @@ map.on('zoomstart', () => { isZooming = true; });
 map.on('zoomend', () => {
   isZooming = false;
   drawStaticLayers();
-  renderAllMapVectors();
+  syncTrackVectorLayers(true);
 });
 
-document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; renderAllMapVectors(); });
+document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; syncTrackVectorLayers(true); });
 document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
 
@@ -876,12 +866,14 @@ function brg(a, b, c, d) {
   const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
+function angDiff(target, cur) {
+  return ((target - cur + 540) % 360) - 180;
+}
 function fmtEta(s) {
   if (s == null || s < 0) return '';
   return s < 60 ? `${s} с` : `${Math.floor(s / 60)} хв ${s % 60} с`;
 }
 
-// ── ДЕТАЛЬНІ ВЕКТОРНІ СИЛУЕТИ ВСІХ ТИПІВ БПЛА ТА РАКЕТ ──
 function getTargetVisualSpec(t) {
   const sub = t.sub || '';
   if (sub === 'geran3') return { col: '#ef4444', type: 'jet_drone' };
@@ -981,9 +973,9 @@ function getTargetLabelText(t) {
   return routeTxt + etaStr;
 }
 
-function buildTargetMarkerHTML(t, isSelected, isAdmin) {
+function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
   const spec = getTargetVisualSpec(t);
-  const hdg = (t.hdg != null) ? t.hdg : 325;
+  const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 325);
   const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv') ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
@@ -1004,9 +996,12 @@ let serverTracks = {};
 let animState = {};
 let markerLayerById = {};
 let vectorPolyById = {};
+let originPolyById = {};
 let conePolyById = {};
+let goalDotById = {};
 let reticleMarkerById = {};
 let hiddenKinds = new Set();
+let sseConnected = false;
 
 function updateMarkerDOMWithoutRecreating(m, t, isSelected) {
   const el = m.getElement && m.getElement();
@@ -1015,13 +1010,10 @@ function updateMarkerDOMWithoutRecreating(m, t, isSelected) {
   if (!root) return false;
   root.classList.toggle('selected', isSelected);
   root.classList.toggle('admin-draggable', isAdmin);
-  const svgEl = root.querySelector('.target-rot-svg');
-  if (svgEl && t.hdg != null) {
-    svgEl.style.transform = `rotate(${t.hdg}deg)`;
-  }
   const lblEl = root.querySelector('.t-lbl-tag');
   if (lblEl) {
-    lblEl.textContent = getTargetLabelText(t);
+    const newTxt = getTargetLabelText(t);
+    if (lblEl.textContent !== newTxt) lblEl.textContent = newTxt;
   }
   return true;
 }
@@ -1051,7 +1043,7 @@ function syncAdminUI() {
       updateMarkerDOMWithoutRecreating(m, t, Number(id) === selectedTrackId);
     }
   });
-  renderAllMapVectors();
+  syncTrackVectorLayers(true);
 }
 
 document.getElementById('admin-login-btn').addEventListener('click', () => {
@@ -1123,64 +1115,106 @@ function selectTrack(id) {
   renderTargetsList();
 }
 
-function renderAllMapVectors() {
+// ── ПОСТІЙНІ ВЕКТОРНІ ШАРИ БЕЗ ЩОСЕКУНДНОГО ПЕРЕМАЛЬОВУВАННЯ (НУЛЬ МИГОТІННЯ І СТРИБКІВ) ──
+function removeTrackVectorLayers(id) {
+  if (vectorPolyById[id]) { tracksVectorGroup.removeLayer(vectorPolyById[id]); delete vectorPolyById[id]; }
+  if (originPolyById[id]) { tracksVectorGroup.removeLayer(originPolyById[id]); delete originPolyById[id]; }
+  if (conePolyById[id]) { tracksVectorGroup.removeLayer(conePolyById[id]); delete conePolyById[id]; }
+  if (goalDotById[id]) { tracksVectorGroup.removeLayer(goalDotById[id]); delete goalDotById[id]; }
+  if (reticleMarkerById[id]) { map.removeLayer(reticleMarkerById[id]); delete reticleMarkerById[id]; }
+}
+
+function syncTrackVectorLayers(forceRebuild = false) {
   if (isZooming) return;
-  tracksVectorGroup.clearLayers();
-  vectorPolyById = {};
-  conePolyById = {};
-  Object.values(reticleMarkerById).forEach(rm => map.removeLayer(rm));
-  reticleMarkerById = {};
+  if (forceRebuild) {
+    tracksVectorGroup.clearLayers();
+    vectorPolyById = {};
+    originPolyById = {};
+    conePolyById = {};
+    goalDotById = {};
+    Object.values(reticleMarkerById).forEach(rm => map.removeLayer(rm));
+    reticleMarkerById = {};
+  }
 
   Object.values(serverTracks).forEach(t => {
-    if (hiddenKinds.has(t.kind)) return;
-    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg };
+    if (hiddenKinds.has(t.kind) || t.ended || !t.goal || t.loiter) {
+      removeTrackVectorLayers(t.id);
+      return;
+    }
+    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg || 325 };
     const col = getTargetVisualSpec(t).col;
+    const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+    const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
+    const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+    const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
 
-    if (!t.ended && t.goal && a.hdg != null) {
-      const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-      if (showCones && distKm > 0.25) {
-        const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
-        const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
-        const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+    if (showCones && distKm > 0.25) {
+      if (!conePolyById[t.id]) {
         conePolyById[t.id] = L.polygon([[a.lat, a.lon], pLeft, pRight], {
           color: col, weight: 0.7, opacity: 0.28, fillColor: col, fillOpacity: 0.11, interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
+      } else {
+        conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
       }
+    } else if (conePolyById[t.id]) {
+      tracksVectorGroup.removeLayer(conePolyById[t.id]);
+      delete conePolyById[t.id];
+    }
 
-      if (t.fx && t.fx.length >= 2) {
-        L.polyline([t.fx[0], [a.lat, a.lon]], {
+    if (t.fx && t.fx.length >= 2) {
+      if (!originPolyById[t.id]) {
+        originPolyById[t.id] = L.polyline([t.fx[0], [a.lat, a.lon]], {
           color: col, weight: 1.4, opacity: 0.42, dashArray: '3,5', interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
+      } else {
+        originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
       }
+    }
 
+    if (!vectorPolyById[t.id]) {
       vectorPolyById[t.id] = L.polyline([[a.lat, a.lon], t.goal], {
         color: col, weight: 2.2, opacity: 0.88, dashArray: '6,5', interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
+    } else {
+      vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+    }
 
-      L.circleMarker(t.goal, {
+    if (!goalDotById[t.id]) {
+      goalDotById[t.id] = L.circleMarker(t.goal, {
         radius: 3.5, color: col, weight: 1.5, fillColor: '#070b12', fillOpacity: 0.9, interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
+    } else {
+      goalDotById[t.id].setLatLng(t.goal);
+    }
 
-      if (isAdmin) {
+    if (isAdmin) {
+      if (!reticleMarkerById[t.id]) {
         const rm = L.marker(t.goal, {
           draggable: true,
           icon: L.divIcon({ className: '', html: `<div class="reticle-handle" title="Перетягніть приціл для зміни курсу"></div>`, iconSize: [20, 20], iconAnchor: [10, 10] })
         }).addTo(map);
+        rm.on('dragstart', () => { rm._isDragging = true; });
         rm.on('dragend', ev => {
+          rm._isDragging = false;
           const ll = ev.target.getLatLng();
           selectedTrackId = t.id;
           postSim({ steer: { id: t.id, lat: ll.lat, lon: ll.lng } });
         });
         reticleMarkerById[t.id] = rm;
+      } else if (!reticleMarkerById[t.id]._isDragging) {
+        reticleMarkerById[t.id].setLatLng(t.goal);
       }
+    } else if (reticleMarkerById[t.id]) {
+      map.removeLayer(reticleMarkerById[t.id]);
+      delete reticleMarkerById[t.id];
     }
   });
 }
 
-// ── БЕЗПЕРЕРВНА ПЛАВНА 60 FPS АНІМАЦІЯ ПОЛЬОТУ БПЛА ТА РАКЕТ ──
+// ── ІДЕАЛЬНО ПЛАВНИЙ DEAD-RECKONING РУШІЙ 60 FPS (БЕЗ ТЕЛЕПОРТАЦІЙ!) ──
 let lastAnimTs = performance.now();
 function animateLoop(nowMs) {
-  const dt = Math.min(0.15, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
+  const dt = Math.min(0.10, Math.max(0.001, (nowMs - lastAnimTs) / 1000));
   lastAnimTs = nowMs;
 
   if (!isZooming) {
@@ -1195,37 +1229,51 @@ function animateLoop(nowMs) {
           const stepKm = (v * dt) / 3600;
           const np = fwd(a.lat, a.lon, a.hdg, stepKm);
           a.lat = np[0]; a.lon = np[1];
-          m.setLatLng([a.lat, a.lon]);
-          const el = m.getElement && m.getElement();
-          const svgEl = el && el.querySelector('.target-rot-svg');
-          if (svgEl) svgEl.style.transform = `rotate(${a.hdg}deg)`;
-        } else if (a.hdg != null) {
+        } else {
+          // 1. Плавний розворот за курсом (до цілі або targetHdg)
+          if (t.goal && hav(a.lat, a.lon, t.goal[0], t.goal[1]) > 0.25) {
+            a.targetHdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
+          }
+          const diff = angDiff(a.targetHdg != null ? a.targetHdg : a.hdg, a.hdg);
+          if (Math.abs(diff) > 0.2) {
+            const turnRate = (t.kind === 'kab' ? 36.0 : 48.0) * dt;
+            a.hdg = (a.hdg + Math.max(-turnRate, Math.min(turnRate, diff)) + 360) % 360;
+          }
+
+          // 2. Рівномірний політ уперед зі швидкістю v км/год у кожному кадрі 60 FPS
           const stepKm = (v * dt) / 3600;
-          if (t.goal) {
-            const rem = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-            if (rem > 0.15) {
-              a.hdg = brg(a.lat, a.lon, t.goal[0], t.goal[1]);
-              const np = fwd(a.lat, a.lon, a.hdg, Math.min(stepKm, rem));
-              a.lat = np[0]; a.lon = np[1];
-            } else {
-              const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-              a.lat = np[0]; a.lon = np[1];
-            }
-          } else {
-            const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-            a.lat = np[0]; a.lon = np[1];
+          const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+          a.lat = np[0];
+          a.lon = np[1];
+
+          // 3. М'яке експоненційне зближення з серверною траєкторією (без жодного стрибка чи телепортації!)
+          if (a.srvLat != null && a.srvLon != null && a.srvTime != null) {
+            const elapsedSrv = Math.min(2.5, Math.max(0, (nowMs - a.srvTime) / 1000));
+            const srvProj = fwd(a.srvLat, a.srvLon, a.targetHdg != null ? a.targetHdg : a.hdg, (v * elapsedSrv) / 3600);
+            const blend = 1.0 - Math.exp(-1.4 * dt); // ~2% корекції за кадр
+            a.lat += (srvProj[0] - a.lat) * blend;
+            a.lon += (srvProj[1] - a.lon) * blend;
           }
-          m.setLatLng([a.lat, a.lon]);
-          if (vectorPolyById[t.id] && t.goal) {
-            vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
-          }
-          if (conePolyById[t.id] && t.goal) {
-            const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
-            const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
-            const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
-            const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
-            conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
-          }
+        }
+
+        // Оновлюємо позицію та кут повороту маркера і ліній курсу прямо в 60 FPS циклі!
+        m.setLatLng([a.lat, a.lon]);
+        const el = m.getElement && m.getElement();
+        const svgEl = el && el.querySelector('.target-rot-svg');
+        if (svgEl) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+
+        if (vectorPolyById[t.id] && t.goal) {
+          vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], t.goal]);
+        }
+        if (originPolyById[t.id] && t.fx && t.fx.length >= 2) {
+          originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
+        }
+        if (conePolyById[t.id] && t.goal) {
+          const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+          const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
+          const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+          const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+          conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
         }
       }
     });
@@ -1234,7 +1282,7 @@ function animateLoop(nowMs) {
 }
 requestAnimationFrame(animateLoop);
 
-// ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ ──
+// ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ (БЕЗ ПРИМУСОВОГО ПЕРЕМІЩЕННЯ МАРКЕРІВ!) ──
 function applyServerState(st) {
   if (!st) return;
   if (st.home) home = st.home;
@@ -1247,6 +1295,7 @@ function applyServerState(st) {
   const incomingIds = new Set();
   const counts = { drone: 0, kab: 0, missile: 0, strike: 0 };
   let activeTotal = 0;
+  const nowPerf = performance.now();
 
   (st.tracks || []).forEach(t => {
     incomingIds.add(String(t.id));
@@ -1257,21 +1306,27 @@ function applyServerState(st) {
       else if (t.kind === 'impact') counts.strike++;
     }
 
+    const initH = t.hdg != null ? t.hdg : 325;
     if (!animState[t.id]) {
-      animState[t.id] = { lat: t.lat, lon: t.lon, hdg: t.hdg != null ? t.hdg : 325 };
+      animState[t.id] = {
+        lat: t.lat, lon: t.lon,
+        hdg: initH, targetHdg: t.thdg != null ? t.thdg : initH,
+        srvLat: t.lat, srvLon: t.lon, srvTime: nowPerf
+      };
     } else {
+      const a = animState[t.id];
       const m = markerLayerById[t.id];
       if (!m || !m._isDragging) {
-        // Якщо розбіжність між клієнтською інтерполяцією і сервером > 0.6 км, синхронізуємо координату, інакше плавно дотягуємо
-        const driftKm = hav(animState[t.id].lat, animState[t.id].lon, t.lat, t.lon);
-        if (driftKm > 0.6) {
-          animState[t.id].lat = t.lat;
-          animState[t.id].lon = t.lon;
-        } else {
-          animState[t.id].lat = animState[t.id].lat * 0.65 + t.lat * 0.35;
-          animState[t.id].lon = animState[t.id].lon * 0.65 + t.lon * 0.35;
+        a.srvLat = t.lat;
+        a.srvLon = t.lon;
+        a.srvTime = nowPerf;
+        if (t.thdg != null) a.targetHdg = t.thdg;
+        else if (t.hdg != null) a.targetHdg = t.hdg;
+        // Лише якщо ціль перенесли адміном далеко (> 35 км), переставляємо одразу; інакше animateLoop плавно доведе її!
+        if (hav(a.lat, a.lon, t.lat, t.lon) > 35.0) {
+          a.lat = t.lat;
+          a.lon = t.lon;
         }
-        if (t.hdg != null && !t.loiter) animState[t.id].hdg = t.hdg;
       }
     }
 
@@ -1280,6 +1335,7 @@ function applyServerState(st) {
         map.removeLayer(markerLayerById[t.id]);
         delete markerLayerById[t.id];
       }
+      removeTrackVectorLayers(t.id);
       return;
     }
 
@@ -1289,7 +1345,7 @@ function applyServerState(st) {
         draggable: isAdmin,
         icon: L.divIcon({
           className: 't-icon-wrap',
-          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
+          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg),
           iconSize: [32, 32], iconAnchor: [16, 16]
         })
       }).addTo(map);
@@ -1305,17 +1361,20 @@ function applyServerState(st) {
         const ll = ev.target.getLatLng();
         animState[t.id].lat = ll.lat;
         animState[t.id].lon = ll.lng;
+        animState[t.id].srvLat = ll.lat;
+        animState[t.id].srvLon = ll.lng;
+        animState[t.id].srvTime = performance.now();
         postSim({ move: { id: t.id, lat: ll.lat, lon: ll.lng } });
       });
       markerLayerById[t.id] = m;
     } else {
       const m = markerLayerById[t.id];
-      if (!m._isDragging) m.setLatLng([animState[t.id].lat, animState[t.id].lon]);
+      // ВАЖЛИВО: НЕ викликаємо m.setLatLng() тут (це робить 60 FPS animateLoop без ривків)!
       if (m._sig !== sig) {
         m._sig = sig;
         m.setIcon(L.divIcon({
           className: 't-icon-wrap',
-          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
+          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg),
           iconSize: [32, 32], iconAnchor: [16, 16]
         }));
       } else {
@@ -1332,6 +1391,7 @@ function applyServerState(st) {
         map.removeLayer(markerLayerById[id]);
         delete markerLayerById[id];
       }
+      removeTrackVectorLayers(id);
       if (Number(id) === selectedTrackId) selectedTrackId = null;
     }
   });
@@ -1353,7 +1413,7 @@ function applyServerState(st) {
   const scope = document.getElementById('radar-scope');
   scope.className = 'radar-scope' + (counts.kab > 0 || counts.missile > 0 ? ' err' : (activeTotal > 0 ? ' warn' : ''));
 
-  renderAllMapVectors();
+  syncTrackVectorLayers(false);
   renderTargetsList();
   renderFeedList(st.feed || []);
   renderChannelsList(st.channels || []);
@@ -1396,8 +1456,8 @@ function renderTargetsList() {
     el.addEventListener('click', () => {
       const id = Number(el.dataset.id);
       selectTrack(id);
-      const t = serverTracks[id];
-      if (t) map.panTo([t.lat, t.lon], { animate: true });
+      const a = animState[id] || serverTracks[id];
+      if (a) map.panTo([a.lat, a.lon], { animate: true });
     });
   });
 }
@@ -1457,7 +1517,6 @@ document.getElementById('sheet-handle').addEventListener('click', () => {
   document.getElementById('sheet-toggle-lbl').textContent = collapsed ? 'ВІДКРИТИ' : 'ЗГОРНУТИ';
 });
 
-// ── АРСЕНАЛ СПАВНУ РІЗНИХ БПЛА ТА ОЗБРОЄННЯ ──
 const DEFAULT_SPAWN_PRESETS = {
   geran2:    { lat: 47.728, lon: 35.245, frm: 'підліт до ЗП', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
   geran3:    { lat: 47.685, lon: 36.960, frm: 'Донецька обл.', goal_lat: 47.482, goal_lon: 36.254, goal_name: 'Пологи' },
@@ -1651,7 +1710,9 @@ fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
 
 function connectSSE() {
   const es = new EventSource('/events');
+  es.onopen = () => { sseConnected = true; };
   es.onmessage = ev => {
+    sseConnected = true;
     try { applyServerState(JSON.parse(ev.data)); } catch (_) {}
   };
   es.addEventListener('alert', ev => {
@@ -1665,14 +1726,18 @@ function connectSSE() {
     } catch (_) {}
   });
   es.onerror = () => {
+    sseConnected = false;
     es.close();
     setTimeout(connectSSE, 3000);
   };
 }
 connectSSE();
+// Polling використовується ТІЛЬКИ якщо SSE тимчасово розірвано, щоб уникнути конфлікту пакетів!
 setInterval(() => {
-  fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
-}, 3500);
+  if (!sseConnected) {
+    fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
+  }
+}, 4000);
 </script>
 </body>
 </html>

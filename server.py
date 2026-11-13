@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Оперативний Радар ZP v14 — Тактичний радар повітряних цілей Запоріжжя та області.
+"""Оперативний Радар ZP v15 — Тактичний радар повітряних цілей Запоріжжя та області.
+Плавна кінематика польоту без телепортацій та стрибків координат.
 Сумісний з Python 3.7 - 3.12+ (Render.com та локальний запуск).
 Запуск: pip install aiohttp beautifulsoup4 && python server.py
 Відкрити: http://localhost:8080"""
@@ -246,7 +247,7 @@ RAW_PLACES = [
     ("Солоне", 48.204, 34.872, r"солон(?:е|ого|ому|ое)\b|солен(?:ое|ого|ому)\b"),
     ("Каховське водосховище", 47.520, 34.850, r"водосховищ\w*|водохран\w*|акватор\w+|русл\w+\s+дніпр\w*|річк\w+\s+дніпр\w*|(?:через|над|вздовж)\s+дніпр\w*"),
 
-    # ── м. Запоріжжя матчить ТІЛЬКИ іменник «Запоріжжя / Запорожье / ЗП / на місто / над городом», а НЕ прикметник «Запорізька область» ──
+    # ── м. Запоріжжя матчить ТІЛЬКИ іменник «Запоріжжя / Запорожье / ЗП / на місто / над городом» ──
     ("Запоріжжя", 47.838, 35.139,
      r"запоріжж(?:я|і|ям|ю)\b|запорожь(?:е|я|ю|ем|е)\b|\bзп\b|(?:на|над|до|в\s+бік|у\s+бік|в\s+сторону|біля|возле|через)\s+(?:міст(?:о|а|у|ом|і)|город(?:а|у|ом|е)?)\b"),
 ]
@@ -796,8 +797,6 @@ def real_tactical_uav_origin_for(sub_id, tgt):
     return ("Інженерне / Пологи (ЛБЗ)", 47.508, 36.185)
 
 def default_route_for_sub(sb, from_brg=None, hdg_ovr=None):
-    """Якщо у зведенні або швидкій команді вказано лише тип БпЛА/ракети без населеного пункту
-    (напр. «шахед летит», «молния», «фпв», «реактивный», «бпла с юга»), повертає реалістичний маршрут підльоту!"""
     sid = sb["id"]
     if sb["kind"] == "kab":
         return (("Пришиб", 47.258, 35.324), ("Малокатеринівка", 47.659, 35.260))
@@ -811,7 +810,6 @@ def default_route_for_sub(sb, from_brg=None, hdg_ovr=None):
         return (("Донецька обл.", 47.685, 36.960), ("Пологи", 47.482, 36.254))
     if sb["kind"] == "missile":
         return (("Таганрог (РФ)", 47.236, 38.896), ("Запоріжжя", HOME[1], HOME[2]))
-    # Для Шахедів / БпЛА / Розвідників
     in_brg = from_brg if from_brg is not None else ((hdg_ovr + 180) % 360 if hdg_ovr is not None else 148.0)
     sla, slo = fwd(HOME[1], HOME[2], in_brg, 14.5)
     return (("підліт до ЗП", sla, slo), ("Запоріжжя", HOME[1], HOME[2]))
@@ -836,9 +834,6 @@ def default_target_for_launch_origin(sub_kind, pos):
         if plo <= 35.98:
             return ("Оріхів", 47.567, 35.784)
         return ("Гуляйполе", 47.661, 36.259)
-    # ВИПРАВЛЕНО в v14 («бпла замирают и не летят»):
-    # Якщо БпЛА зафіксовано в будь-якому н.п. без вказання кінцевої цілі (напр. «БпЛА над Кушугумом» або «Шахед Вільнянськ»),
-    # він НІКОЛИ не зависає зі швидкістю 0, а отримує вектор польоту вперед!
     if pname == "Запоріжжя" or pname in ZP_DISTRICTS:
         if pla < 47.845:
             return ("Центр (ЗП)", 47.842, 35.128)
@@ -967,7 +962,6 @@ def step(t, now):
     if t["hdg"] is None:
         t["hdg"] = 325.0
 
-    # Якщо ціль у режимі кружляння (loiter), вона плавно описує коло на крейсерській швидкості і НЕ завмирає!
     if t.get("loiter"):
         t["hdg"] = (t["hdg"] + 12.0 * dt) % 360
         t["thdg"] = t["hdg"]
@@ -978,7 +972,7 @@ def step(t, now):
     if t.get("thdg") is not None and t["hdg"] is not None:
         diff = ang(t["thdg"] - t["hdg"])
         if abs(diff) > 0.5:
-            turn_rate = 28.0 if t["kind"] == "kab" else 38.0
+            turn_rate = 32.0 if t["kind"] == "kab" else 42.0
             max_turn = turn_rate * dt
             t["hdg"] = (t["hdg"] + max(-max_turn, min(max_turn, diff))) % 360
 
@@ -988,8 +982,6 @@ def step(t, now):
         rem_g = hav(t["lat"], t["lon"], g[1], g[2])
         if rem_g > 0.35 and step_km < rem_g:
             t["thdg"] = brg(t["lat"], t["lon"], g[1], g[2])
-            if abs(ang(t["thdg"] - t["hdg"])) < 22.0:
-                t["hdg"] = t["thdg"]
             t["lat"], t["lon"] = fwd(t["lat"], t["lon"], t["hdg"], step_km)
         else:
             t["lat"], t["lon"] = g[1], g[2]
@@ -998,9 +990,6 @@ def step(t, now):
             t["passed_at"] = now
             clean_g = g[0]
 
-            # ВИПРАВЛЕНО в v14 («бпла замирают и не летят»):
-            # При досягненні точки прицілу БпЛА НІКОЛИ не скидає hdg у None і не зупиняється на 0 км/год!
-            # Він продовжує рух за своїм вектором вперед через сектор (14 км), поки не надійде новий курс.
             cont_km = 6.0 if t["kind"] == "kab" else 14.0
             gla, glo = fwd(t["lat"], t["lon"], t["hdg"], cont_km)
             t["goal"] = (clean_g, gla, glo)
@@ -1046,8 +1035,8 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
 
     if pos and pos[0] not in LAUNCH_ONLY_ORIGINS and not pos[0].startswith("підліт"):
         p_dist = hav(pos[1], pos[2], c["lat"], c["lon"])
-        if p_dist <= 30.0:
-            return True, p_dist / 35.0
+        if p_dist <= 22.0:
+            return True, p_dist / 25.0
         return False, 999.0
 
     if tgt and not pos:
@@ -1109,7 +1098,6 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             gla, glo = fwd(pos[1], pos[2], init_hdg, proj_km)
             eff_goal = (f"курс {round(init_hdg)}°", gla, glo)
         elif v > 0:
-            # Завжди створюємо вектор польоту вперед, щоб БпЛА летів, а не стояв на місці!
             init_hdg = brg(pos[1], pos[2], HOME[1], HOME[2]) if hav(pos[1], pos[2], HOME[1], HOME[2]) > 3.0 else 325.0
             gla, glo = fwd(pos[1], pos[2], init_hdg, 16.0)
             eff_goal = ("Запоріжжя", gla, glo)
@@ -1153,11 +1141,10 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
     t["n"] = max(t["n"] + 1, len(t["channels"]))
     t["seen"] = now
 
+    # ВИПРАВЛЕНО в v15 («цели телепортируються надо чтлбі плавно летели»):
+    # Коли приходить нове повідомлення про ВЖЕ ЛІТАЮЧУ ціль, ми НЕ телепортуємо її координату (t["lat"], t["lon"]) стрибком!
+    # Натомість ми лише плавно коригуємо вектор курсу (thdg) до нової точки/цілі, щоб ціль летіла плавно зі своєї поточної точки!
     if t["kind"] == "kab":
-        if pos and pos[0] not in LAUNCH_ONLY_ORIGINS:
-            if is_free_territory(pos[1], pos[2]):
-                t["lat"], t["lon"] = pos[1], pos[2]
-                t["frm"] = pos[0]
         if tgt:
             t["goal"] = tgt
             t["to_name"] = tgt[0]
@@ -1165,13 +1152,16 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             if hav(t["lat"], t["lon"], tgt[1], tgt[2]) > 0.25:
                 new_b = brg(t["lat"], t["lon"], tgt[1], tgt[2])
                 t["thdg"] = new_b
-                t["hdg"] = new_b
+                if t["hdg"] is None:
+                    t["hdg"] = new_b
                 t["status_msg"] = None
     else:
         if pos and not pos[0].startswith("підліт"):
-            t["lat"], t["lon"] = pos[1], pos[2]
             t["frm"] = pos[0]
             t["obs"][ch or f"u{t['n']}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=tgt, hdg=hdg_ovr, v=t["v"], explicit=True)
+            # Не стрибаємо у pos! Якщо немає явної кінцевої цілі tgt, використовуємо pos як проміжний вектор попереду
+            if not tgt and hav(t["lat"], t["lon"], pos[1], pos[2]) > 1.2:
+                tgt = pos
 
         if is_loiter:
             t["loiter"] = True
@@ -1185,13 +1175,16 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             eff_goal = adjust_city_entry_goal((t["frm"], t["lat"], t["lon"]), tgt) if (t["kind"] == "drone" and tgt[0] == "Запоріжжя") else tgt
             dist_to_goal = hav(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
             if dist_to_goal < 0.25:
-                in_b = (t["hdg"] + 180) % 360 if t["hdg"] is not None else 148.0
-                t["lat"], t["lon"] = fwd(eff_goal[1], eff_goal[2], in_b, 2.5)
+                cur_h = t["hdg"] if t["hdg"] is not None else 325.0
+                gla, glo = fwd(t["lat"], t["lon"], cur_h, 12.0)
+                eff_goal = (tgt[0], gla, glo)
             t["goal"] = eff_goal
             t["to_name"] = tgt[0]
             t["passed_goal"] = False
             new_b = brg(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
-            t["thdg"] = t["hdg"] = new_b
+            t["thdg"] = new_b
+            if t["hdg"] is None:
+                t["hdg"] = new_b
             t["status_msg"] = None
         elif hdg_ovr is not None:
             t["loiter"] = False
@@ -1200,16 +1193,10 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             t["goal"] = (f"курс {round(hdg_ovr)}°", gla, glo)
             t["to_name"] = f"курс {round(hdg_ovr)}°"
             t["passed_goal"] = False
-            t["thdg"] = t["hdg"] = hdg_ovr
+            t["thdg"] = hdg_ovr
+            if t["hdg"] is None:
+                t["hdg"] = hdg_ovr
             t["status_msg"] = None
-        elif pos:
-            # Якщо оновилась позиція БпЛА («БпЛА пролітає Балабине»), зберігаємо політ вперед!
-            t["loiter"] = False
-            cur_hdg = t["hdg"] if t["hdg"] is not None else brg(t["lat"], t["lon"], HOME[1], HOME[2])
-            gla, glo = fwd(t["lat"], t["lon"], cur_hdg, 16.0)
-            t["goal"] = (t.get("to_name") or "Запоріжжя", gla, glo)
-            t["passed_goal"] = False
-            t["thdg"] = t["hdg"] = cur_hdg
 
     t["unc"] = max(1.0, round(sigma_of(t["frm"]) / (1.0 + 0.25 * (len(t["channels"]) - 1)), 1))
     if cnt:
@@ -1236,7 +1223,8 @@ def view(t, now):
         if abs(ang(brg(la, lo, HOME[1], HOME[2]) - t["hdg"])) <= tol:
             etah = int(home / v_eff * 3600)
     sb = SUB[t["sub"]]
-    hdg_out = round(brg(la, lo, g[1], g[2])) if (g and not t.get("loiter") and hav(la, lo, g[1], g[2]) > 0.2 and not t.get("ended")) else (325 if t["hdg"] is None else round(t["hdg"]))
+    hdg_out = round(t["hdg"]) if t["hdg"] is not None else 325
+    thdg_out = round(t["thdg"]) if t.get("thdg") is not None else hdg_out
     chs = sorted(t.get("channels") or [])
     next_threats = predict_next_threats(la, lo, hdg_out) if (hdg_out is not None and not t.get("ended")) else []
 
@@ -1247,7 +1235,7 @@ def view(t, now):
     r = dict(
         id=t["id"], kind=t["kind"], lat=round(la, 5), lon=round(lo, 5), unc=round(t["unc"], 1),
         v=v_eff,
-        hdg=hdg_out, thdg=hdg_out, turn=32.0,
+        hdg=hdg_out, thdg=thdg_out, turn=38.0,
         loiter=bool(t.get("loiter")),
         goal=[round(g[1], 5), round(g[2], 5)] if (g and not t.get("ended") and not t.get("loiter")) else None,
         to=clean_to, frm=clean_frm,
@@ -1434,10 +1422,6 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
             act(intent, subs, None, None, ts, seg, ch, msg_key=msg_key)
         return subs
 
-    # ВИПРАВЛЕНО в v14 («бпла замирают и не летят и не спавнятся»):
-    # Якщо у повідомленні є тип цілі (БпЛА, Шахед, Реактивний, Молнія, FPV, Ланцет, КАБ, Ракета), але не названо село/район
-    # (напр. «шахед летит», «бпла с юга», «молния», «фпв», «кабы»),
-    # гарантовано створюємо маршрут підльоту для цього підтипу цілі!
     if not routes and subs and (has_zp or ch.lower() not in ALL_UA_CHANNELS):
         live_drones = [t for t in tracks.values() if t["kind"] == "drone" and not t.get("ended")]
         if (hdg_ovr is not None or is_loiter) and live_drones and not force_new:
@@ -1454,7 +1438,7 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 latest["goal"] = (f"курс {round(hdg_ovr)}°", gla, glo)
                 latest["to_name"] = f"курс {round(hdg_ovr)}°"
                 latest["passed_goal"] = False
-                latest["hdg"] = latest["thdg"] = hdg_ovr
+                latest["thdg"] = hdg_ovr
                 latest["status_msg"] = None
                 latest["seen"] = time.time()
                 return subs
@@ -1471,7 +1455,7 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 latest["goal"] = (f"курс {round(hdg_ovr)}°", gla, glo)
                 latest["to_name"] = f"курс {round(hdg_ovr)}°"
                 latest["passed_goal"] = False
-                latest["hdg"] = latest["thdg"] = hdg_ovr
+                latest["thdg"] = hdg_ovr
                 latest["status_msg"] = None
                 latest["seen"] = time.time()
                 return subs
@@ -1771,7 +1755,7 @@ async def sim_endpoint(req):
                     t["goal"] = (f"курс {round(h_deg)}°", gla, glo)
                     t["to_name"] = f"курс {round(h_deg)}°"
                     t["passed_goal"] = False
-                    t["thdg"] = t["hdg"] = h_deg
+                    t["thdg"] = h_deg
                     t["status_msg"] = None
                 elif st.get("lat") is not None and st.get("lon") is not None:
                     t["loiter"] = False
@@ -1781,7 +1765,7 @@ async def sim_endpoint(req):
                     t["to_name"] = tname
                     t["passed_goal"] = False
                     new_b = brg(t["lat"], t["lon"], tla, tlo)
-                    t["thdg"] = t["hdg"] = new_b
+                    t["thdg"] = new_b
                     t["status_msg"] = None
                 t["seen"] = now
                 await push()
@@ -1890,7 +1874,7 @@ async def main():
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()
-    print(f"Оперативний Радар ZP v14 started on http://localhost:8080 | Places: {len(PLACES)}")
+    print(f"Оперативний Радар ZP v15 started on http://localhost:8080 | Places: {len(PLACES)}")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
