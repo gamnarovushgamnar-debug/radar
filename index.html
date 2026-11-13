@@ -3,982 +3,923 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Оперативний Радар ZP</title>
+<meta name="theme-color" content="#070b12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#070a0f">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Оперативний Радар ZP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
-  --bg: #070a0f;
-  --panel: rgba(10, 14, 20, 0.94);
-  --card: #111722;
-  --card-hover: #172030;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --text: #e6edf3;
-  --muted: #7d8998;
-  --accent: #2f81f7;
-  --green: #2ea043;
-  --amber: #f5a623;
-  --red: #f85149;
-  --sheet-h: 50px;
+  --bg-hud: rgba(8, 13, 21, 0.90);
+  --bg-card: rgba(13, 21, 34, 0.88);
+  --bg-elev: rgba(20, 31, 48, 0.92);
+  --border-hud: rgba(56, 189, 248, 0.22);
+  --border-subtle: rgba(148, 163, 184, 0.16);
+  --txt-main: #f1f5f9;
+  --txt-muted: #94a3b8;
+  --txt-dim: #64748b;
+  --accent-cyan: #38bdf8;
+  --accent-emerald: #10b981;
+  --col-shahed: #f59e0b;
+  --col-jet: #ef4444;
+  --col-molniya: #38bdf8;
+  --col-fpv: #eab308;
+  --col-lancet: #2dd4bf;
+  --col-kab: #ef4444;
+  --col-missile: #f97316;
+  --col-strike: #c084fc;
 }
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font: 12.5px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
-  overflow: hidden;
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body, #map {
+  height: 100%; width: 100%; overflow: hidden;
+  background: #070b12;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--txt-main);
   user-select: none;
 }
 
-#mapWrap {
-  position: absolute;
-  inset: 0;
-  background: #070a0f;
-  overflow: hidden;
+/* ── КАРТА ТА ТАКТИЧНІ ТЕКСТУРИ ── */
+#map.theme-tactical .leaflet-tile-pane { filter: contrast(1.05) saturate(0.88) brightness(0.95); }
+#map.theme-dark .leaflet-tile-pane { filter: brightness(0.82) contrast(1.22) saturate(0.75); }
+#map.theme-sat .leaflet-tile-pane { filter: contrast(1.12) brightness(0.90) saturate(1.05); }
+#map.theme-light .leaflet-tile-pane { filter: contrast(1.02) saturate(0.95); }
+
+/* ── ТАКТИЧНА СІТКА ТА РАДАРНЕ СВІТІННЯ ПОВЕРХ КАРТИ ── */
+#hud-grid-overlay {
+  position: fixed; inset: 0; pointer-events: none; z-index: 390;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.02) 0%, rgba(5, 9, 16, 0.24) 100%),
+    linear-gradient(rgba(56, 189, 248, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.028) 1px, transparent 1px);
+  background-size: 100% 100%, 64px 64px, 64px 64px;
 }
 
-#m {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #070a0f;
-}
-
-.leaflet-container {
-  background: #070a0f !important;
-  font-family: inherit;
-}
-
-.leaflet-tile-pane {
+/* ── ВОДЯНИЙ ЗНАК «ОПЕРАТИВНИЙ РАДАР ZP» ── */
+#watermark-overlay {
+  position: fixed; inset: -35%; width: 170%; height: 170%;
+  pointer-events: none; z-index: 400;
+  background-repeat: repeat;
+  transform: rotate(-24deg);
+  opacity: 0.16;
   will-change: transform;
 }
-.leaflet-layer.radar-dark {
-  filter: invert(1) hue-rotate(188deg) saturate(0.52) brightness(0.64) contrast(1.12);
-}
-.leaflet-layer.tactical-topo {
-  filter: saturate(0.72) brightness(0.86) contrast(1.04);
-}
-.leaflet-layer.sat-filter {
-  filter: saturate(0.8) brightness(0.65) contrast(1.08);
-}
 
-.leaflet-control-attribution {
-  display: none !important;
-}
-
-/* Діагональна водянка «ОПЕРАТИВНИЙ РАДАР ZP» */
-#wmOverlay {
-  position: absolute;
-  inset: 0;
-  z-index: 410;
+/* ── ВЕРХНЯ ТАКТИЧНА ПАНЕЛЬ HUD ── */
+#top-hud {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: 8px; right: 8px;
+  z-index: 1000;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
   pointer-events: none;
+}
+#top-hud > * { pointer-events: auto; }
+
+.hud-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+
+.status-pill {
+  position: relative;
+  background: var(--bg-hud);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  color: #f8fafc;
+  padding: 5px 12px 5px 8px;
+  border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border-hud);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55), inset 0 0 12px rgba(56, 189, 248, 0.06);
+  display: inline-flex; align-items: center; gap: 8px;
   overflow: hidden;
-  opacity: 0.19;
+}
+.status-pill::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(56,189,248,0.03) 2px, rgba(56,189,248,0.03) 4px);
 }
 
-/* ── КОМПАКТНИЙ ТАКТИЧНИЙ ВЕРХНІЙ HUD (НЕ ЗАКРИВАЄ КАРТУ НА ТЕЛЕФОНІ!) ── */
-#topHud {
-  position: absolute;
-  z-index: 850;
-  top: calc(8px + env(safe-area-inset-top));
-  left: 8px;
-  right: 52px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  pointer-events: none;
-  max-width: 520px;
-}
-#topHud > * {
-  pointer-events: auto;
-}
-
-.hud-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  background: rgba(10, 14, 20, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
-  width: fit-content;
-  max-width: 100%;
-}
-#statusDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3fb950;
-  box-shadow: 0 0 6px #3fb950;
+/* Міні-радар із променем сканування */
+.radar-scope {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px solid rgba(16, 185, 129, 0.65);
+  position: relative; overflow: hidden;
+  background: radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(6,12,20,0.9) 100%);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35);
   flex-shrink: 0;
 }
-#statusDot.am {
-  background: #f5a623;
-  box-shadow: 0 0 8px #f5a623;
+.radar-scope::before {
+  content: ""; position: absolute; inset: 3px; border-radius: 50%;
+  border: 1px dashed rgba(16, 185, 129, 0.35);
 }
-#statusDot.rd {
-  background: #f85149;
-  box-shadow: 0 0 10px #f85149;
-  animation: blinkDot 0.8s infinite;
+.radar-scope-sweep {
+  position: absolute; width: 50%; height: 50%; top: 0; left: 50%;
+  transform-origin: 0% 100%;
+  background: conic-gradient(from 0deg, rgba(16, 185, 129, 0.75), transparent 85deg);
+  animation: radarSweep 2.4s linear infinite;
 }
-@keyframes blinkDot {
-  50% { opacity: 0.3; }
-}
-#stampText {
-  font: 700 11px/1.2 "SF Mono", "JetBrains Mono", Consolas, monospace;
-  color: #f0c654;
-  white-space: nowrap;
-}
-#banShort {
-  font-size: 11px;
-  font-weight: 600;
-  color: #c9d1d9;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-left: 6px;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+.radar-scope.warn { border-color: rgba(245, 158, 11, 0.75); box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+.radar-scope.warn .radar-scope-sweep { background: conic-gradient(from 0deg, rgba(245, 158, 11, 0.8), transparent 85deg); }
+.radar-scope.err { border-color: rgba(239, 68, 68, 0.8); box-shadow: 0 0 8px rgba(239, 68, 68, 0.45); }
+.radar-scope.err .radar-scope-sweep { background: conic-gradient(from 0deg, rgba(239, 68, 68, 0.8), transparent 85deg); }
+
+@keyframes radarSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* Тонка смужка фільтрів в один рядок */
-#chips {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding-bottom: 2px;
+.hud-divider {
+  width: 1px; height: 12px; background: rgba(148, 163, 184, 0.28);
 }
-#chips::-webkit-scrollbar {
+
+.hud-brand-tag {
+  color: var(--accent-cyan);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+}
+
+/* Банер тривоги КАБ / Балістика */
+#banner {
   display: none;
+  padding: 6px 12px; border-radius: 6px;
+  font-weight: 700; font-size: 11.5px; letter-spacing: 0.3px;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+  max-width: min(500px, 94vw);
+  align-items: center; gap: 8px;
 }
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(10, 14, 20, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-.chip.off {
-  opacity: 0.35;
-  filter: grayscale(0.9);
-}
-.chip b {
-  font-weight: 700;
-  color: #fff;
-  font-size: 10.5px;
+#banner.l1 { display: inline-flex; background: rgba(69, 26, 3, 0.92); border: 1px solid #f59e0b; color: #fde68a; }
+#banner.l2 { display: inline-flex; background: rgba(88, 11, 18, 0.95); border: 1px solid #f43f5e; color: #fecdd3; animation: pulseAlert 1.1s infinite; }
+@keyframes pulseAlert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
 }
 
-/* Компактна картка обраної цілі */
-#infocard {
-  display: none;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(10, 14, 20, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  max-width: 390px;
-  position: relative;
+/* Фільтри типів цілей з векторними силуетами */
+#filterbar {
+  display: flex; gap: 5px; flex-wrap: nowrap;
+  overflow-x: auto; max-width: calc(100vw - 60px);
+  scrollbar-width: none; padding-bottom: 2px;
 }
-#infocard .close {
-  position: absolute;
-  top: 7px;
-  right: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 0;
-  color: var(--muted);
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  font-size: 11px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+#filterbar::-webkit-scrollbar { display: none; }
+
+.fchip {
+  background: var(--bg-hud);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  color: #cbd5e1;
+  padding: 4px 9px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  transition: all 0.16s ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  white-space: nowrap; flex-shrink: 0;
+}
+.fchip svg { width: 13px; height: 13px; flex-shrink: 0; }
+.fchip:hover { border-color: rgba(56, 189, 248, 0.45); color: #fff; }
+.fchip.off { opacity: 0.38; filter: grayscale(0.8); }
+.fchip .cnt-badge {
+  background: rgba(255,255,255,0.10); padding: 0 5px; border-radius: 3px;
+  font-size: 9.5px; color: #f8fafc; font-variant-numeric: tabular-nums;
 }
 
-.steer-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
+/* ── ПРАВІ ТАКТИЧНІ КНОПКИ УПРАВЛІННЯ КАРТОЮ ── */
+#map-tools {
+  position: fixed;
+  right: 8px; top: max(8px, env(safe-area-inset-top));
+  z-index: 1000;
+  display: flex; flex-direction: column; gap: 5px;
 }
-.st-pill {
-  background: #161f2e;
-  border: 1px solid rgba(47, 129, 247, 0.35);
-  color: #9ecbff;
-  border-radius: 5px;
-  padding: 3px 7px;
-  font-size: 10.5px;
-  font-weight: 600;
-  cursor: pointer;
+.tool-btn {
+  width: 34px; height: 34px; border-radius: 6px;
+  background: var(--bg-hud);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-hud);
+  color: #cbd5e1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+  transition: all 0.16s ease;
 }
-.st-pill:hover, .st-pill.active {
-  background: var(--accent);
-  color: #fff;
-}
+.tool-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.tool-btn:hover { border-color: var(--accent-cyan); color: #fff; box-shadow: 0 0 12px rgba(56, 189, 248, 0.28); }
+.tool-btn.on { background: rgba(14, 116, 144, 0.85); color: #fff; border-color: var(--accent-cyan); box-shadow: 0 0 14px rgba(56, 189, 248, 0.45); }
 
-/* ── КОМПАКТНІ КНОПКИ ІНСТРУМЕНТІВ СПРАВА (34x34px) ── */
-#btns {
-  position: absolute;
-  z-index: 850;
-  right: 8px;
-  top: calc(8px + env(safe-area-inset-top));
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.b {
-  width: 34px;
-  height: 34px;
+/* ── КОМПАКТНА ТАКТИЧНА ПАНЕЛЬ (ДЕСКТОП ПРАВОРУЧ / МОБІЛЬНА ШТОРКА ЗНИЗУ) ── */
+#dock {
+  position: fixed;
+  top: 8px; right: 48px; width: 328px;
+  max-height: calc(100vh - 16px);
+  z-index: 1000;
+  background: var(--bg-hud);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border-hud);
   border-radius: 8px;
-  background: rgba(10, 14, 20, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text);
-  font-size: 14px;
-  padding: 0;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.68), inset 0 0 24px rgba(56, 189, 248, 0.04);
+  overflow: hidden;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), height 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#dock::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(56, 189, 248, 0.018) 3px, rgba(56, 189, 248, 0.018) 6px);
+}
+
+#sheet-handle {
+  display: none;
+  padding: 6px 12px 4px;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(148,163,184,0.12);
 }
-.b:hover, .b.on {
-  border-color: var(--accent);
-  background: #172336;
-  color: #79c0ff;
+.grabber-pill {
+  width: 34px; height: 3.5px; border-radius: 3px;
+  background: rgba(56, 189, 248, 0.45);
+  margin: 0 auto 3px;
 }
-
-/* ── НИЖНЯ ШТОРКА (ЗГОРНУТА ДО 50px НА ТЕЛЕФОНІ ЗА ЗАМОВЧУВАННЯМ!) ── */
-#sheet {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--sheet-h);
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom);
-  transition: height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
-  z-index: 900;
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.6);
+.sheet-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; font-size: 11px; font-weight: 700; color: #e2e8f0; letter-spacing: 0.4px;
 }
 
-@media (min-width: 880px) {
-  #sheet {
-    top: 8px;
-    bottom: 8px;
-    right: 50px;
-    left: auto;
-    width: 340px;
-    height: auto !important;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+.tabs {
+  display: flex; gap: 3px; padding: 6px 8px;
+  background: rgba(6, 10, 18, 0.65);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+}
+.tab {
+  flex: 1; text-align: center; padding: 6px 4px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--txt-muted); cursor: pointer;
+  border-radius: 5px; border: 1px solid transparent;
+  transition: all 0.15s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.tab svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+.tab:hover { color: #e2e8f0; background: rgba(255,255,255,0.04); }
+.tab.active {
+  color: #38bdf8;
+  background: rgba(14, 116, 144, 0.25);
+  border-color: rgba(56, 189, 248, 0.42);
+  box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.12);
+}
+.tab.admin-tab.unlocked { color: #34d399; }
+.tab.admin-tab.unlocked.active {
+  background: rgba(6, 95, 70, 0.35);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #6ee7b7;
+}
+
+.pane { display: none; overflow-y: auto; padding: 8px; flex: 1; gap: 6px; flex-direction: column; position: relative; z-index: 2; }
+.pane.active { display: flex; }
+
+/* ── КАРТКИ АКТИВНИХ ЦІЛЕЙ З КУТОВИМИ HUD-СКОБАМИ ── */
+.card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--c, #f59e0b);
+  border-radius: 6px; padding: 7px 9px;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.card:hover { background: var(--bg-elev); border-color: rgba(56, 189, 248, 0.38); }
+.card.selected {
+  border-color: var(--accent-cyan);
+  background: rgba(14, 116, 144, 0.22);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.18);
+}
+.card.ended { opacity: 0.48; filter: grayscale(0.5); }
+.card-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.card-title { font-weight: 700; font-size: 11.5px; color: #f8fafc; display: flex; align-items: center; gap: 6px; }
+.card-title svg { width: 15px; height: 15px; flex-shrink: 0; }
+.cnt-pill { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.45); color: #fde68a; padding: 0 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; }
+.eta-pill {
+  background: rgba(239, 68, 68, 0.18); color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card-sub { color: var(--txt-muted); font-size: 10.5px; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+.threat-box {
+  margin-top: 4px; padding: 3px 6px; border-radius: 4px;
+  background: rgba(239, 68, 68, 0.10); border: 1px solid rgba(239, 68, 68, 0.24);
+  font-size: 10px; color: #fecaca;
+}
+.card-msg {
+  color: #cbd5e1; font-size: 10px; margin-top: 4px;
+  line-height: 1.3; background: rgba(6, 10, 18, 0.55);
+  padding: 4px 6px; border-radius: 4px; border: 1px solid rgba(148,163,184,0.08);
+}
+
+.feed-item {
+  padding: 6px 8px; border-radius: 5px;
+  background: var(--bg-card); border: 1px solid rgba(148,163,184,0.12);
+  font-size: 10.5px; line-height: 1.35;
+}
+.feed-head { display: flex; justify-content: space-between; color: var(--txt-dim); font-size: 9.5px; margin-bottom: 2px; font-weight: 700; }
+.feed-place { color: var(--accent-cyan); font-weight: 700; }
+
+/* ── СЕКЦІЇ НАЛАШТУВАНЬ ТА АДМІН-ПАНЕЛІ ── */
+.sec-box {
+  background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.sec-title {
+  font-size: 10px; font-weight: 800; color: var(--accent-cyan);
+  text-transform: uppercase; letter-spacing: 0.7px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.style-btn {
+  background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-subtle);
+  border-radius: 5px; padding: 6px; color: #cbd5e1; font-size: 10.5px; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.style-btn.active { border-color: var(--accent-cyan); background: rgba(14, 116, 144, 0.32); color: #fff; }
+
+.ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; color: #cbd5e1; }
+.ctrl-input {
+  width: 100%; background: rgba(6, 10, 18, 0.85); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 5px; padding: 6px 8px; color: #f8fafc; font-size: 11px; outline: none;
+}
+.ctrl-input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 8px rgba(56, 189, 248, 0.25); }
+.btn-primary {
+  background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 5px; padding: 6px 10px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.btn-primary:hover { filter: brightness(1.12); box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); }
+.btn-sec {
+  background: rgba(30, 41, 59, 0.85); color: #cbd5e1; border: 1px solid var(--border-subtle);
+  border-radius: 5px; padding: 6px 8px; font-size: 10.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.btn-sec:hover { border-color: var(--accent-cyan); color: #fff; }
+
+/* Сітка спавну різних типів БпЛА та озброєння в Адмін-панелі */
+.uav-spawn-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+}
+.uav-spawn-btn {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 5px; padding: 6px 7px;
+  color: #f1f5f9; font-size: 10.5px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: all 0.15s ease; text-align: left;
+}
+.uav-spawn-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.uav-spawn-btn:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(14, 116, 144, 0.28);
+  transform: translateY(-1px);
+}
+.uav-spawn-btn.active-place {
+  border-color: #10b981;
+  background: rgba(6, 95, 70, 0.42);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+.uav-meta { display: flex; flex-direction: column; line-height: 1.15; }
+.uav-speed { font-size: 9px; color: var(--txt-muted); font-weight: 600; }
+
+.chip-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.qchip {
+  background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #bae6fd; padding: 3px 7px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.14s;
+}
+.qchip:hover { background: rgba(14, 116, 144, 0.35); border-color: var(--accent-cyan); color: #fff; }
+.qchip.active { background: #0284c7; color: #fff; border-color: #7dd3fc; }
+
+/* ── ТАКТИЧНІ МАРКЕРИ ЦІЛЕЙ З АНІМАЦІЯМИ НА КАРТІ ── */
+.t-icon-wrap { background: none !important; border: none !important; }
+.t-marker-root {
+  position: relative; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+}
+.t-marker-root.admin-draggable { cursor: grab; }
+.t-marker-root.admin-draggable:active { cursor: grabbing; }
+
+/* Радарне кільце захоплення цілі */
+.t-lock-ring {
+  position: absolute; inset: 1px; border-radius: 50%;
+  border: 1.2px dashed var(--tc, #f59e0b);
+  opacity: 0.55; pointer-events: none;
+  animation: lockRotate 6s linear infinite;
+}
+.t-marker-root.selected .t-lock-ring {
+  inset: -2px; opacity: 0.95;
+  border: 1.6px dashed #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
+}
+.t-pulse-wave {
+  position: absolute; inset: 2px; border-radius: 50%;
+  border: 1.5px solid var(--tc, #ef4444);
+  opacity: 0; pointer-events: none;
+  animation: radarWave 2.0s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@keyframes lockRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes radarWave {
+  0% { transform: scale(0.65); opacity: 0.85; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+@keyframes rotorSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes jetFlame {
+  0%, 100% { opacity: 0.95; transform: scaleY(1); }
+  50% { opacity: 0.65; transform: scaleY(1.22); }
+}
+.rotor-anim { transform-box: fill-box; transform-origin: center; animation: rotorSpin 0.22s linear infinite; }
+.flame-anim { transform-box: fill-box; transform-origin: top center; animation: jetFlame 0.18s ease-in-out infinite; }
+
+.t-svg-box {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85));
+  will-change: transform;
+}
+
+.t-lbl-tag {
+  position: absolute; top: 29px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(7, 11, 18, 0.92);
+  color: #f8fafc;
+  padding: 1.5px 6px; border-radius: 3px;
+  font-size: 9.5px; font-weight: 700; white-space: nowrap;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left: 2.5px solid var(--tc, #f59e0b);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.7);
+  pointer-events: none;
+  letter-spacing: 0.2px;
+}
+
+.reticle-handle {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px dashed #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  cursor: move;
+}
+.reticle-handle::after {
+  content: ""; width: 4px; height: 4px; border-radius: 50%; background: #38bdf8;
+}
+
+/* ── АДАПТАЦІЯ ПІД МОБІЛЬНИЙ ТЕЛЕФОН ── */
+@media (max-width: 768px) {
+  #top-hud { top: max(6px, env(safe-area-inset-top)); left: 6px; right: 44px; gap: 4px; }
+  .status-pill { font-size: 10px; padding: 4px 9px 4px 6px; gap: 6px; }
+  .radar-scope { width: 16px; height: 16px; }
+  .hud-brand-tag { display: none; }
+  #filterbar { max-width: calc(100vw - 52px); gap: 4px; }
+  .fchip { padding: 3px 7px; font-size: 9.5px; }
+  #map-tools { right: 6px; top: max(6px, env(safe-area-inset-top)); gap: 4px; }
+  .tool-btn { width: 31px; height: 31px; }
+
+  #dock {
+    top: auto; right: 0; left: 0; bottom: 0;
+    width: 100%;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    height: 46vh; max-height: 68vh;
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  #grip {
+  #dock.collapsed {
+    height: 50px !important;
+  }
+  #dock.collapsed .tabs,
+  #dock.collapsed .pane {
     display: none !important;
   }
-}
-
-#grip {
-  height: 14px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-#grip i {
-  width: 36px;
-  height: 3.5px;
-  border-radius: 4px;
-  background: #364152;
-}
-
-.bar-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 10px 6px;
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-#tabs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-#tabs::-webkit-scrollbar {
-  display: none;
-}
-#tabs b {
-  cursor: pointer;
-  padding: 4px 9px;
-  border-radius: 6px;
-  white-space: nowrap;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--muted);
-}
-#tabs b.on {
-  color: #fff;
-  background: rgba(47, 129, 247, 0.2);
-  border: 1px solid rgba(47, 129, 247, 0.45);
-}
-
-#adminLoginBtn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
-  color: var(--muted);
-  border-radius: 6px;
-  padding: 3px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-#adminLoginBtn.unlocked {
-  background: rgba(46, 160, 67, 0.18);
-  border-color: rgba(63, 185, 80, 0.45);
-  color: #56d364;
-}
-
-/* Рядок вводу в адмін-режимі */
-#simbox {
-  display: none;
-  padding: 7px 10px;
-  background: rgba(5, 8, 12, 0.7);
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-.sim-input-row {
-  display: flex;
-  gap: 5px;
-}
-#simin {
-  flex: 1;
-  background: #080b10;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: var(--text);
-  border-radius: 7px;
-  padding: 6px 9px;
-  font-size: 12px;
-  outline: none;
-}
-#simbtn {
-  background: var(--accent);
-  border: 0;
-  color: #fff;
-  border-radius: 7px;
-  padding: 6px 10px;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 11.5px;
-}
-#clrbtn {
-  background: var(--card);
-  border: 1px solid var(--border-subtle);
-  color: var(--muted);
-  border-radius: 7px;
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 11px;
-}
-
-.quick-bar {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  padding-top: 6px;
-  scrollbar-width: none;
-}
-.quick-bar::-webkit-scrollbar {
-  display: none;
-}
-.q-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #c9d1d9;
-  border-radius: 5px;
-  padding: 3px 7px;
-  font-size: 10.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.pane {
-  overflow-y: auto;
-  flex: 1;
-  padding: 6px 10px 12px;
-}
-
-.r-card {
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--card);
-  border: 1px solid var(--border-subtle);
-  margin-bottom: 5px;
-  cursor: pointer;
-}
-.r-card:hover {
-  background: var(--card-hover);
-}
-.r-card small {
-  display: block;
-  color: var(--muted);
-  margin-top: 2px;
-  font-size: 11px;
-}
-.r-card .tx {
-  color: #9ca8b8;
-  margin-top: 4px;
-  font-size: 11px;
-}
-.del-b {
-  float: right;
-  background: rgba(248, 81, 73, 0.15);
-  border: 1px solid rgba(248, 81, 73, 0.35);
-  color: #ff7b72;
-  border-radius: 5px;
-  padding: 1px 6px;
-  font-size: 10.5px;
-  cursor: pointer;
-}
-
-.adm-box {
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: var(--card);
-  border: 1px solid var(--border-subtle);
-  margin-bottom: 7px;
-}
-.adm-box h4 {
-  margin: 0 0 6px;
-  font-size: 11.5px;
-  color: #79c0ff;
-  display: flex;
-  justify-content: space-between;
-}
-.adm-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-}
-.adm-btn {
-  background: #162030;
-  border: 1px solid rgba(47, 129, 247, 0.3);
-  color: #dce8f5;
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-}
-.adm-btn.active {
-  background: var(--accent);
-  color: #fff;
-}
-
-/* ── СПРАВЖНІ КОМПАКТНІ РАДАРНІ МІТКИ НА КАРТІ (ЯК В «ОЧІ ВСЮДИ» / ВІРАЖ-ПЛАНШЕТ) ── */
-.mk {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  will-change: transform;
-}
-.mk.admin-drag {
-  cursor: grab;
-}
-.mk.admin-drag:active {
-  cursor: grabbing;
-}
-.mk svg {
-  width: 22px;
-  height: 22px;
-  display: block;
-}
-.lb {
-  position: absolute;
-  left: 50%;
-  top: 21px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font: 700 9.5px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #fff;
-  background: rgba(10, 13, 18, 0.88);
-  padding: 1.5px 5px;
-  border-radius: 4px;
-  border: 1px solid var(--c);
-  pointer-events: none;
-}
-.ring-lbl {
-  font: 600 9.5px system-ui;
-  color: rgba(140, 160, 185, 0.65);
-  white-space: nowrap;
-}
-.tgt-reticle {
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--c);
-  border-radius: 50%;
-  position: relative;
-  background: rgba(0, 0, 0, 0.45);
-}
-.tgt-reticle::after {
-  content: '';
-  position: absolute;
-  inset: 2.5px;
-  background: var(--c);
-  border-radius: 50%;
-}
-
-/* Модальне вікно входу в Адмінку */
-#adminModal {
-  position: fixed;
-  z-index: 1500;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(5, 8, 14, 0.82);
-  padding: 16px;
-}
-.modal-card {
-  width: 100%;
-  max-width: 330px;
-  background: #0f1520;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  padding: 15px 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
-}
-.modal-card h3 {
-  margin: 0 0 5px;
-  font-size: 14.5px;
-  color: #fff;
-}
-.modal-card p {
-  margin: 0 0 10px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-#adminCodeIn {
-  width: 100%;
-  background: #070a0f;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #fff;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 13px;
-  outline: none;
-  margin-bottom: 6px;
-}
-#adminErr {
-  color: #ff7b72;
-  font-size: 11px;
-  min-height: 15px;
-  margin-bottom: 6px;
-}
-
-#al {
-  position: absolute;
-  z-index: 1200;
-  inset: 0;
-  display: none;
-  background: radial-gradient(rgba(138, 17, 29, 0.94), rgba(40, 4, 8, 0.97));
-  text-align: center;
-  padding: 25% 20px;
-  font-size: 20px;
-  font-weight: 800;
-}
-#al button {
-  margin-top: 20px;
-  padding: 10px 24px;
-  border-radius: 10px;
-  border: 0;
-  font-size: 14px;
-  font-weight: 700;
-  background: #fff;
-  color: #400;
-  cursor: pointer;
+  #sheet-handle { display: flex; flex-direction: column; }
 }
 </style>
 </head>
 <body>
 
-<div id="mapWrap">
-  <div id="m"></div>
-  <div id="wmOverlay"></div>
-</div>
+<div id="map" class="theme-tactical"></div>
+<div id="hud-grid-overlay"></div>
+<div id="watermark-overlay"></div>
 
-<!-- МІНІМАЛІСТИЧНИЙ РАДАРНИЙ HUD У ВЕРХНЬОМУ КУТІ -->
-<div id="topHud">
-  <div class="hud-bar">
-    <span id="statusDot"></span>
-    <span id="stampText">Станом на <span id="clock">--.--.---- --:--:--</span></span>
-    <span id="banShort">Чисто</span>
-  </div>
-  <div id="chips"></div>
-  <div id="infocard">
-    <button class="close" id="infoCloseBtn">✖</button>
-    <div id="infobody"></div>
-  </div>
-</div>
-
-<!-- КОМПАКТНІ КНОПКИ ІНСТРУМЕНТІВ СПРАВА -->
-<div id="btns">
-  <button class="b" id="bs" title="Звукове сповіщення">🔔</button>
-  <button class="b" id="brul" title="Лінійка підльоту">📏</button>
-  <button class="b" id="bm" title="Моя геопозиція">📍</button>
-  <button class="b" id="bh" title="Центрувати на Запоріжжі">🎯</button>
-  <button class="b" id="bl" title="Змінити тему карти">🗺</button>
-</div>
-
-<!-- НИЖНЯ ШТОРКА (ЗГОРНУТА НА МОБІЛЬНОМУ ДО 50px, РОЗГОРТАЄТЬСЯ ДОТИКОМ) -->
-<div id="sheet">
-  <div id="grip"><i></i></div>
-  <div class="bar-top">
-    <div id="tabs">
-      <b class="on" data-t="list">🎯 Цілі <span id="tcnt"></span></b>
-      <b data-t="feed">📡 Стрічка</b>
-      <b data-t="admin" id="tabAdminBtn" hidden>🛠 Адмін</b>
-      <b data-t="chans" id="tabChansBtn" hidden>⚙️ Канали</b>
-    </div>
-    <button id="adminLoginBtn">🔐</button>
-  </div>
-
-  <div id="simbox">
-    <div class="sim-input-row">
-      <input id="simin" placeholder="Команда (напр.: кабы на орехов, шахед на шевчик)">
-      <button id="simbtn">Пуск</button>
-      <button id="clrbtn">Очистити</button>
-    </div>
-    <div class="quick-bar" id="quickBar">
-      <button class="q-btn" data-q="КАБи на Оріхів">💣 КАБ на Оріхів</button>
-      <button class="q-btn" data-q="КАБи з Пришиба на Малокатеринівку">💣 КАБ Малокатеринівка</button>
-      <button class="q-btn" data-q="Реактив в Донецькій області на Пологи">⚡ Реактив → Пологи</button>
-      <button class="q-btn" data-q="БпЛА на Запоріжжя">🛵 БпЛА на ЗП</button>
-      <button class="q-btn" data-q="курс Зелений">↪ На Зелений</button>
-      <button class="q-btn" data-q="на Шевчик">↪ На Шевчик</button>
-      <button class="q-btn" data-q="на Острів">↪ На Острів</button>
-      <button class="q-btn" data-q="на Бабурку">↪ На Бабурку</button>
-      <button class="q-btn" data-q="Збито">🛡 Збито</button>
+<!-- ВЕРХНЯ ТАКТИЧНА HUD-ПАНЕЛЬ -->
+<div id="top-hud">
+  <div class="hud-row">
+    <div class="status-pill">
+      <div id="radar-scope" class="radar-scope"><div class="radar-scope-sweep"></div></div>
+      <span id="clock-txt">СТАНОМ НА --.--.---- --:--:--</span>
+      <div class="hud-divider"></div>
+      <span id="active-cnt-txt" style="color:#38bdf8">ЦІЛЕЙ: 0</span>
+      <div class="hud-divider"></div>
+      <span class="hud-brand-tag">ОПЕРАТИВНИЙ РАДАР ZP</span>
     </div>
   </div>
+  <div id="banner"></div>
+  <div id="filterbar">
+    <div class="fchip" data-k="drone">
+      <svg viewBox="0 0 24 24"><path fill="#f59e0b" d="M12 2L4 19l6-2.5V21h4v-4.5L20 19 12 2z"/></svg>
+      БпЛА <span class="cnt-badge" id="fc-drone">0</span>
+    </div>
+    <div class="fchip" data-k="kab">
+      <svg viewBox="0 0 24 24"><path fill="#ef4444" d="M12 2c1.4 0 2.5 1.8 2.5 4v3l6.5 3.5v2L14.5 13v5l2 2v2l-4.5-1.5L7.5 22v-2l2-2v-5L3 14.5v-2L9.5 9V6c0-2.2 1.1-4 2.5-4z"/></svg>
+      КАБ <span class="cnt-badge" id="fc-kab">0</span>
+    </div>
+    <div class="fchip" data-k="missile">
+      <svg viewBox="0 0 24 24"><path fill="#f97316" d="M12 1L8 9v7l-3 3v2l7-2 7 2v-2l-3-3V9l-4-8z"/></svg>
+      Ракети <span class="cnt-badge" id="fc-missile">0</span>
+    </div>
+    <div class="fchip" data-k="strike">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="#c084fc" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="2.5" fill="#c084fc"/><path stroke="#c084fc" stroke-width="2" d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+      РСЗВ/Арта <span class="cnt-badge" id="fc-strike">0</span>
+    </div>
+  </div>
+</div>
 
-  <div id="list" class="pane">
-    <div id="tracksList"></div>
+<!-- ПРАВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ (ЧИСТІ SVG ВЕКТОРИ) -->
+<div id="map-tools">
+  <button class="tool-btn" id="sndbtn" title="Звукове оповіщення тривоги">
+    <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+  </button>
+  <button class="tool-btn" id="rulerbtn" title="Тактична лінійка відстані та підльоту">
+    <svg viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/></svg>
+  </button>
+  <button class="tool-btn" id="myposbtn" title="Моє місцезнаходження">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+  </button>
+  <button class="tool-btn" id="homebtn" title="Центрувати на Запоріжжі">
+    <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+  </button>
+  <button class="tool-btn" id="ukrainebtn" title="Огляд всієї лінії фронту України">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+  </button>
+</div>
+
+<!-- ПАНЕЛЬ РАДАРА / МОБІЛЬНА ШТОРКА -->
+<div id="dock" class="collapsed">
+  <div id="sheet-handle">
+    <div class="grabber-pill"></div>
+    <div class="sheet-summary">
+      <span id="sheet-title-txt">ТАКТИЧНЕ ЗВЕДЕННЯ РАДАРА (0)</span>
+      <span id="sheet-toggle-lbl" style="color:#38bdf8;font-size:10px">ВІДКРИТИ</span>
+    </div>
   </div>
 
-  <div id="feed" class="pane" hidden></div>
+  <div class="tabs">
+    <div class="tab active" data-t="targets" id="tab-targets-btn">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+      <span>Цілі (0)</span>
+    </div>
+    <div class="tab" data-t="feed">
+      <svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+      <span>Стрічка</span>
+    </div>
+    <div class="tab" data-t="layers">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      <span>Шари</span>
+    </div>
+    <div class="tab admin-tab" data-t="admin" id="tab-admin-btn">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Адмін</span>
+    </div>
+  </div>
 
-  <div id="admin" class="pane" hidden>
-    <div class="adm-box">
-      <h4><span>🖐 Ручне розміщення та перетягування</span><span style="color:#56d364">Активно</span></h4>
-      <div style="font-size:11px;color:#9ca8b8;margin-bottom:7px">
-        Перетягуйте будь-яку мітку або її приціл пальцем/мишкою прямо по карті.
+  <!-- ВКЛАДКА 1: ЦІЛІ -->
+  <div id="pane-targets" class="pane active"></div>
+
+  <!-- ВКЛАДКА 2: СТРІЧКА -->
+  <div id="pane-feed" class="pane"></div>
+
+  <!-- ВКЛАДКА 3: ШАРИ ТА КАРТА -->
+  <div id="pane-layers" class="pane">
+    <div class="sec-box">
+      <div class="sec-title">Режим картографічної підкладки</div>
+      <div class="style-grid">
+        <div class="style-btn active" data-style="tactical">Тактична ОСІНТ</div>
+        <div class="style-btn" data-style="dark">Нічний ППО</div>
+        <div class="style-btn" data-style="sat">Супутник Esri</div>
+        <div class="style-btn" data-style="light">Штабна світла</div>
       </div>
-      <div class="adm-grid-2" id="spawnToolGrid">
-        <button class="adm-btn" data-spawn="geran2">🛵 + Шахед</button>
-        <button class="adm-btn" data-spawn="geran3">⚡ + Реактивний</button>
-        <button class="adm-btn" data-spawn="kab">💣 + КАБ</button>
-        <button class="adm-btn" data-spawn="ballistic">🚀 + Балістика</button>
+    </div>
+
+    <div class="sec-box">
+      <div class="sec-title">Тактичні шари радара</div>
+      <label class="ctrl-row">
+        <span>Сектори загрози та вектори курсу</span>
+        <input type="checkbox" id="chk-cones" checked>
+      </label>
+      <label class="ctrl-row">
+        <span>Лінія бойового зіткнення (ЛБЗ України)</span>
+        <input type="checkbox" id="chk-fl" checked>
+      </label>
+      <label class="ctrl-row">
+        <span>Кільця дальності ППО (20 / 45 / 70 км)</span>
+        <input type="checkbox" id="chk-rings" checked>
+      </label>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 4: ЗАХИЩЕНА АДМІН-ПАНЕЛЬ -->
+  <div id="pane-admin" class="pane">
+    <div id="admin-lock-box" class="sec-box">
+      <div class="sec-title">Авторизація оператора радара</div>
+      <div style="font-size:10.5px;color:#94a3b8;line-height:1.35">
+        Введіть секретний код доступу один раз — пристрій збереже авторизацію автоматично.
       </div>
-      <div id="spawnHint" style="display:none;margin-top:6px;padding:5px 8px;border-radius:6px;background:rgba(245,166,35,.16);color:#f5a623;font-size:11px;font-weight:600"></div>
+      <div style="display:flex;gap:5px">
+        <input id="admin-code-inp" type="password" class="ctrl-input" placeholder="Секретний код доступу...">
+        <button id="admin-login-btn" class="btn-primary">Увійти</button>
+      </div>
+      <div id="admin-auth-err" style="display:none;color:#f87171;font-size:10px;font-weight:700">Невірний код доступу</div>
     </div>
 
-    <div class="adm-box" id="admSelectedBox">
-      <h4><span>🎯 Вектор обраної цілі</span><span id="admSelName" style="color:#f5a623">Не обрано</span></h4>
-      <div id="admSelControls" style="font-size:11px;color:var(--muted)">
-        Торкніться цілі на карті для точного виставлення вектора чи швидкості.
+    <div id="admin-controls-wrap" style="display:none;flex-direction:column;gap:7px">
+      <!-- Ручне введення повідомлення -->
+      <div class="sec-box">
+        <div class="sec-title">Оперативна команда / тест зведення</div>
+        <div style="display:flex;gap:4px">
+          <input id="sim-inp" class="ctrl-input" placeholder="Напр.: молнія на степногірськ / кабы на орехов">
+          <button id="sim-send-btn" class="btn-primary">Пуск</button>
+          <button id="sim-clr-btn" class="btn-sec">Очистити</button>
+        </div>
+        <div class="chip-row">
+          <span class="qchip" data-q="Запорізька область: пуски КАБ на Оріхів">КАБ Оріхів</span>
+          <span class="qchip" data-q="КАБи з Пришиба на Малокатеринівку">КАБ Пришиб</span>
+          <span class="qchip" data-q="Молнія на Степногірськ">Молнія Степногірськ</span>
+          <span class="qchip" data-q="FPV-дрон на Кушугум">FPV Кушугум</span>
+          <span class="qchip" data-q="Ланцет на Гуляйполе">Ланцет Гуляйполе</span>
+          <span class="qchip" data-q="Шахед на Запоріжжя">Шахед ЗП</span>
+          <span class="qchip" data-q="курс на Шевчик">Курс Шевчик</span>
+          <span class="qchip" data-q="курс Зелений">Курс Зелений</span>
+        </div>
+      </div>
+
+      <!-- СПАВН РІЗНИХ БПЛА ТА ОЗБРОЄННЯ (10 ТИПІВ З ВЕКТОРНИМИ СИЛУЕТАМИ) -->
+      <div class="sec-box">
+        <div class="sec-title">
+          <span>Арсенал спавну БпЛА та ракет</span>
+          <label style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;color:#34d399;cursor:pointer;text-transform:none">
+            <input type="checkbox" id="chk-click-spawn"> Спавн кліком по карті
+          </label>
+        </div>
+        <div style="font-size:10px;color:#94a3b8;line-height:1.25" id="spawn-hint-txt">
+          Натисніть на тип цілі для миттєвого спавну або увімкніть «Спавн кліком по карті», щоб ставити БпЛА в будь-яку точку. Перетягуйте цілі мишкою або пальцем.
+        </div>
+        <div class="uav-spawn-grid">
+          <button class="uav-spawn-btn" data-sub="geran2">
+            <svg viewBox="0 0 32 32"><path fill="#f59e0b" stroke="#080d15" stroke-width="1.2" d="M16 3L5 25l8-3v4h6v-4l8 3L16 3z"/></svg>
+            <div class="uav-meta"><span>Шахед-136</span><span class="uav-speed">185 км/год · Ударний</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="geran3">
+            <svg viewBox="0 0 32 32"><path fill="#ef4444" stroke="#080d15" stroke-width="1.2" d="M16 2L6 24l7-2.5L14.5 28h3L19 21.5 26 24 16 2z"/></svg>
+            <div class="uav-meta"><span>Реактивний</span><span class="uav-speed">640 км/год · Герань-3</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="molniya">
+            <svg viewBox="0 0 32 32"><path fill="#38bdf8" stroke="#080d15" stroke-width="1.2" d="M16 3l-2 7H3l2 4h9l-1 10-4 2v2l7-1 7 1v-2l-4-2-1-10h9l2-4H18l-2-7z"/></svg>
+            <div class="uav-meta"><span>БпЛА Молнія</span><span class="uav-speed">145 км/год · Крило</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="fpv">
+            <svg viewBox="0 0 32 32"><path stroke="#eab308" stroke-width="2.2" d="M8 8l16 16M24 8L8 24"/><circle cx="16" cy="16" r="3.5" fill="#eab308"/><circle cx="7" cy="7" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="25" cy="7" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="7" cy="25" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="25" cy="25" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/></svg>
+            <div class="uav-meta"><span>FPV-дрон</span><span class="uav-speed">125 км/год · Камікадзе</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="lancet">
+            <svg viewBox="0 0 32 32"><path fill="#2dd4bf" stroke="#080d15" stroke-width="1.1" d="M16 2l2 6 8-3-6 7v5l7 5-8-2-1 8h-4l-1-8-8 2 7-5v-5L6 5l8 3 2-6z"/></svg>
+            <div class="uav-meta"><span>БпЛА Ланцет</span><span class="uav-speed">160 км/год · Х-крило</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="recon">
+            <svg viewBox="0 0 32 32"><path fill="#94a3b8" stroke="#080d15" stroke-width="1.2" d="M16 4l-1.8 7L2 14v2.5l12.2-1L15 26l-3 2v1.5l4-1 4 1V28l-3-2 .8-10.5 12.2 1V14L17.8 11 16 4z"/></svg>
+            <div class="uav-meta"><span>РозвідБпЛА</span><span class="uav-speed">125 км/год · ZALA/Орлан</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="gerbera">
+            <svg viewBox="0 0 32 32"><path fill="#a3e635" stroke="#080d15" stroke-width="1.2" d="M16 4L6 24l7.5-2v4h5v-4L26 24 16 4z"/></svg>
+            <div class="uav-meta"><span>БпЛА Гербера</span><span class="uav-speed">165 км/год · Імітатор</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="kab">
+            <svg viewBox="0 0 32 32"><path fill="#ef4444" stroke="#080d15" stroke-width="1.2" d="M16 2c2 0 3 2.5 3 5v4l10 4.5v2.5l-10-2v6l3 2.5V29l-6-2-6 2v-2.5l3-2.5v-6L3 18v-2.5L13 11V7c0-2.5 1-5 3-5z"/></svg>
+            <div class="uav-meta"><span>КАБ / УМПК</span><span class="uav-speed">680 км/год · Авіабомба</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="kh101">
+            <svg viewBox="0 0 32 32"><path fill="#f97316" stroke="#080d15" stroke-width="1.2" d="M16 2c1.8 0 2.6 3 2.6 6v5l10.4 4v2.2l-10.4-1.8v6.6l3.4 2.5V29l-6-1.8-6 1.8v-2.5l3.4-2.5v-6.6L3 19.2V17l10.4-4V8c0-3 .8-6 2.6-6z"/></svg>
+            <div class="uav-meta"><span>Крилата Х-101</span><span class="uav-speed">820 км/год · Ракета</span></div>
+          </button>
+          <button class="uav-spawn-btn" data-sub="ballistic">
+            <svg viewBox="0 0 32 32"><path fill="#f43f5e" stroke="#080d15" stroke-width="1.2" d="M16 1L11 12v10l-4 4v3l9-2.5 9 2.5v-3l-4-4V12L16 1z"/></svg>
+            <div class="uav-meta"><span>Балістика</span><span class="uav-speed">3600 км/год · Іскандер</span></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Управління вектором обраної цілі -->
+      <div class="sec-box" id="vector-ctrl-box">
+        <div class="sec-title">
+          <span>Вектор обраної цілі</span>
+          <span id="vec-sel-lbl" style="color:#f59e0b;font-size:10px;text-transform:none">Не обрано</span>
+        </div>
+        <div class="chip-row">
+          <span class="qchip vec-place-btn" data-place="Зелений Яр" data-lat="47.849" data-lon="35.208">Зелений</span>
+          <span class="qchip vec-place-btn" data-place="Шевчик" data-lat="47.828" data-lon="35.238">Шевчик</span>
+          <span class="qchip vec-place-btn" data-place="Острів Хортиця" data-lat="47.822" data-lon="35.075">Острів</span>
+          <span class="qchip vec-place-btn" data-place="Бабурка" data-lat="47.816" data-lon="35.025">Бабурка</span>
+          <span class="qchip vec-place-btn" data-place="Космос" data-lat="47.785" data-lon="35.185">Космос</span>
+          <span class="qchip vec-place-btn" data-place="Кічкас" data-lat="47.888" data-lon="35.158">Кічкас</span>
+          <span class="qchip vec-place-btn" data-place="Оріхів" data-lat="47.567" data-lon="35.784">Оріхів</span>
+          <span class="qchip vec-place-btn" data-place="Степногірськ" data-lat="47.587" data-lon="35.361">Степногірськ</span>
+          <span class="qchip" id="vec-loiter-btn">Кружляє</span>
+          <span class="qchip" id="vec-pick-map-btn" style="border-color:#f59e0b;color:#fde68a">Курс кліком</span>
+        </div>
+        <div class="ctrl-row" style="margin-top:3px">
+          <span>Азимут: <b id="vec-hdg-val">320°</b></span>
+          <input type="range" id="vec-hdg-rng" min="0" max="359" value="320" style="width:135px">
+        </div>
+        <div class="ctrl-row">
+          <span>Швидкість: <b id="vec-spd-val">185</b> км/год</span>
+          <input type="range" id="vec-spd-rng" min="60" max="4200" step="5" value="185" style="width:135px">
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:5px;margin-top:3px">
+          <button id="vec-del-btn" class="btn-sec" style="color:#f87171;border-color:rgba(248,113,113,0.3);flex:1">Видалити ціль</button>
+          <button id="admin-logout-btn" class="btn-sec" style="flex:1">Вийти з адмінки</button>
+        </div>
+      </div>
+
+      <!-- Додавання Telegram-каналу -->
+      <div class="sec-box">
+        <div class="sec-title">Моніторинг Telegram-каналів</div>
+        <div style="display:flex;gap:4px">
+          <input id="ch-add-inp" class="ctrl-input" placeholder="@username або t.me/канал">
+          <button id="ch-add-btn" class="btn-primary">+ Додати</button>
+        </div>
+        <div id="ch-list" style="display:flex;flex-direction:column;gap:3px;max-height:105px;overflow-y:auto"></div>
       </div>
     </div>
-
-    <div style="display:flex;justify-content:flex-end">
-      <button id="adminLogoutBtn" style="background:rgba(248,81,73,.14);border:1px solid rgba(248,81,73,.35);color:#ff7b72;border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer">🔒 Вийти з адмінки</button>
-    </div>
   </div>
-
-  <div id="chans" class="pane" hidden>
-    <div style="display:flex;gap:5px;margin:2px 0 8px">
-      <input id="chanin" placeholder="Канал (напр. @overativnoradarzp)" style="flex:1;background:#080b10;border:1px solid var(--border-subtle);color:var(--text);border-radius:6px;padding:6px 8px;font-size:11.5px">
-      <button id="chanbtn" style="background:var(--green);border:0;color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;cursor:pointer;font-size:11.5px">+</button>
-    </div>
-    <div id="chanlist"></div>
-  </div>
-</div>
-
-<!-- МОДАЛЬНЕ ВІКНО АВТОРИЗАЦІЇ АДМІНА -->
-<div id="adminModal">
-  <div class="modal-card">
-    <h3>🔐 Вхід в Адмін-панель</h3>
-    <p>Введіть секретний код один раз — доступ збережеться автоматично.</p>
-    <input type="password" id="adminCodeIn" placeholder="Секретний код..." autocomplete="off">
-    <div id="adminErr"></div>
-    <div style="display:flex;gap:6px;justify-content:flex-end">
-      <button id="adminCancelBtn" style="background:var(--card);border:1px solid var(--border-subtle);color:var(--muted);border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer">Скасувати</button>
-      <button id="adminSubmitBtn" style="background:var(--accent);border:0;color:#fff;border-radius:7px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer">Увійти</button>
-    </div>
-  </div>
-</div>
-
-<div id="al">
-  <div id="at"></div>
-  <button id="stopAlarmBtn">Зрозуміло</button>
 </div>
 
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
-}
+const HOME_DEFAULT = ["Запоріжжя", 47.838, 35.139];
+let home = HOME_DEFAULT;
 
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-/* ── ОДНОРАЗОВА АВТОРИЗАЦІЯ АДМІНА (KDLEPL1@D) ── */
-const ADMIN_SECRET = 'KDLEPL1@D';
-const ADMIN_STORAGE_KEY = 'zp_radar_admin_token_v11';
-let isAdmin = false;
-try {
-  if (localStorage.getItem(ADMIN_STORAGE_KEY) === ADMIN_SECRET) {
-    isAdmin = true;
-  }
-} catch (_) {}
-
-function expandSheetOnMobile() {
-  if (window.innerWidth < 880) {
-    const r = document.documentElement.style;
-    if ((r.getPropertyValue('--sheet-h') || '50px') === '50px') {
-      r.setProperty('--sheet-h', '46%');
-    }
-  }
-}
-
-function applyAdminState() {
-  const btn = $('adminLoginBtn');
-  if (isAdmin) {
-    btn.textContent = '🛠 Адмін';
-    btn.classList.add('unlocked');
-    $('simbox').style.display = 'block';
-    $('tabAdminBtn').hidden = false;
-    $('tabChansBtn').hidden = false;
-  } else {
-    btn.textContent = '🔐';
-    btn.classList.remove('unlocked');
-    $('simbox').style.display = 'none';
-    $('tabAdminBtn').hidden = true;
-    $('tabChansBtn').hidden = true;
-    if (!$('admin').hidden || !$('chans').hidden) {
-      switchTab('list');
-    }
-  }
-  for (const id in objs) {
-    const o = objs[id];
-    if (o.mk && o.mk.dragging) {
-      isAdmin ? o.mk.dragging.enable() : o.mk.dragging.disable();
-    }
-    if (o.ret && o.ret.dragging) {
-      isAdmin ? o.ret.dragging.enable() : o.ret.dragging.disable();
-    }
-  }
-  list();
-  if (selectedTrackId && objs[selectedTrackId]) {
-    showTargetInfo(objs[selectedTrackId].t);
-  }
-}
-
-$('adminLoginBtn').onclick = () => {
-  if (isAdmin) {
-    expandSheetOnMobile();
-    switchTab('admin');
-    return;
-  }
-  $('adminErr').textContent = '';
-  $('adminCodeIn').value = '';
-  $('adminModal').style.display = 'flex';
-  setTimeout(() => $('adminCodeIn').focus(), 50);
-};
-
-$('adminCancelBtn').onclick = () => {
-  $('adminModal').style.display = 'none';
-};
-
-function submitAdminCode() {
-  const code = $('adminCodeIn').value.trim();
-  if (code === ADMIN_SECRET) {
-    isAdmin = true;
-    try { localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_SECRET); } catch (_) {}
-    $('adminModal').style.display = 'none';
-    applyAdminState();
-    expandSheetOnMobile();
-    switchTab('admin');
-  } else {
-    $('adminErr').textContent = '❌ Невірний код!';
-  }
-}
-$('adminSubmitBtn').onclick = submitAdminCode;
-$('adminCodeIn').onkeydown = e => { if (e.key === 'Enter') submitAdminCode(); };
-
-$('adminLogoutBtn').onclick = () => {
-  isAdmin = false;
-  try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch (_) {}
-  applyAdminState();
-};
-
-const K = {
-  drone:   { n: 'БпЛА',   c: '#f5a623' },
-  kab:     { n: 'КАБ',    c: '#f85149' },
-  missile: { n: 'Ракета', c: '#ff6b3d' },
-  strike:  { n: 'РСЗО',   c: '#bc8cff' },
-  impact:  { n: 'Приліт', c: '#ff5c5c' }
-};
-
-/* Чіткі військові радарні силуети (трикутник Шахеда/Реактивного, силует КАБ, ракета) */
-const ICONS = {
-  delta:     c => '<path d="M0-10L8.5 8L0 4.5L-8.5 8Z"/>',
-  decoy:     c => '<path d="M0-9L7.5 7L0 4L-7.5 7Z" fill-opacity=".55"/>',
-  jet:       c => '<path d="M0-11L9 8L2 6L0 9.5L-2 6L-9 8Z"/>',
-  cruise:    c => '<path d="M0-11L1.5-5L9 2L9 4.5L1.5 3L1.5 8L4 10.5L-4 10.5L-1.5 8L-1.5 3L-9 4.5L-9 2L-1.5-5Z"/>',
-  xwing:     c => '<path d="M-8-8L0-2L8-8L2 0L8 8L0 2L-8 8L-2 0Z"/>',
-  flywing:   c => '<path d="M0-7L10 6L0 3L-10 6Z"/>',
-  plane:     c => '<path d="M0-10L1.5-3L9-1L9 1.5L1.5 .5L1.2 6L4.5 8.5L-4.5 8.5L-1.2 6L-1.5 .5L-9 1.5L-9-1L-1.5-3Z"/>',
-  quad:      c => `<path d="M-5-5L5 5M5-5L-5 5" fill="none" stroke="${c}" stroke-width="2"/><circle cx="-6" cy="-6" r="2.5"/><circle cx="6" cy="-6" r="2.5"/><circle cx="-6" cy="6" r="2.5"/><circle cx="6" cy="6" r="2.5"/>`,
-  kab:       c => '<path d="M0-11L2.2-4L8.5 1.5L8.5 4L2.2 2.2L1.8 8L4.5 10.5L-4.5 10.5L-1.8 8L-2.2 2.2L-8.5 4L-8.5 1.5L-2.2-4Z"/>',
-  missile:   c => '<path d="M0-11L3.5 8L0 5L-3.5 8Z"/>',
-  dart:      c => '<path d="M0-12L3 6L0 3.5L-3 6Z"/>',
-  ballistic: c => '<path d="M0-12L3.5 7L0 4L-3.5 7Z"/>',
-  star:      c => '<path d="M0-8L2-2.5L7.5-3L3 0.5L5 6L0 3L-5 6L-3 0.5L-7.5-3L-2-2.5Z"/>'
-};
-const NOROT = new Set(['star', 'quad']);
-
-function updateWatermark() {
-  const mainTx = 'ОПЕРАТИВНИЙ РАДАР ZP';
-  const subTx = 't.me/overativnoradarzp';
-  const isDark = (curMapKey === 'dk' || curMapKey === 'st');
-  const strokeCol = isDark ? '#c9d6e3' : '#1c2838';
-  const subCol = isDark ? '#8b9bb0' : '#33465e';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="135">
-    <g transform="rotate(-25 140 67)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" text-anchor="middle">
-      <text x="75" y="42" font-size="13" font-weight="800" letter-spacing="1" fill="none" stroke="${strokeCol}" stroke-width="0.75">${mainTx}</text>
-      <text x="75" y="56" font-size="9.5" font-weight="600" fill="${subCol}">${subTx}</text>
-      <text x="215" y="106" font-size="13" font-weight="800" letter-spacing="1" fill="none" stroke="${strokeCol}" stroke-width="0.75">${mainTx}</text>
-      <text x="215" y="120" font-size="9.5" font-weight="600" fill="${subCol}">${subTx}</text>
-    </g>
-  </svg>`;
-  const encoded = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-  const wm = $('wmOverlay');
-  wm.style.backgroundImage = `url("${encoded}")`;
-  wm.style.backgroundRepeat = 'repeat';
-}
-
-const canvasRenderer = L.canvas({ padding: 0.35 });
-const map = L.map('m', {
+// ── КАРТА LEAFLET З CANVAS-ПРИСКОРЕННЯМ ──
+const canvasRenderer = L.canvas({ padding: 0.45 });
+const map = L.map('map', {
   zoomControl: false,
   preferCanvas: true,
   renderer: canvasRenderer,
   zoomAnimation: true,
   fadeAnimation: false,
-  markerZoomAnimation: true
-}).setView([47.72, 35.52], 9);
+  markerZoomAnimation: false
+}).setView([47.74, 35.35], 9);
 
-const TILES = {
-  tac: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 18,
-    className: 'tactical-topo'
-  }),
-  dk: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 18,
-    className: 'radar-dark'
-  }),
-  st: L.layerGroup([
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18,
-      className: 'sat-filter'
-    }),
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18
-    })
-  ]),
-  lt: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 18
-  })
+const BASEMAPS = {
+  tactical: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OSM · Оперативний Радар ZP' }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' }),
+  sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri · Оперативний Радар ZP' }),
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' })
 };
+let currentBasemap = BASEMAPS.tactical.addTo(map);
+let satLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19, pane: 'overlayPane' });
 
-let curMapKey = 'tac';
-let base = TILES.tac.addTo(map);
-updateWatermark();
+function setMapStyle(styleKey) {
+  const mapEl = document.getElementById('map');
+  mapEl.className = 'theme-' + styleKey;
+  if (currentBasemap) map.removeLayer(currentBasemap);
+  if (map.hasLayer(satLabelsLayer)) map.removeLayer(satLabelsLayer);
+  currentBasemap = BASEMAPS[styleKey] || BASEMAPS.tactical;
+  currentBasemap.addTo(map);
+  if (styleKey === 'sat') satLabelsLayer.addTo(map);
+  document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b.dataset.style === styleKey));
+  const wm = document.getElementById('watermark-overlay');
+  wm.style.opacity = (styleKey === 'dark' || styleKey === 'sat') ? '0.13' : '0.18';
+}
+document.querySelectorAll('.style-btn').forEach(b => b.addEventListener('click', () => setMapStyle(b.dataset.style)));
 
-let isMapInteracting = false;
-let isDraggingTarget = false;
-map.on('zoomstart movestart', () => { isMapInteracting = true; });
-map.on('zoomend moveend', () => {
-  isMapInteracting = false;
-  syncRingsVisibility();
-  tick();
+// ── ВОДЯНИЙ ЗНАК «ОПЕРАТИВНИЙ РАДАР ZP» ──
+function updateWatermarkPattern() {
+  const isDark = document.getElementById('map').classList.contains('theme-dark') || document.getElementById('map').classList.contains('theme-sat');
+  const strokeCol = isDark ? 'rgba(226,232,240,0.48)' : 'rgba(15,23,42,0.52)';
+  const subCol = isDark ? 'rgba(148,163,184,0.38)' : 'rgba(30,41,59,0.42)';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="145" viewBox="0 0 320 145">
+    <g font-family="Inter,Segoe UI,Arial,sans-serif" font-weight="900" text-anchor="middle">
+      <text x="160" y="64" font-size="17" letter-spacing="1.6" fill="none" stroke="${strokeCol}" stroke-width="1.15">ОПЕРАТИВНИЙ РАДАР ZP</text>
+      <text x="160" y="86" font-size="11" font-weight="700" letter-spacing="0.8" fill="${subCol}">t.me/overativnoradarzp</text>
+    </g>
+  </svg>`;
+  document.getElementById('watermark-overlay').style.backgroundImage = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+updateWatermarkPattern();
+
+// ── ПОВНА ДЕТАЛЬНА ЛІНІЯ ФРОНТУ (ЛБЗ) ПІВДЕНЬ — СХІД УКРАЇНИ (БЕЗ «ОГРИЗКА»!) ──
+const FULL_UKRAINE_FRONTLINE = [
+  // Кінбурнська коса та гирло Дніпра (Миколаївська / Херсонська обл.)
+  [46.54, 31.52], [46.51, 31.78], [46.56, 32.08], [46.52, 32.32], [46.61, 32.58],
+  // Лівий берег Дніпра (Олешки — Нова Каховка — Каховське водосховище)
+  [46.65, 32.74], [46.74, 33.05], [46.78, 33.34], [46.86, 33.56], [47.02, 33.76],
+  [47.16, 33.92], [47.34, 34.12], [47.45, 34.28], [47.49, 34.41],
+  // Запорізький напрямок (Енергодар — Василівка — Кам'янське — Степногірськ — Оріхів — Гуляйполе)
+  [47.50, 34.65], [47.46, 34.84], [47.41, 35.01], [47.46, 35.16], [47.53, 35.28],
+  [47.54, 35.36], [47.52, 35.48], [47.50, 35.63], [47.52, 35.78], [47.49, 35.88],
+  [47.52, 35.99], [47.58, 36.12], [47.64, 36.26], [47.65, 36.44], [47.67, 36.65],
+  // Донецький напрямок (Велика Новосілка — Вугледар — Курахове — Покровськ — Торецьк — Часів Яр — Сіверськ)
+  [47.74, 36.82], [47.77, 37.05], [47.78, 37.24], [47.88, 37.32], [47.98, 37.40],
+  [48.07, 37.36], [48.16, 37.28], [48.24, 37.38], [48.32, 37.62], [48.38, 37.78],
+  [48.46, 37.82], [48.57, 37.85], [48.66, 37.92], [48.75, 38.04], [48.86, 38.12],
+  // Луганський та Куп'янський напрямок (Кремінна — Сватове — Куп'янськ — Дворічна — кордон)
+  [48.94, 38.10], [49.04, 38.05], [49.18, 37.98], [49.34, 37.92], [49.52, 37.85],
+  [49.68, 37.76], [49.82, 37.72], [49.98, 37.85], [50.14, 37.92]
+];
+
+// Повний полігон тимчасово окупованої території Півдня, Криму та Сходу
+const FULL_OCCUPIED_POLYGON = [
+  ...FULL_UKRAINE_FRONTLINE,
+  [50.14, 40.25], [49.20, 40.40], [47.80, 40.10], [47.10, 39.50],
+  [46.00, 38.60], [45.10, 37.00], [44.25, 34.00], [45.20, 32.30],
+  [46.10, 31.45], [46.54, 31.52]
+];
+
+// Північний Харківський плацдарм (район Вовчанська / Глибокого)
+const KHARKIV_NORTH_FL = [
+  [50.23, 36.32], [50.20, 36.44], [50.25, 36.55], [50.31, 36.68],
+  [50.27, 36.85], [50.28, 36.98], [50.35, 37.08]
+];
+const KHARKIV_NORTH_POLY = [
+  ...KHARKIV_NORTH_FL,
+  [50.45, 37.08], [50.45, 36.32], [50.23, 36.32]
+];
+
+// ── ШАРИ РАДАРА ──
+let showCones = true, showFrontline = true, showRings = true;
+const staticLayerGroup = L.layerGroup().addTo(map);
+const ringsLayerGroup = L.layerGroup().addTo(map);
+const flLayerGroup = L.layerGroup().addTo(map);
+const tracksVectorGroup = L.layerGroup().addTo(map);
+
+function drawStaticLayers() {
+  staticLayerGroup.clearLayers();
+  ringsLayerGroup.clearLayers();
+  flLayerGroup.clearLayers();
+
+  // Центр м. Запоріжжя
+  L.circleMarker([home[1], home[2]], {
+    radius: 4.5, color: '#38bdf8', weight: 2, fillColor: '#0284c7', fillOpacity: 0.9, renderer: canvasRenderer
+  }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top" }).addTo(staticLayerGroup);
+
+  if (showRings && map.getZoom() < 12) {
+    [[20, '#10b981', '20 км'], [45, '#f59e0b', '45 км'], [70, '#ef4444', '70 км']].forEach(([rKm, col, lbl]) => {
+      L.circle([home[1], home[2]], {
+        radius: rKm * 1000, color: col, weight: 1, opacity: 0.32, fill: false, dashArray: '5,6', interactive: false, renderer: canvasRenderer
+      }).addTo(ringsLayerGroup);
+    });
+  }
+
+  if (showFrontline) {
+    // Основний полігон ТОТ Південь + Схід + Крим
+    L.polygon(FULL_OCCUPIED_POLYGON, {
+      color: 'transparent', weight: 0, fillColor: '#dc2626', fillOpacity: 0.19, interactive: false, renderer: canvasRenderer
+    }).addTo(flLayerGroup);
+
+    // Зовнішнє світіння ЛБЗ
+    L.polyline(FULL_UKRAINE_FRONTLINE, {
+      color: '#ef4444', weight: 5, opacity: 0.24, interactive: false, renderer: canvasRenderer
+    }).addTo(flLayerGroup);
+
+    // Чітка тактична лінія ЛБЗ
+    L.polyline(FULL_UKRAINE_FRONTLINE, {
+      color: '#dc2626', weight: 2.2, opacity: 0.88, dashArray: '6,3', interactive: false, renderer: canvasRenderer
+    }).addTo(flLayerGroup);
+
+    // Північний Харківський сектор
+    L.polygon(KHARKIV_NORTH_POLY, {
+      color: 'transparent', weight: 0, fillColor: '#dc2626', fillOpacity: 0.19, interactive: false, renderer: canvasRenderer
+    }).addTo(flLayerGroup);
+    L.polyline(KHARKIV_NORTH_FL, {
+      color: '#dc2626', weight: 2.0, opacity: 0.85, dashArray: '6,3', interactive: false, renderer: canvasRenderer
+    }).addTo(flLayerGroup);
+  }
+}
+drawStaticLayers();
+
+let isZooming = false;
+map.on('zoomstart', () => { isZooming = true; });
+map.on('zoomend', () => {
+  isZooming = false;
+  drawStaticLayers();
+  renderAllMapVectors();
 });
 
-let D = {
-  home: ['Запоріжжя', 47.838, 35.139],
-  tracks: [],
-  feed: [],
-  oblast: [[47.40,34.30],[47.56,34.46],[47.72,34.80],[47.98,35.02],[48.14,35.20],[48.10,35.50],[47.98,35.80],[48.02,36.20],[47.95,36.50],[47.72,36.78],[47.40,36.96],[47.05,37.05],[46.80,36.95],[46.58,36.55],[46.52,36.00],[46.42,35.45],[46.38,35.00],[46.55,34.75],[46.90,34.78],[47.15,34.50]],
-  frontline: [[47.49,34.40],[47.50,34.85],[47.53,35.25],[47.54,35.36],[47.51,35.55],[47.52,35.78],[47.51,35.95],[47.61,36.15],[47.64,36.32],[47.67,36.60],[47.69,36.95],[47.82,36.98]],
-  channels: [
-    { name: 'overativnoradarzp', ok: true, checked: 'онлайн', last: 'Моніторинг повітряного простору Запоріжжя та області' },
-    { name: 'eyes_everywhere_ua', ok: true, checked: 'онлайн', last: 'Підключено до потоку даних' },
-    { name: 'kpszsu', ok: true, checked: 'онлайн', last: 'Повітряні Сили ЗСУ' },
-    { name: 'vanek_nikolaev', ok: true, checked: 'онлайн', last: 'Моніторинг південного напрямку' }
-  ]
-};
+document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; renderAllMapVectors(); });
+document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
+document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
 
-let snapT = performance.now();
-let hidden = new Set();
-let objs = {};
-let ringsGrp = L.layerGroup().addTo(map);
-let frontGrp = L.layerGroup().addTo(map);
-let ringsOk = 0, oblOk = 0, frontOk = 0;
-let me = null, meMk = null;
-let actx, alarmT, soundOn = false;
-let rulerOn = false, rulerLayer = L.layerGroup().addTo(map);
-let selectedTrackId = null, mapSteerTrackId = null, pendingSpawnSub = null;
-
-function updateClock() {
-  const now = new Date();
-  const d = now.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const t = now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  $('clock').textContent = `${d} ${t}`;
+// ── ГЕОДЕЗИЧНІ ФУНКЦІЇ ──
+function fwd(la, lo, h, km) {
+  const r = h * Math.PI / 180;
+  return [la + km * Math.cos(r) / 111.2, lo + km * Math.sin(r) / (111.2 * Math.cos(la * Math.PI / 180))];
 }
-updateClock();
-setInterval(updateClock, 1000);
-
-const fmt = s => s >= 60 ? Math.floor(s / 60) + ' хв ' + (s % 60 ? (s % 60) + ' с' : '') : s + ' с';
 function hav(a, b, c, d) {
   const p = Math.PI / 180;
   const x = Math.sin((c - a) * p / 2) ** 2 + Math.cos(a * p) * Math.cos(c * p) * Math.sin((d - b) * p / 2) ** 2;
@@ -986,1189 +927,761 @@ function hav(a, b, c, d) {
 }
 function brg(a, b, c, d) {
   const p = Math.PI / 180;
-  const y = Math.sin((d - b) * p) * math.cos(c * p);
+  const y = Math.sin((d - b) * p) * Math.cos(c * p);
   const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
-function fwdPt(la, lo, hDeg, km) {
-  const r = hDeg * Math.PI / 180;
-  return [la + km * Math.cos(r) / 111.2, lo + km * Math.sin(r) / (111.2 * Math.cos(la * Math.PI / 180))];
-}
-function conePts(la, lo, hdg, distKm, halfDeg = 14) {
-  const pts = [[la, lo]];
-  for (let a = -halfDeg; a <= halfDeg; a += 7) {
-    pts.push(fwdPt(la, lo, (hdg + a + 360) % 360, distKm));
-  }
-  pts.push([la, lo]);
-  return pts;
+function fmtEta(s) {
+  if (s == null || s < 0) return '';
+  return s < 60 ? `${s} с` : `${Math.floor(s / 60)} хв ${s % 60} с`;
 }
 
-function syncRingsVisibility() {
-  if (map.getZoom() >= 12) {
-    if (map.hasLayer(ringsGrp)) map.removeLayer(ringsGrp);
-  } else {
-    if (!map.hasLayer(ringsGrp)) ringsGrp.addTo(map);
-  }
+// ── ДЕТАЛЬНІ ВЕКТОРНІ СИЛУЕТИ ВСІХ ТИПІВ БПЛА ТА РАКЕТ (БЕЗ СМАЙЛИКІВ!) ──
+function getTargetVisualSpec(t) {
+  const sub = t.sub || '';
+  if (sub === 'geran3') return { col: '#ef4444', type: 'jet_drone' };
+  if (sub === 'molniya') return { col: '#38bdf8', type: 'molniya' };
+  if (sub === 'fpv') return { col: '#eab308', type: 'fpv' };
+  if (sub === 'lancet') return { col: '#2dd4bf', type: 'lancet' };
+  if (sub === 'recon' || sub === 'orlan' || sub === 'orion') return { col: '#94a3b8', type: 'recon' };
+  if (sub === 'gerbera' || sub === 'italmas') return { col: '#a3e635', type: 'gerbera' };
+  if (t.kind === 'kab') return { col: '#ef4444', type: 'kab' };
+  if (sub === 'ballistic' || sub === 'iskander_m' || sub === 'kinzhal' || sub === 'zircon' || sub === 's300') return { col: '#f43f5e', type: 'ballistic' };
+  if (t.kind === 'missile' || sub === 'banderol') return { col: '#f97316', type: 'cruise' };
+  if (t.kind === 'strike' || t.kind === 'impact') return { col: '#c084fc', type: 'strike' };
+  return { col: '#f59e0b', type: 'shahed' };
 }
 
-function initRings(h) {
-  [25, 50].forEach(r => {
-    L.circle([h[1], h[2]], {
-      renderer: canvasRenderer,
-      radius: r * 1000,
-      color: 'rgba(90, 115, 145, 0.35)',
-      weight: 1,
-      dashArray: '4 6',
-      fill: false,
-      interactive: false
-    }).addTo(ringsGrp);
-    L.marker([h[1] + r / 111.2, h[2]], {
-      interactive: false,
-      icon: L.divIcon({
-        className: '',
-        html: `<span class="ring-lbl">${r} км</span>`,
-        iconSize: [36, 12],
-        iconAnchor: [18, 6]
-      })
-    }).addTo(ringsGrp);
-  });
+function renderSilhouetteSVG(type, col, rotDeg = 0) {
+  if (type === 'shahed') {
+    // Дельта-крило Шахед-136 / Герань-2 з кільовими шайбами та glowing-ядром
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 3 L6 27 L14.5 23.5 L16 29 L20 29 L21.5 23.5 L30 27 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M18 6 L18 26 M12 20 L18 13 L24 20" stroke="rgba(6,10,18,0.55)" stroke-width="1.1" fill="none"/>
+      <path d="M5.5 24 L5.5 28.5 M30.5 24 L30.5 28.5" stroke="#fde68a" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="18" cy="28.5" r="2" fill="#fef08a" class="flame-anim"/>
+    </svg>`;
+  }
+  if (type === 'jet_drone') {
+    // Реактивний Шахед-238 / Герань-3 з турбореактивним факелом
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 2 L7 25 L15 22 L16.2 28 L19.8 28 L21 22 L29 25 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M15 14 L18 7 L21 14" stroke="#fecaca" stroke-width="1.2" fill="none"/>
+      <polygon points="16.2,28 18,35 19.8,28" fill="#fde047" class="flame-anim"/>
+    </svg>`;
+  }
+  if (type === 'molniya') {
+    // БпЛА «Молнія» — високоплан з прямим крилом, двома балками та електро-емблемою
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 3 L16 11 L3 12.5 L4.5 16.5 L16 15.5 L15.2 25 L11 27 L11 29.5 L18 28 L25 29.5 L25 27 L20.8 25 L20 15.5 L31.5 16.5 L33 12.5 L20 11 Z" fill="${col}" stroke="#060a12" stroke-width="1.35" stroke-linejoin="round"/>
+      <path d="M14 4.5 Q18 2 22 4.5" stroke="#e0f2fe" stroke-width="1.5" fill="none"/>
+      <circle cx="18" cy="13.5" r="1.8" fill="#e0f2fe"/>
+    </svg>`;
+  }
+  if (type === 'fpv') {
+    // FPV-дрон (квадрокоптер Х-рами з 4 обертовими гвинтами)
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <line x1="9" y1="9" x2="27" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="27" y1="9" x2="9" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
+      <rect x="14.5" y="13" width="7" height="10" rx="2" fill="${col}" stroke="#060a12" stroke-width="1.2"/>
+      <polygon points="18,6 15.5,11 20.5,11" fill="#fef08a"/>
+      <g class="rotor-anim"><circle cx="9" cy="9" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
+      <g class="rotor-anim"><circle cx="27" cy="9" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
+      <g class="rotor-anim"><circle cx="9" cy="27" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
+      <g class="rotor-anim"><circle cx="27" cy="27" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
+    </svg>`;
+  }
+  if (type === 'lancet') {
+    // БпЛА «Ланцет» з подвійним Х-подібним крилом
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 3 L20 10 L29 6 L21 14 L20.5 21 L28 26 L20 24.5 L19.5 31 L16.5 31 L16 24.5 L8 26 L15.5 21 L15 14 L7 6 L16 10 Z" fill="${col}" stroke="#060a12" stroke-width="1.3" stroke-linejoin="round"/>
+      <circle cx="18" cy="16" r="1.8" fill="#ccfbf1"/>
+    </svg>`;
+  }
+  if (type === 'recon') {
+    // РозвідБпЛА (Орлан / ZALA / Supercam)
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 4 L16.2 12 L2 15 L3 18 L16.3 16.5 L16.8 26 L13 28.5 L13 30.5 L18 29 L23 30.5 L23 28.5 L19.2 26 L19.7 16.5 L33 18 L34 15 L19.8 12 Z" fill="${col}" stroke="#060a12" stroke-width="1.3"/>
+      <circle cx="18" cy="14" r="2" fill="#38bdf8"/>
+    </svg>`;
+  }
+  if (type === 'gerbera') {
+    // БпЛА «Гербера» (імітатор)
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 4 L7 26 L15.5 23.5 L16 28 L20 28 L20.5 23.5 L29 26 Z" fill="${col}" fill-opacity="0.82" stroke="#060a12" stroke-width="1.3" stroke-dasharray="3,1.5"/>
+    </svg>`;
+  }
+  if (type === 'kab') {
+    // КАБ з розкритим модулем планування УМПК та стабілізаторами
+    return `<svg viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 2 C20.4 2 21.5 5 21.5 8.5 L21.5 12 L33 17 L33 19.8 L21.5 17.5 L21.2 24.5 L25 27.5 L25 30 L18 28 L11 30 L11 27.5 L14.8 24.5 L14.5 17.5 L3 19.8 L3 17 L14.5 12 L14.5 8.5 C14.5 5 15.6 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
+      <line x1="18" y1="5" x2="18" y2="25" stroke="#fecaca" stroke-width="1.2"/>
+    </svg>`;
+  }
+  if (type === 'cruise') {
+    // Крилата ракета Х-101 / Калібр / Бандероль
+    return `<svg viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 2 C19.8 2 20.6 5.5 20.6 9 L20.6 14 L32 18.5 L32 21 L20.6 18.8 L20.4 26 L24 28.5 L24 30.5 L18 29 L12 30.5 L12 28.5 L15.6 26 L15.4 18.8 L4 21 L4 18.5 L15.4 14 L15.4 9 C15.4 5.5 16.2 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.35"/>
+      <polygon points="16.5,29 18,35 19.5,29" fill="#fde047" class="flame-anim"/>
+    </svg>`;
+  }
+  if (type === 'ballistic') {
+    // Балістична ракета Іскандер-М / Кинджал з гіперзвуковими шевронами
+    return `<svg viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
+      <path d="M18 1 L12.5 14 L13.5 24 L9 28.5 L9 31 L18 28.5 L27 31 L27 28.5 L22.5 24 L23.5 14 Z" fill="${col}" stroke="#060a12" stroke-width="1.4"/>
+      <path d="M10 9 L18 3 L26 9" stroke="#fecdd3" stroke-width="1.3" fill="none"/>
+      <polygon points="16,28.5 18,35.5 20,28.5" fill="#fde047" class="flame-anim"/>
+    </svg>`;
+  }
+  // РСЗВ / Артобстріл / Приліт — тактичний приціл
+  return `<svg viewBox="0 0 36 36" width="26" height="26">
+    <circle cx="18" cy="18" r="10" stroke="${col}" stroke-width="2" fill="rgba(192,132,252,0.18)"/>
+    <circle cx="18" cy="18" r="3" fill="${col}"/>
+    <path d="M18 3v6M18 27v6M3 18h6M27 18h6" stroke="${col}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
 }
 
-function ext(t, dt) {
-  if (!t.v || t.ended || t.hdg == null) return { pos: [t.lat, t.lon], hdg: t.hdg || 0 };
-  const lim = t.eta != null ? Math.max(0, Math.min(dt, t.eta)) : dt;
-  const hdg = (t.goal && hav(t.lat, t.lon, t.goal[0], t.goal[1]) > 0.2) ? brg(t.lat, t.lon, t.goal[0], t.goal[1]) : t.hdg;
-  const km = t.v * lim / 3600;
-  const h = hdg * Math.PI / 180;
-  return {
-    pos: [t.lat + km * Math.cos(h) / 111.2, t.lon + km * Math.sin(h) / (111.2 * Math.cos(t.lat * Math.PI / 180))],
-    hdg
-  };
+function buildTargetMarkerHTML(t, isSelected, isAdmin) {
+  const spec = getTargetVisualSpec(t);
+  const hdg = (t.hdg != null) ? t.hdg : 0;
+  const routeTxt = t.to ? `${t.name} · ${t.to}` : `${t.name}`;
+  const etaStr = (!t.ended && t.eta != null) ? ` · ${fmtEta(t.eta)}` : (t.status ? ` · ${t.status}` : '');
+  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv') ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
+  return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
+    ${pulseHtml}
+    <div class="t-lock-ring"></div>
+    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg)}</div>
+    <div class="t-lbl-tag" style="--tc:${spec.col}">${routeTxt}${etaStr}</div>
+  </div>`;
 }
 
-/* Компактний радарний маркер (як на справжніх моніторингових картах) */
-function icon(t, hdgOvr) {
-  const c = (t.ended ? '#7d8998' : t.col || K[t.kind]?.c || '#f5a623');
-  const cnt = t.cnt ? '×' + t.cnt : '';
-  const shortName = (t.name || K[t.kind]?.n || 'Ціль') + cnt;
-  const lab = t.to ? `${shortName} → ${t.to}` : shortName;
-  const g = (ICONS[t.ico] || ICONS.delta)(c);
-  const rot = NOROT.has(t.ico) || t.hdg == null ? 0 : (hdgOvr ?? t.hdg);
-  const op = t.ended ? 0.55 : 1;
-  return L.divIcon({
-    className: '',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    html: `<div class="mk${isAdmin ? ' admin-drag' : ''}" style="--c:${c};opacity:${op}"><svg viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#070a0f" stroke-width="1.4" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`
-  });
-}
+// ── СТАН РАДАРА ТА АДМІН-РЕЖИМУ ──
+const ADMIN_TOKEN_KEY = 'zp_radar_admin_token_v11';
+constEXPECTED_CODE = 'KDLEPL1@D';
+let isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === 'KDLEPL1@D';
+let selectedTrackId = null;
+let pickVectorMode = false;
+let clickSpawnSub = null; // Підтип БпЛА для спавну кліком по карті
+let serverTracks = {};
+let animState = {};
+let markerLayerById = {};
+let reticleMarkerById = {};
+let hiddenKinds = new Set();
 
-const LOCAL_PLACES = [
-  { name: 'Донецька обл.', lat: 47.685, lon: 36.960, rx: /(?:донецьк\w*|донецк\w*|лонцецьк\w*|лонецьк\w*|лонецк\w*|донец\w*)\s*(?:обл\w*|напрям\w*)?|донеччин\w*/i, neighbor: true },
-  { name: 'Дніпропетровська обл.', lat: 48.165, lon: 35.420, rx: /(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*/i, neighbor: true },
-  { name: 'Херсонська обл.', lat: 47.260, lon: 34.250, rx: /(?:херсонськ\w*|херсонск\w*)\s*(?:обл\w*|напрям\w*)?|херсонщ\w*/i, neighbor: true },
-  { name: 'Зелений Яр', lat: 47.849, lon: 35.208, rx: /зелен\w*\s+яр\w*|зелен\w*\s+га[йю]\w*|\bзелен(?:ий|ый|ого|ому|им|ым|ім|е|ое|а|ую|ій|ом|ка|ку)\b|\bзелён(?:ый|ого|ому|ым|ом)\b/i, zpDist: true },
-  { name: 'Шевчик', lat: 47.828, lon: 35.238, rx: /шевченківськ\w*|шевченковск\w*|шевчик\w*|шевчік\w*|\b[123]-?й\s+шевчик\w*/i, zpDist: true },
-  { name: 'Бабурка', lat: 47.816, lon: 35.025, rx: /бабурк\w*|бабурц\w*|хортицьк\w+\s*(?:р-?н|район|мкрн)\w*|хортицк\w+\s*(?:р-?н|район|мкрн)\w*/i, zpDist: true },
-  { name: 'Верхня Хортиця', lat: 47.855, lon: 35.015, rx: /верхн\w+\s+хортиц\w*/i, zpDist: true },
-  { name: 'Острів Хортиця', lat: 47.822, lon: 35.075, rx: /острів\s+хортиц\w*|остров\s+хортиц\w*|\bхортиц(?:я|і|ю|ею|ей|у|и)\b|\bострів\b|\bостров(?:а|у|ом|е|і)?\b/i, zpDist: true },
-  { name: 'Аеропорт / Мокрянка', lat: 47.866, lon: 35.312, rx: /аеропорт\w*|аэропорт\w*|мокрянк\w*/i, zpDist: true },
-  { name: 'Селище ДД', lat: 47.836, lon: 35.195, rx: /димитров\w*|дімітров\w*|\bдд\b/i, zpDist: true },
-  { name: 'Мотор Січ', lat: 47.821, lon: 35.186, rx: /мотор\s*січ\w*|мотор\s*сич\w*|\bмотор\b|іванівк\w+|ивановк\w+/i, zpDist: true },
-  { name: 'Кічкас', lat: 47.888, lon: 35.158, rx: /заводськ\w+|заводск\w+|кічкас\w*|кичкас\w*|павло-?кічкас\w*/i, zpDist: true },
-  { name: 'Промзона', lat: 47.865, lon: 35.168, rx: /промзон\w*|запоріжстал\w*|запорожстал\w*|коксохім\w*/i, zpDist: true },
-  { name: 'Бородок', lat: 47.882, lon: 35.075, rx: /бородінськ\w*|бородинск\w*|бородок\w*/i, zpDist: true },
-  { name: 'Осипок', lat: 47.868, lon: 35.042, rx: /осипенківськ\w*|осипенковск\w*|осипок\w*|осіпок\w*/i, zpDist: true },
-  { name: 'Великий Луг', lat: 47.908, lon: 35.092, rx: /велик\w+\s+луг\w*/i, zpDist: true },
-  { name: 'Правий берег', lat: 47.868, lon: 35.062, rx: /дніпровськ\w+\s+р\w*|днепровск\w+\s+р\w*|прав\w+\s+берег\w*|\bна\s+правий\b|\bна\s+правый\b|\bправий\b|\bправый\b/i, zpDist: true },
-  { name: 'ДніпроГЕС', lat: 47.869, lon: 35.086, rx: /дніпрогес\w*|днепрогэс\w*|гребл\w+|дамб\w+|плотин\w*/i, zpDist: true },
-  { name: 'Піски / Південний', lat: 47.768, lon: 35.192, rx: /південн\w+\s+мкрн\w*|южн\w+\s+мкрн\w*|\bпіск(?:и|ів|ах|ам)\b|\bпеск(?:и|ів|ам|ах)\b|\bюжн(?:ий|ый)\b/i, zpDist: true },
-  { name: 'Космос', lat: 47.785, lon: 35.185, rx: /комунарськ\w*|коммунарск\w*|космос\w*/i, zpDist: true },
-  { name: 'Малий ринок / Анголенко', lat: 47.815, lon: 35.152, rx: /олександрівськ\w+|александровск\w+|мал\w+\s+ринок\w*|мал\w+\s+рынок\w*|анголенк\w*|вокзал\w*/i, zpDist: true },
-  { name: 'Центр (ЗП)', lat: 47.842, lon: 35.128, rx: /вознесенівськ\w*|вознесеновск\w*|фестивальн\w*|радуг\w*|райдуг\w*|металург\w*|\bцентр\w*\b/i, zpDist: true },
-  { name: 'Пологи', lat: 47.482, lon: 36.254, rx: /полог\w*/i },
-  { name: 'Гуляйполе', lat: 47.661, lon: 36.259, rx: /гуляйпол\w*|гуляйпіл\w*/i },
-  { name: 'Оріхів', lat: 47.567, lon: 35.784, rx: /оріхів\w*|орехов\w*|оріхов\w*/i },
-  { name: 'Комишуваха', lat: 47.717, lon: 35.529, rx: /комишува\w*|камышева\w*/i },
-  { name: 'Вільнянськ', lat: 47.945, lon: 35.433, rx: /вільнянськ\w*|вольнянск\w*/i },
-  { name: 'Новомиколаївка', lat: 47.976, lon: 35.908, rx: /новомиколаївк\w*|новониколаевк\w*/i },
-  { name: 'Покровське', lat: 47.982, lon: 36.228, rx: /покровськ\w*|покровск\w*/i },
-  { name: 'Тернувате', lat: 47.828, lon: 36.128, rx: /тернуват\w*|терноват\w*/i },
-  { name: 'Балабине', lat: 47.745, lon: 35.220, rx: /балабин\w*|балабін\w*/i },
-  { name: 'Кушугум', lat: 47.712, lon: 35.208, rx: /кушугум\w*|кушугом\w*/i },
-  { name: 'Малокатеринівка', lat: 47.659, lon: 35.260, rx: /малокатеринівк\w*|малокатериновк\w*/i },
-  { name: 'Розумівка', lat: 47.752, lon: 35.038, rx: /розумівк\w*|разумовк\w*/i },
-  { name: 'Канівське', lat: 47.721, lon: 35.118, rx: /канівськ\w*|каневск\w*/i },
-  { name: 'Біленьке', lat: 47.625, lon: 35.041, rx: /біленьк\w*|беленьк\w*/i },
-  { name: 'Степногірськ', lat: 47.587, lon: 35.361, rx: /степногірськ\w*|степногорск\w*/i },
-  { name: 'Кам\'янське', lat: 47.541, lon: 35.349, rx: /кам['’]?янськ\w+|каменск\w*/i },
-  { name: 'Василівка', lat: 47.435, lon: 35.278, rx: /василівк\w*|васильевк\w*/i, launch: true },
-  { name: 'Пришиб', lat: 47.258, lon: 35.324, rx: /пришиб\w*|пришіб\w*/i, launch: true },
-  { name: 'Токмак', lat: 47.254, lon: 35.704, rx: /токмак\w*/i, launch: true },
-  { name: 'Молочанськ', lat: 47.194, lon: 35.624, rx: /молочанськ\w*|молочанск\w*/i, launch: true },
-  { name: 'Енергодар', lat: 47.499, lon: 34.658, rx: /енергодар\w*|энергодар\w*|\bзаес\b/i },
-  { name: 'Запоріжжя', lat: 47.838, lon: 35.139, rx: /запоріжж(?:я|і|ям|ю)\b|запорожь(?:е|я|ю|ем)\b|\bзп\b/i }
-];
-
-function nearestLocalPlace(lat, lon) {
-  let best = 'Точка на карті', minD = 999;
-  for (const p of LOCAL_PLACES) {
-    if (p.name === 'Запоріжжя') continue;
-    const d = hav(lat, lon, p.lat, p.lon);
-    if (d < minD) { minD = d; best = p.name; }
-  }
-  if (minD <= 6.5) return best;
-  if (hav(lat, lon, 47.838, 35.139) <= 9.0) return 'Запоріжжя';
-  return `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
-}
-
-let localIdSeq = 1;
-
-function localPredictThreats(lat, lon, hdg) {
-  if (hdg == null) return [];
-  const res = [];
-  for (const p of LOCAL_PLACES) {
-    if (p.name === 'Запоріжжя' || p.neighbor || p.launch) continue;
-    const d = hav(lat, lon, p.lat, p.lon);
-    if (d >= 1.0 && d <= 24) {
-      const b = brg(lat, lon, p.lat, p.lon);
-      const diff = Math.abs(((b - hdg + 540) % 360) - 180);
-      if (diff <= 22) res.push({ d, name: p.name, score: d + diff * 0.25 });
-    }
-  }
-  res.sort((a, b) => a.score - b.score);
-  return res.slice(0, 3).map(x => `${x.name} (${x.d.toFixed(1)} км)`);
-}
-
-function runLocalAiIngest(text) {
-  const tl = text.toLowerCase().trim();
-  if (!tl) return;
-
-  if (/збит|сбит|мінус|минус|чисто|відбій|отбой/i.test(tl)) {
-    if (D.tracks.length) {
-      const last = D.tracks[D.tracks.length - 1];
-      last.ended = true;
-      last.v = 0;
-      last.status = '🛡 Збито';
-    }
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'радар', text, kinds: ['drone'], place: '' });
-    render(D);
-    return;
-  }
-
-  const isKab = /\bкаб|\bфаб|авіабомб|умпк|пришиб/i.test(tl);
-  const isJet = /реакт\w*|геран\w*[-–\s]*3|бандерол/i.test(tl);
-  const isMissile = /ракет|баліст|балист|іскандер|искандер|кинджал|калібр/i.test(tl);
-  const isLoiter = /кружля|кружит|завис/i.test(tl);
-  const isOverCity = /(?:\bнад\s+|\bв\s+самому\s+|\bкружля\w*\s+над\s+)(?:м\.\s*)?(?:запоріж|запорож|\bзп\b)/i.test(tl);
-
-  const matched = [];
-  for (const p of LOCAL_PLACES) {
-    const m = p.rx.exec(tl);
-    if (m) matched.push({ idx: m.index, len: m[0].length, place: p });
-  }
-  matched.sort((a, b) => a.idx - b.idx || b.len - a.len);
-  let uniquePlaces = [];
-  for (const m of matched) {
-    if (!uniquePlaces.some(u => u.place.name === m.place.name)) uniquePlaces.push(m);
-  }
-  if (uniquePlaces.length >= 2) {
-    const filtered = uniquePlaces.filter(u => {
-      if (u.place.name !== 'Запоріжжя') return true;
-      const pre = tl.slice(Math.max(0, u.idx - 30), u.idx);
-      return /(?:на|до|курс|вектор|над)\s*$/i.test(pre);
-    });
-    if (filtered.length) uniquePlaces = filtered;
-  }
-
-  let fromPlace = null, toPlace = null;
-  for (const item of uniquePlaces) {
-    const pre = tl.slice(Math.max(0, item.idx - 42), item.idx);
-    if ((item.place.neighbor || item.place.launch) && !/(?:\bна|\bдо|\bкурс|\bвектор)\s*$/i.test(pre)) {
-      fromPlace = item.place;
-    } else if (/(?:курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|напрям\w*(?:\s+на)?|\bна|\bдо|\bв\s+бік|\bу\s+бік|\bв\s+сторону|прилетів\s+на|прилетел\s+на|поверну\w*\s+на|доверну\w*\s+на|->|→)\s*$/i.test(pre)) {
-      toPlace = item.place;
-    } else if (/(?:\bз|\bіз|\bвід|\bс|\bиз|\bз-?під|\bиз-?под|\bчерез|\bповз|\bнад|\bбіля)\s*$/i.test(pre)) {
-      fromPlace = item.place;
-    }
-  }
-
-  if (fromPlace && !toPlace && uniquePlaces.length >= 2) {
-    const second = uniquePlaces.find(u => u.place.name !== fromPlace.name);
-    if (second) toPlace = second.place;
-  }
-
-  if (!fromPlace && !toPlace && uniquePlaces.length > 0) {
-    const p0 = uniquePlaces[0].place;
-    if (p0.launch || p0.neighbor) {
-      fromPlace = p0;
-    } else if (isOverCity || isLoiter || /\bнад\s+/i.test(tl)) {
-      fromPlace = p0;
-    } else {
-      toPlace = p0;
-    }
-  }
-
-  if (isKab && fromPlace && !toPlace) {
-    if (fromPlace.lon <= 35.45) {
-      toPlace = { name: 'Малокатеринівка', lat: 47.659, lon: 35.260 };
-    } else if (fromPlace.lon <= 35.98) {
-      toPlace = { name: 'Оріхів', lat: 47.567, lon: 35.784 };
-    } else {
-      toPlace = { name: 'Гуляйполе', lat: 47.661, lon: 36.259 };
-    }
-  } else if (!isKab && fromPlace && !toPlace && fromPlace.neighbor) {
-    if (fromPlace.name.startsWith('Донецька')) {
-      toPlace = { name: 'Пологи', lat: 47.482, lon: 36.254 };
-    } else if (fromPlace.name.startsWith('Дніпропетровська')) {
-      toPlace = { name: 'Вільнянськ', lat: 47.945, lon: 35.433 };
-    }
-  }
-
-  const kind = isKab ? 'kab' : (isMissile ? 'missile' : 'drone');
-  const activeDrones = D.tracks.filter(t => !t.ended && t.kind === 'drone');
-
-  // Оновлення курсу дозволено ТІЛЬКИ для БпЛА (КАБи завжди летять за своїм пуском і ніколи не змішуються з Шахедами!)
-  const canUpdateDrone = (kind === 'drone') && activeDrones.length > 0 && (
-    (!fromPlace && toPlace) ||
-    isLoiter ||
-    (fromPlace && hav(fromPlace.lat, fromPlace.lon, activeDrones[activeDrones.length - 1].lat, activeDrones[activeDrones.length - 1].lon) <= 30)
-  );
-
-  if (canUpdateDrone) {
-    const t = activeDrones[activeDrones.length - 1];
-    if (isJet) {
-      t.name = 'Реактивний';
-      t.ico = 'jet';
-      t.col = '#ff4444';
-      t.v = 640;
-    }
-    if (fromPlace && !fromPlace.name.startsWith('підліт')) {
-      t.lat = fromPlace.lat;
-      t.lon = fromPlace.lon;
-      t.frm = fromPlace.name;
-    }
-    if (isLoiter || (fromPlace && !toPlace)) {
-      t.goal = null;
-      t.to = null;
-      t.hdg = null;
-      t.status = `Над ${t.frm}`;
-      t.eta = null;
-      t.threats = [];
-    } else if (toPlace) {
-      let gla = toPlace.lat, glo = toPlace.lon;
-      if (toPlace.name === 'Запоріжжя' && hav(t.lat, t.lon, gla, glo) > 6) {
-        const bFrom = brg(gla, glo, t.lat, t.lon);
-        [gla, glo] = fwdPt(gla, glo, bFrom, 4.2);
-      }
-      if (hav(t.lat, t.lon, gla, glo) < 0.25) {
-        const [sla, slo] = fwdPt(gla, glo, 148, 2.5);
-        t.lat = sla; t.lon = slo;
-      }
-      t.goal = [gla, glo];
-      t.to = toPlace.name;
-      t.hdg = Math.round(brg(t.lat, t.lon, gla, glo));
-      const distGoal = hav(t.lat, t.lon, gla, glo);
-      t.eta = Math.max(10, Math.round(distGoal / t.v * 3600));
-      t.status = null;
-      t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
-    }
-    t.text = text;
-    t.age = 0;
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'радар', text, kinds: [kind], place: `${t.frm}${t.to ? ' → ' + t.to : ''}` });
-    render(D);
-    return;
-  }
-
-  let sLat, sLon, sFrm, gLat = null, gLon = null, gName = null;
-  if (fromPlace && toPlace) {
-    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name;
-    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name;
-  } else if (!fromPlace && toPlace) {
-    gLat = toPlace.lat; gLon = toPlace.lon; gName = toPlace.name;
-    if (isKab) {
-      if (toPlace.lon <= 35.38) { sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб'; }
-      else if (toPlace.lon <= 35.98) { sLat = 47.254; sLon = 35.704; sFrm = 'Токмак'; }
-      else { sLat = 47.382; sLon = 36.418; sFrm = 'Кінські Роздори'; }
-    } else if (toPlace.name === 'Запоріжжя') {
-      const [ala, alo] = fwdPt(47.838, 35.139, 148, 14.5);
-      sLat = ala; sLon = alo; sFrm = 'підліт до ЗП';
-      const [ela, elo] = fwdPt(47.838, 35.139, 148, 4.2);
-      gLat = ela; gLon = elo;
-    } else {
-      const inBrg = toPlace.lon >= 35.8 ? 115 : 148;
-      const dist = toPlace.zpDist ? 6.5 : 14.0;
-      const [ala, alo] = fwdPt(toPlace.lat, toPlace.lon, inBrg, dist);
-      sLat = ala; sLon = alo; sFrm = 'підліт до ' + gName;
-    }
-  } else if (fromPlace) {
-    sLat = fromPlace.lat; sLon = fromPlace.lon; sFrm = fromPlace.name;
-  } else {
-    if (isKab) {
-      sLat = 47.258; sLon = 35.324; sFrm = 'Пришиб';
-      gLat = 47.659; gLon = 35.260; gName = 'Малокатеринівка';
-    } else {
-      const [ala, alo] = fwdPt(47.838, 35.139, 148, 14.5);
-      sLat = ala; sLon = alo; sFrm = 'підліт до ЗП';
-      const [ela, elo] = fwdPt(47.838, 35.139, 148, 4.2);
-      gLat = ela; gLon = elo; gName = 'Запоріжжя';
-    }
-  }
-
-  const v = isKab ? 680 : (isMissile ? 2800 : (isJet ? 640 : 185));
-  const hdg = (gLat != null && !isLoiter) ? Math.round(brg(sLat, sLon, gLat, gLon)) : null;
-  const homeDist = +(hav(sLat, sLon, 47.838, 35.139).toFixed(1));
-  const eta = (gLat != null && hdg != null) ? Math.round(hav(sLat, sLon, gLat, gLon) / v * 3600) : null;
-
-  const newTrack = {
-    id: localIdSeq++,
-    kind,
-    name: isKab ? 'КАБ' : (isMissile ? 'Ракета' : (isJet ? 'Реактивний' : 'Шахед')),
-    ico: isKab ? 'kab' : (isMissile ? 'ballistic' : (isJet ? 'jet' : 'delta')),
-    col: isJet ? '#ff4444' : K[kind].c,
-    lat: sLat,
-    lon: sLon,
-    unc: 1.8,
-    v,
-    hdg,
-    thdg: hdg,
-    goal: (gLat != null && !isLoiter) ? [gLat, gLon] : null,
-    frm: sFrm,
-    to: isLoiter ? null : gName,
-    fx: isKab ? [[sLat, sLon], [sLat, sLon]] : [[sLat, sLon]],
-    n: 1,
-    chs: ['overativnoradarzp'],
-    age: 0,
-    text,
-    eta,
-    etah: hdg != null ? Math.round(homeDist / v * 3600) : null,
-    ended: false,
-    status: hdg == null ? `Над ${sFrm}` : null,
-    home: homeDist,
-    threats: localPredictThreats(sLat, sLon, hdg),
-    alt: isKab ? 7500 : null
-  };
-
-  D.tracks.push(newTrack);
-  D.feed.unshift({ t: Date.now() / 1000, ch: 'overativnoradarzp', text, kinds: [kind], place: `${sFrm}${gName ? ' → ' + gName : ''}` });
-  render(D);
-}
-
-setInterval(() => {
-  if (isDraggingTarget || !D.tracks || !D.tracks.length) return;
-  let reachedAny = false;
-  for (const t of D.tracks) {
-    if (t.ended || !t.v || t.hdg == null || !t.goal) continue;
-    const rem = hav(t.lat, t.lon, t.goal[0], t.goal[1]);
-    const stepKm = t.v / 3600;
-    if (rem <= Math.max(0.35, stepKm * 1.2)) {
-      t.lat = t.goal[0];
-      t.lon = t.goal[1];
-      t.frm = t.to || t.frm;
-      if (t.kind === 'drone') {
-        t.to = null;
-        t.goal = null;
-        t.hdg = null;
-        t.eta = null;
-        t.status = `Над ${t.frm}`;
-        t.threats = [];
-      } else {
-        const [gla, glo] = fwdPt(t.lat, t.lon, t.hdg, 6);
-        t.goal = [gla, glo];
-        t.status = `Район ${t.frm}`;
-      }
-      reachedAny = true;
-    } else {
-      t.hdg = Math.round(brg(t.lat, t.lon, t.goal[0], t.goal[1]));
-      const [nla, nlo] = fwdPt(t.lat, t.lon, t.hdg, stepKm);
-      t.lat = nla;
-      t.lon = nlo;
-      t.eta = Math.max(1, Math.round((rem - stepKm) / t.v * 3600));
-    }
-    t.home = +(hav(t.lat, t.lon, 47.838, 35.139).toFixed(1));
-  }
-  snapT = performance.now();
-  if (reachedAny) render(D);
-}, 1000);
-
-function buildAdminVectorControlsHtml(t) {
-  const curHdg = t.hdg != null ? Math.round(t.hdg) : 330;
-  const curV = t.v || 185;
-  return `
-    <div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border-subtle)">
-      <div style="font-size:10.5px;font-weight:700;color:#79c0ff;margin-bottom:4px">ВИСТАВИТИ ВЕКТОР / КУРС:</div>
-      <div class="steer-grid" data-steer-for="${t.id}">
-        <button class="st-pill" data-st="Зелений Яр" data-lat="47.849" data-lon="35.208">↪ Зелений</button>
-        <button class="st-pill" data-st="Шевчик" data-lat="47.828" data-lon="35.238">↪ Шевчик</button>
-        <button class="st-pill" data-st="Острів Хортиця" data-lat="47.822" data-lon="35.075">↪ Острів</button>
-        <button class="st-pill" data-st="Бабурка" data-lat="47.816" data-lon="35.025">↪ Бабурка</button>
-        <button class="st-pill" data-st="Космос" data-lat="47.785" data-lon="35.185">↪ Космос</button>
-        <button class="st-pill" data-st="Кічкас" data-lat="47.888" data-lon="35.158">↪ Кічкас</button>
-        <button class="st-pill" data-st="Правий берег" data-lat="47.868" data-lon="35.062">↪ Правий</button>
-        <button class="st-pill" data-st="Центр (ЗП)" data-lat="47.842" data-lon="35.128">↪ Центр</button>
-        <button class="st-pill" data-loiter="1">🔄 Кружляє</button>
-        <button class="st-pill pick-map-goal" style="border-color:#f5a623;color:#f5a623">📍 На карті</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px">
-        <span style="min-width:78px;color:var(--muted)">Курс: <b id="hdgVal_${t.id}" style="color:#fff">${curHdg}°</b></span>
-        <input type="range" min="0" max="359" value="${curHdg}" data-hdg-slider="${t.id}" style="flex:1;accent-color:var(--accent)">
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px">
-        <span style="min-width:78px;color:var(--muted)">Швидкість: <b id="spdVal_${t.id}" style="color:#fff">${curV}</b></span>
-        <input type="range" min="80" max="1200" step="10" value="${Math.min(1200, curV)}" data-spd-slider="${t.id}" style="flex:1;accent-color:var(--amber)">
-      </div>
-    </div>`;
-}
-
-function attachVectorControlEvents(container, t) {
-  const grid = container.querySelector(`[data-steer-for="${t.id}"]`);
-  if (grid) {
-    grid.onclick = async ev => {
-      const btn = ev.target.closest('.st-pill');
-      if (!btn) return;
-      if (btn.classList.contains('pick-map-goal')) {
-        mapSteerTrackId = t.id;
-        btn.classList.add('active');
-        btn.textContent = '👆 Торкніться карти...';
-        return;
-      }
-      if (btn.dataset.loiter) {
-        await steerTrack(t.id, { loiter: true });
-      } else if (btn.dataset.lat) {
-        await steerTrack(t.id, { name: btn.dataset.st, lat: +btn.dataset.lat, lon: +btn.dataset.lon });
-      }
-    };
-  }
-  const hSlider = container.querySelector(`[data-hdg-slider="${t.id}"]`);
-  if (hSlider) {
-    hSlider.oninput = e => {
-      const lbl = container.querySelector(`#hdgVal_${t.id}`);
-      if (lbl) lbl.textContent = e.target.value + '°';
-    };
-    hSlider.onchange = e => steerTrack(t.id, { hdg: +e.target.value });
-  }
-  const sSlider = container.querySelector(`[data-spd-slider="${t.id}"]`);
-  if (sSlider) {
-    sSlider.oninput = e => {
-      const lbl = container.querySelector(`#spdVal_${t.id}`);
-      if (lbl) lbl.textContent = e.target.value;
-    };
-    sSlider.onchange = e => steerTrack(t.id, { v: +e.target.value });
-  }
-}
-
-function showTargetInfo(t) {
-  selectedTrackId = t.id;
-  const adminControlsHtml = isAdmin ? buildAdminVectorControlsHtml(t) : '';
-  const deleteBtnHtml = isAdmin
-    ? `<button id="dismissTargetBtn" style="background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.45);color:#ff7b72;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer">✖ Прибрати</button>`
-    : '';
-
-  $('infobody').innerHTML = `
-    <div style="font-weight:800;font-size:13px;color:${t.col};margin-bottom:3px">
-      ${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}
-    </div>
-    <div style="font-size:12px;color:var(--text)">
-      <b>${esc(t.frm)}</b>${t.to ? ' → <b style="color:#79c0ff">' + esc(t.to) + '</b>' : ' <span style="color:#f5a623">(очікує курс)</span>'}
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px">
-      ${t.v && t.hdg != null ? t.v + ' км/год · ' : ''}${t.hdg != null ? 'курс ' + t.hdg + '° · ' : ''}до ЗП: <b>${t.home} км</b>${t.eta ? ' (~' + fmt(t.eta) + ')' : ''}
-    </div>
-    ${adminControlsHtml}
-    ${deleteBtnHtml ? `<div style="margin-top:7px;display:flex;justify-content:flex-end">${deleteBtnHtml}</div>` : ''}`;
-  $('infocard').style.display = 'block';
-
+function syncAdminUI() {
+  const lockBox = document.getElementById('admin-lock-box');
+  const ctrlWrap = document.getElementById('admin-controls-wrap');
+  const tabBtn = document.getElementById('tab-admin-btn');
   if (isAdmin) {
-    const dBtn = $('dismissTargetBtn');
-    if (dBtn) dBtn.onclick = () => dismissTrack(t.id);
-    attachVectorControlEvents($('infobody'), t);
-    $('admSelName').textContent = `${t.name} (${t.frm}${t.to ? ' → ' + t.to : ''})`;
-    $('admSelControls').innerHTML = buildAdminVectorControlsHtml(t);
-    attachVectorControlEvents($('admSelControls'), t);
-  }
-}
-
-async function moveTrackPosition(id, lat, lon) {
-  const frmName = nearestLocalPlace(lat, lon);
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ move: { id, lat, lon, frm: frmName } })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-
-  const t = D.tracks.find(x => x.id === id);
-  if (!t) return;
-  t.lat = lat;
-  t.lon = lon;
-  t.frm = frmName;
-  t.home = +(hav(lat, lon, 47.838, 35.139).toFixed(1));
-  if (t.goal) {
-    t.hdg = Math.round(brg(lat, lon, t.goal[0], t.goal[1]));
-    t.threats = localPredictThreats(lat, lon, t.hdg);
-  }
-  render(D);
-}
-
-async function steerTrack(id, opts) {
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steer: { id, ...opts } })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) {
-        render(j.state);
-        const updated = j.state.tracks.find(x => x.id === id);
-        if (updated) showTargetInfo(updated);
-      }
-      return;
-    }
-  } catch (_) {}
-
-  const t = D.tracks.find(x => x.id === id);
-  if (!t) return;
-  if (opts.v != null) t.v = opts.v;
-  if (opts.loiter) {
-    t.goal = null;
-    t.to = null;
-    t.hdg = null;
-    t.eta = null;
-    t.status = `Кружляє (${t.frm})`;
-    t.threats = [];
-  } else if (opts.hdg != null && opts.lat == null) {
-    const h = opts.hdg % 360;
-    const [gla, glo] = fwdPt(t.lat, t.lon, h, 18);
-    t.goal = [gla, glo];
-    t.to = `курс ${Math.round(h)}°`;
-    t.hdg = Math.round(h);
-    t.eta = Math.round(18 / (t.v || 185) * 3600);
-    t.status = null;
-    t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
-  } else if (opts.lat != null && opts.lon != null) {
-    t.goal = [opts.lat, opts.lon];
-    t.to = opts.name || nearestLocalPlace(opts.lat, opts.lon);
-    t.hdg = Math.round(brg(t.lat, t.lon, opts.lat, opts.lon));
-    const d = hav(t.lat, t.lon, opts.lat, opts.lon);
-    t.eta = Math.max(10, Math.round(d / (t.v || 185) * 3600));
-    t.status = null;
-    t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
-  }
-  render(D);
-  showTargetInfo(t);
-}
-
-async function spawnTrackAt(subId, lat, lon) {
-  const frmName = nearestLocalPlace(lat, lon);
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        spawn: {
-          sub: subId,
-          lat,
-          lon,
-          frm: frmName,
-          goal_lat: 47.838,
-          goal_lon: 35.139,
-          goal_name: 'Запоріжжя'
-        }
-      })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-
-  const isKab = subId === 'kab';
-  const isJet = subId === 'geran3';
-  const isBal = subId === 'ballistic';
-  const kind = isKab ? 'kab' : (isBal ? 'missile' : 'drone');
-  const v = isKab ? 680 : (isBal ? 3600 : (isJet ? 640 : 185));
-  const hdg = Math.round(brg(lat, lon, 47.838, 35.139));
-  const homeDist = +(hav(lat, lon, 47.838, 35.139).toFixed(1));
-  const newT = {
-    id: localIdSeq++,
-    kind,
-    name: isKab ? 'КАБ' : (isBal ? 'Балістика' : (isJet ? 'Реактивний' : 'Шахед')),
-    ico: isKab ? 'kab' : (isBal ? 'ballistic' : (isJet ? 'jet' : 'delta')),
-    col: isJet ? '#ff4444' : K[kind].c,
-    lat,
-    lon,
-    unc: 1.5,
-    v,
-    hdg,
-    thdg: hdg,
-    goal: [47.838, 35.139],
-    frm: frmName,
-    to: 'Запоріжжя',
-    fx: [[lat, lon], [lat, lon]],
-    n: 1,
-    chs: ['радар'],
-    age: 0,
-    text: `${frmName} → Запоріжжя`,
-    eta: Math.max(10, Math.round(homeDist / v * 3600)),
-    etah: Math.max(10, Math.round(homeDist / v * 3600)),
-    ended: false,
-    status: null,
-    home: homeDist,
-    threats: localPredictThreats(lat, lon, hdg),
-    alt: isKab ? 7500 : null
-  };
-  D.tracks.push(newT);
-  render(D);
-  showTargetInfo(newT);
-}
-
-async function dismissTrack(id) {
-  if (!isAdmin) return;
-  $('infocard').style.display = 'none';
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dismiss: id })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-  D.tracks = D.tracks.filter(x => x.id !== id);
-  render(D);
-}
-
-function visibleTracks() {
-  return (D.tracks || []).filter(t => !hidden.has(t.kind));
-}
-
-function render(d) {
-  if (isDraggingTarget) return;
-  D = d;
-  snapT = performance.now();
-  if (!ringsOk && d.home) { initRings(d.home); ringsOk = 1; }
-  if (!oblOk && d.oblast) {
-    L.polygon(d.oblast, {
-      renderer: canvasRenderer,
-      color: 'rgba(80, 105, 138, 0.45)',
-      weight: 1.2,
-      fill: false,
-      dashArray: '4 6',
-      interactive: false
-    }).addTo(map);
-    oblOk = 1;
-  }
-  /* Заливка окупованої зони та чітка червона лінія фронту (ЛБЗ) як на справжніх OSINT-радарах */
-  if (!frontOk && d.frontline) {
-    const occPoly = [...d.frontline, [46.20, 37.10], [46.10, 34.30]];
-    L.polygon(occPoly, {
-      renderer: canvasRenderer,
-      color: 'transparent',
-      weight: 0,
-      fillColor: '#d93829',
-      fillOpacity: 0.16,
-      interactive: false
-    }).addTo(frontGrp);
-    L.polyline(d.frontline, {
-      renderer: canvasRenderer,
-      color: '#e03e2d',
-      weight: 2.2,
-      opacity: 0.85,
-      interactive: false
-    }).addTo(frontGrp);
-    frontOk = 1;
-  }
-
-  const vTracks = visibleTracks();
-  const ids = new Set();
-  for (const t of vTracks) {
-    ids.add(t.id);
-    let o = objs[t.id];
-    const c = t.col || K[t.kind]?.c || '#f5a623';
-    if (!o) {
-      o = {
-        g: L.layerGroup().addTo(map),
-        mk: L.marker([t.lat, t.lon], { icon: icon(t), draggable: isAdmin, keyboard: false }),
-        cone: L.polygon([], { renderer: canvasRenderer, color: c, weight: 0, fillColor: c, fillOpacity: 0.13, interactive: false }),
-        tr: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.4, opacity: 0.35 }),
-        ln: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.8, opacity: 0.85, dashArray: '5 5', interactive: false }),
-        ret: L.marker([t.lat, t.lon], {
-          draggable: isAdmin,
-          opacity: 0,
-          icon: L.divIcon({
-            className: '',
-            html: `<div class="tgt-reticle" style="--c:${c}"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6]
-          })
-        })
-      };
-      o.mk.on('click', () => showTargetInfo(o.t));
-
-      o.mk.on('dragstart', () => { isDraggingTarget = true; });
-      o.mk.on('drag', ev => {
-        const ll = ev.target.getLatLng();
-        o.t.lat = ll.lat;
-        o.t.lon = ll.lng;
-        if (o.t.goal) {
-          o.ln.setLatLngs([[ll.lat, ll.lng], o.t.goal]);
-          const newH = brg(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1]);
-          o.t.hdg = Math.round(newH);
-          o.cone.setLatLngs(conePts(ll.lat, ll.lng, newH, Math.min(16, hav(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1])), 14));
-          const el = o.mk.getElement();
-          const svg = el && el.querySelector('svg');
-          if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
-        }
-      });
-      o.mk.on('dragend', async ev => {
-        isDraggingTarget = false;
-        const ll = ev.target.getLatLng();
-        await moveTrackPosition(o.t.id, ll.lat, ll.lng);
-      });
-
-      o.ret.on('dragstart', () => { isDraggingTarget = true; });
-      o.ret.on('drag', ev => {
-        const gll = ev.target.getLatLng();
-        const pos = o.mk.getLatLng();
-        o.ln.setLatLngs([[pos.lat, pos.lng], [gll.lat, gll.lng]]);
-        const newH = brg(pos.lat, pos.lng, gll.lat, gll.lng);
-        o.cone.setLatLngs(conePts(pos.lat, pos.lng, newH, Math.min(16, hav(pos.lat, pos.lng, gll.lat, gll.lng)), 14));
-        const el = o.mk.getElement();
-        const svg = el && el.querySelector('svg');
-        if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
-      });
-      o.ret.on('dragend', async ev => {
-        isDraggingTarget = false;
-        const gll = ev.target.getLatLng();
-        await steerTrack(o.t.id, { lat: gll.lat, lon: gll.lng, name: nearestLocalPlace(gll.lat, gll.lng) });
-      });
-
-      o.g.addLayer(o.cone).addLayer(o.tr).addLayer(o.ln).addLayer(o.ret).addLayer(o.mk);
-      objs[t.id] = o;
-    }
-    o.t = t;
-    o.mk.setIcon(icon(t));
-    if (o.mk.dragging) { isAdmin ? o.mk.dragging.enable() : o.mk.dragging.disable(); }
-    if (o.ret.dragging) { isAdmin ? o.ret.dragging.enable() : o.ret.dragging.disable(); }
-    if (t.goal && !t.ended && t.kind !== 'strike') {
-      o.ret.setLatLng(t.goal);
-      o.ret.setOpacity(0.9);
-    } else {
-      o.ret.setOpacity(0);
-    }
-  }
-  for (const id in objs) {
-    if (!ids.has(+id)) {
-      objs[id].g.remove();
-      delete objs[id];
-    }
-  }
-  chips();
-  banner();
-  list();
-  feed();
-  renderChans();
-  tick();
-}
-
-function tick() {
-  if (isMapInteracting || isDraggingTarget) return;
-  const dt = (performance.now() - snapT) / 1000;
-  for (const id in objs) {
-    const o = objs[id], t = o.t;
-    const st = ext(t, dt), p = st.pos;
-    o.mk.setLatLng(p);
-    o.tr.setLatLngs(t.fx && t.fx.length > 1 && !t.ended ? [t.fx[0], p] : []);
-    o.ln.setLatLngs(t.goal && !t.ended && t.kind !== 'strike' ? [p, t.goal] : []);
-    if (!t.ended && t.hdg != null && t.v > 0) {
-      const cDist = t.goal ? Math.min(16, Math.max(3, hav(p[0], p[1], t.goal[0], t.goal[1]))) : 8;
-      o.cone.setLatLngs(conePts(p[0], p[1], st.hdg, cDist, t.kind === 'kab' ? 10 : 14));
-    } else {
-      o.cone.setLatLngs([]);
-    }
-    if (!NOROT.has(t.ico) && t.hdg != null) {
-      const el = o.mk.getElement();
-      const svg = el && el.querySelector('svg');
-      if (svg) svg.style.transform = `rotate(${st.hdg.toFixed(1)}deg)`;
-    }
-  }
-}
-setInterval(tick, 50);
-
-function chips() {
-  const c = {};
-  (D.tracks || []).forEach(t => { if (!t.ended) c[t.kind] = (c[t.kind] || 0) + 1; });
-  const actCnt = (D.tracks || []).filter(t => !t.ended).length;
-  $('tcnt').textContent = actCnt ? `(${actCnt})` : '';
-  $('chips').innerHTML = Object.keys(K).map(k =>
-    `<span class="chip${hidden.has(k) ? ' off' : ''}" data-k="${k}">
-      <i style="width:6px;height:6px;border-radius:50%;background:${K[k].c};display:inline-block"></i>
-      ${K[k].n} <b>${c[k] || 0}</b>
-    </span>`
-  ).join('');
-}
-$('chips').onclick = e => {
-  const el = e.target.closest('.chip');
-  const k = el && el.dataset.k;
-  if (k) {
-    hidden.has(k) ? hidden.delete(k) : hidden.add(k);
-    render(D);
-  }
-};
-
-function banner() {
-  const dot = $('statusDot'), tx = $('banShort');
-  const act = (D.tracks || []).filter(t => !t.ended && t.kind !== 'strike' && t.kind !== 'impact');
-  if (!act.length) {
-    dot.className = '';
-    tx.textContent = 'Чисто';
-    return;
-  }
-  const kabs = act.filter(t => t.kind === 'kab');
-  if (kabs.length) {
-    const k0 = kabs[0];
-    dot.className = 'rd';
-    tx.textContent = `КАБ → ${k0.to || k0.frm}`;
-    return;
-  }
-  dot.className = 'am';
-  tx.textContent = `Цілей: ${act.length}`;
-}
-
-function list() {
-  const rows = visibleTracks().sort((a, b) => (a.ended ? 1 : 0) - (b.ended ? 1 : 0) || (a.kind === 'kab' ? 0 : 1) - (b.kind === 'kab' ? 0 : 1) || a.home - b.home);
-  $('tracksList').innerHTML = rows.map(t => {
-    const e = t.eta > 0 ? t.eta : t.etah;
-    const delBtn = isAdmin ? `<button class="del-b" data-del="${t.id}">✖</button>` : '';
-    return `<div class="r-card" data-id="${t.id}">
-      ${delBtn}
-      <b style="color:${t.ended ? '#7d8998' : t.col}">${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}</b>
-      <span style="margin-left:5px">${esc(t.frm)}${t.to ? ` → <b style="color:#79c0ff">${esc(t.to)}</b>` : ''}</span>
-      <small>${t.hdg != null && !t.ended ? 'Курс ' + t.hdg + '° · ' : ''}${t.v && t.hdg != null && !t.ended ? t.v + ' км/год · ' : ''}до ЗП: <b>${t.home} км</b>${e != null && !t.ended ? ' (~' + fmt(e) + ')' : ''}</small>
-      <div class="tx">${esc(t.text)}</div>
-    </div>`;
-  }).join('') || '<div style="text-align:center;color:var(--muted);padding:16px 8px;font-size:11.5px">У повітряному просторі Запорізької області активних цілей немає.</div>';
-}
-
-$('tracksList').onclick = e => {
-  const delBtn = e.target.closest('[data-del]');
-  if (delBtn && isAdmin) {
-    e.stopPropagation();
-    dismissTrack(+delBtn.dataset.del);
-    return;
-  }
-  const r = e.target.closest('.r-card');
-  if (r && objs[r.dataset.id]) {
-    const o = objs[r.dataset.id];
-    map.flyTo(o.mk.getLatLng(), Math.max(map.getZoom(), 11), { duration: 0.4 });
-    showTargetInfo(o.t);
-  }
-};
-
-function feed() {
-  $('feed').innerHTML = (D.feed || []).map(f =>
-    `<div class="r-card" style="cursor:default">
-      <small>${new Date(f.t * 1000).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · <b style="color:#79c0ff">@${esc(f.ch)}</b> ${f.place ? '· ' + esc(f.place) : ''}</small>
-      <div class="tx">${esc(f.text)}</div>
-    </div>`
-  ).join('') || '<div style="color:var(--muted);text-align:center;padding:16px">Стрічка подій порожня</div>';
-}
-
-function renderChans() {
-  if (!D.channels) return;
-  $('chanlist').innerHTML = D.channels.map(c =>
-    `<div class="r-card" style="cursor:default">
-      <b style="color:${c.ok ? '#56d364' : '#f85149'}">● @${esc(c.name)}</b>
-      <small style="display:inline;margin-left:6px">${esc(c.checked)}</small>
-      <div class="tx">${esc(c.last || 'Очікування…')}</div>
-    </div>`
-  ).join('');
-}
-
-function switchTab(t) {
-  [...$('tabs').querySelectorAll('b')].forEach(x => x.classList.toggle('on', x.dataset.t === t));
-  ['list', 'feed', 'admin', 'chans'].forEach(id => $(id).hidden = (id !== t));
-}
-
-$('tabs').onclick = e => {
-  const b = e.target.closest('b');
-  if (!b || b.hidden) return;
-  expandSheetOnMobile();
-  switchTab(b.dataset.t);
-};
-
-$('grip').onclick = () => {
-  const r = document.documentElement.style;
-  const cur = r.getPropertyValue('--sheet-h') || '50px';
-  const next = cur === '50px' ? '46%' : (cur === '46%' ? '72%' : '50px');
-  r.setProperty('--sheet-h', next);
-};
-
-$('bh').onclick = () => D.home && map.flyTo([D.home[1], D.home[2]], 11, { duration: 0.5 });
-
-function setMapStyle(k) {
-  if (!TILES[k]) return;
-  map.removeLayer(base);
-  base = TILES[k];
-  base.addTo(map);
-  curMapKey = k;
-  updateWatermark();
-}
-$('bl').onclick = () => {
-  const order = ['tac', 'dk', 'st', 'lt'];
-  setMapStyle(order[(order.indexOf(curMapKey) + 1) % order.length]);
-};
-
-$('spawnToolGrid').onclick = e => {
-  if (!isAdmin) return;
-  const b = e.target.closest('[data-spawn]');
-  if (!b) return;
-  const sub = b.dataset.spawn;
-  if (pendingSpawnSub === sub) {
-    pendingSpawnSub = null;
-    b.classList.remove('active');
-    $('spawnHint').style.display = 'none';
+    lockBox.style.display = 'none';
+    ctrlWrap.style.display = 'flex';
+    tabBtn.classList.add('unlocked');
   } else {
-    pendingSpawnSub = sub;
-    [...$('spawnToolGrid').querySelectorAll('.adm-btn')].forEach(x => x.classList.toggle('active', x === b));
-    $('spawnHint').textContent = '👆 Торкніться карти, щоб поставити ціль';
-    $('spawnHint').style.display = 'block';
+    lockBox.style.display = 'flex';
+    ctrlWrap.style.display = 'none';
+    tabBtn.classList.remove('unlocked');
+    pickVectorMode = false;
+    clickSpawnSub = null;
+    map.getContainer().style.cursor = '';
   }
-};
+  Object.keys(markerLayerById).forEach(id => {
+    const m = markerLayerById[id];
+    const t = serverTracks[id];
+    if (m && t) {
+      if (isAdmin && m.dragging) m.dragging.enable();
+      else if (m.dragging) m.dragging.disable();
+      m.setIcon(L.divIcon({
+        className: 't-icon-wrap',
+        html: buildTargetMarkerHTML(t, Number(id) === selectedTrackId, isAdmin),
+        iconSize: [32, 32], iconAnchor: [16, 16]
+      }));
+    }
+  });
+  renderAllMapVectors();
+}
 
-function clearRuler() { rulerLayer.clearLayers(); }
-$('infoCloseBtn').onclick = () => {
-  $('infocard').style.display = 'none';
-  mapSteerTrackId = null;
-  clearRuler();
-};
-
-$('brul').onclick = () => {
-  rulerOn = !rulerOn;
-  $('brul').classList.toggle('on', rulerOn);
-  if (!rulerOn) {
-    clearRuler();
-    $('infocard').style.display = 'none';
+document.getElementById('admin-login-btn').addEventListener('click', () => {
+  const val = document.getElementById('admin-code-inp').value.trim();
+  if (val === 'KDLEPL1@D') {
+    isAdmin = true;
+    localStorage.setItem(ADMIN_TOKEN_KEY, 'KDLEPL1@D');
+    document.getElementById('admin-auth-err').style.display = 'none';
+    syncAdminUI();
   } else {
-    $('infobody').innerHTML = '<b>📏 Лінійка:</b> торкніться будь-якої точки на карті для розрахунку підльоту до Запоріжжя.';
-    $('infocard').style.display = 'block';
+    document.getElementById('admin-auth-err').style.display = 'block';
   }
-};
-
-map.on('click', async e => {
-  if (window.innerWidth < 880 && !pendingSpawnSub && mapSteerTrackId == null && !rulerOn) {
-    document.documentElement.style.setProperty('--sheet-h', '50px');
-  }
-  if (isAdmin && pendingSpawnSub) {
-    const s = pendingSpawnSub;
-    pendingSpawnSub = null;
-    [...$('spawnToolGrid').querySelectorAll('.adm-btn')].forEach(x => x.classList.remove('active'));
-    $('spawnHint').style.display = 'none';
-    await spawnTrackAt(s, e.latlng.lat, e.latlng.lng);
-    return;
-  }
-  if (isAdmin && mapSteerTrackId != null) {
-    const tid = mapSteerTrackId;
-    mapSteerTrackId = null;
-    await steerTrack(tid, {
-      name: nearestLocalPlace(e.latlng.lat, e.latlng.lng),
-      lat: e.latlng.lat,
-      lon: e.latlng.lng
-    });
-    return;
-  }
-  if (!rulerOn || !D.home) return;
-  clearRuler();
-  const p = [e.latlng.lat, e.latlng.lng];
-  const ref = me || [D.home[1], D.home[2]];
-  const refName = me ? 'Вашої геопозиції' : D.home[0];
-  const dKm = hav(p[0], p[1], ref[0], ref[1]);
-  const bDeg = Math.round(brg(p[0], p[1], ref[0], ref[1]));
-  L.circleMarker(p, { renderer: canvasRenderer, radius: 4, color: '#58a6ff', fillColor: '#58a6ff', fillOpacity: 1 }).addTo(rulerLayer);
-  L.polyline([p, ref], { renderer: canvasRenderer, color: '#58a6ff', weight: 1.8, dashArray: '4 4' }).addTo(rulerLayer);
-  const tShahed = Math.round(dKm / 185 * 3600);
-  const tJet = Math.round(dKm / 640 * 3600);
-  const tKab = Math.round(dKm / 680 * 3600);
-  const tBal = Math.round(dKm / 3800 * 3600);
-  $('infobody').innerHTML = `
-    <div style="font-weight:700;color:#79c0ff;margin-bottom:3px">📏 Підліт до ${esc(refName)}: <b>${dKm.toFixed(1)} км</b> (${bDeg}°)</div>
-    <div style="font-size:11px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
-      <span>🛵 Шахед: <b>~${fmt(tShahed)}</b></span>
-      <span>⚡ Реактивний: <b>~${fmt(tJet)}</b></span>
-      <span>💣 КАБ: <b>~${fmt(tKab)}</b></span>
-      <span>🚀 Балістика: <b>~${fmt(tBal)}</b></span>
-    </div>`;
-  $('infocard').style.display = 'block';
+});
+document.getElementById('admin-code-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('admin-login-btn').click();
+});
+document.getElementById('admin-logout-btn').addEventListener('click', () => {
+  isAdmin = false;
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  syncAdminUI();
 });
 
-$('bm').onclick = () => navigator.geolocation && navigator.geolocation.watchPosition(p => {
-  me = [p.coords.latitude, p.coords.longitude];
-  if (!meMk) meMk = L.circleMarker(me, { renderer: canvasRenderer, radius: 6, color: '#fff', fillColor: '#2f81f7', fillOpacity: 1, weight: 2 }).addTo(map).bindTooltip('Ви');
-  meMk.setLatLng(me);
-  list();
-}, () => {}, { enableHighAccuracy: true });
-
-async function dispatchCommand(tx) {
-  if (!isAdmin || !tx) return;
+// ── API ВИКЛИКИ ДО СЕРВЕРА ──
+async function postSim(payload) {
   try {
     const r = await fetch('/sim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: tx })
+      body: JSON.stringify(payload)
     });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-  runLocalAiIngest(tx);
-}
-
-async function sendSim() {
-  if (!isAdmin) return;
-  const inp = $('simin'), tx = inp.value.trim();
-  if (!tx) return;
-  inp.value = '';
-  await dispatchCommand(tx);
-}
-$('simbtn').onclick = sendSim;
-$('simin').onkeydown = e => { if (e.key === 'Enter') sendSim(); };
-
-$('quickBar').onclick = e => {
-  if (!isAdmin) return;
-  const btn = e.target.closest('.q-btn');
-  if (btn && btn.dataset.q) dispatchCommand(btn.dataset.q);
-};
-
-$('clrbtn').onclick = async () => {
-  if (!isAdmin) return;
-  $('infocard').style.display = 'none';
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clear: true })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-  D.tracks = [];
-  render(D);
-};
-
-$('chanbtn').onclick = async () => {
-  if (!isAdmin) return;
-  const inp = $('chanin'), v = inp.value.trim().replace(/^@/, '');
-  if (!v) return;
-  inp.value = '';
-  try {
-    const r = await fetch('/sim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ add_channel: v })
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (j.state) render(j.state);
-      return;
-    }
-  } catch (_) {}
-  if (!D.channels.some(c => c.name === v)) {
-    D.channels.push({ name: v, ok: true, checked: 'щойно', last: 'Додано' });
-    renderChans();
-  }
-};
-
-function beep() {
-  if (!actx) return;
-  const o = actx.createOscillator(), g = actx.createGain();
-  o.type = 'sawtooth';
-  o.frequency.value = 880;
-  o.connect(g);
-  g.connect(actx.destination);
-  g.gain.value = 0.35;
-  o.start();
-  o.frequency.setValueAtTime(580, actx.currentTime + 0.22);
-  o.stop(actx.currentTime + 0.45);
-}
-function alarm(a) {
-  $('at').textContent = '⚠️ ' + a.text;
-  $('al').style.display = 'block';
-  clearInterval(alarmT);
-  beep();
-  alarmT = setInterval(beep, 750);
-  if (window.speechSynthesis) {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance('Увага! Загроза КАБ!');
-    u.lang = 'uk-UA';
-    speechSynthesis.speak(u);
+    const d = await r.json();
+    if (d && d.state) applyServerState(d.state);
+  } catch (err) {
+    console.error('postSim error:', err);
   }
 }
-function stopAlarm() {
-  clearInterval(alarmT);
-  if (window.speechSynthesis) speechSynthesis.cancel();
-  $('al').style.display = 'none';
-}
-$('stopAlarmBtn').onclick = stopAlarm;
 
-$('bs').onclick = async () => {
-  if (!soundOn) {
-    soundOn = true;
-    actx = new (window.AudioContext || window.webkitAudioContext)();
-    beep();
-    $('bs').textContent = '🔊';
-    $('bs').classList.add('on');
+function selectTrack(id) {
+  selectedTrackId = id;
+  const t = serverTracks[id];
+  const lbl = document.getElementById('vec-sel-lbl');
+  if (t) {
+    lbl.textContent = `${t.name} (${t.frm}${t.to ? ' -> ' + t.to : ''})`;
+    if (t.hdg != null) {
+      document.getElementById('vec-hdg-rng').value = Math.round(t.hdg);
+      document.getElementById('vec-hdg-val').textContent = Math.round(t.hdg) + '°';
+    }
+    if (t.v) {
+      document.getElementById('vec-spd-rng').value = t.v;
+      document.getElementById('vec-spd-val').textContent = t.v;
+    }
   } else {
-    alarm({ text: 'ТЕСТ СИРЕНИ: КАБ на Запоріжжя', lvl: 1 });
+    lbl.textContent = 'Не обрано';
   }
+  Object.keys(markerLayerById).forEach(k => {
+    const tr = serverTracks[k];
+    if (tr && markerLayerById[k]) {
+      markerLayerById[k].setIcon(L.divIcon({
+        className: 't-icon-wrap',
+        html: buildTargetMarkerHTML(tr, Number(k) === selectedTrackId, isAdmin),
+        iconSize: [32, 32], iconAnchor: [16, 16]
+      }));
+    }
+  });
+  renderTargetsList();
+}
+
+// ── ВІДМАЛЬОВУВАННЯ ВЕКТОРІВ, КОНУСІВ ЗАГРОЗИ ТА ПРИЦІЛІВ НА КАРТІ ──
+function renderAllMapVectors() {
+  if (isZooming) return;
+  tracksVectorGroup.clearLayers();
+  Object.values(reticleMarkerById).forEach(rm => map.removeLayer(rm));
+  reticleMarkerById = {};
+
+  Object.values(serverTracks).forEach(t => {
+    if (hiddenKinds.has(t.kind)) return;
+    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg };
+    const col = getTargetVisualSpec(t).col;
+
+    if (!t.ended && t.goal && a.hdg != null) {
+      const distKm = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+      if (showCones && distKm > 0.3) {
+        const coneLen = Math.min(distKm, t.kind === 'kab' ? 32 : 20);
+        const pLeft = fwd(a.lat, a.lon, (a.hdg - 15 + 360) % 360, coneLen);
+        const pRight = fwd(a.lat, a.lon, (a.hdg + 15) % 360, coneLen);
+        L.polygon([[a.lat, a.lon], pLeft, pRight], {
+          color: col, weight: 0.7, opacity: 0.28, fillColor: col, fillOpacity: 0.11, interactive: false, renderer: canvasRenderer
+        }).addTo(tracksVectorGroup);
+      }
+
+      // Траєкторія від точки пуску (для КАБ/ракет)
+      if (t.fx && t.fx.length >= 2) {
+        L.polyline([t.fx[0], [a.lat, a.lon]], {
+          color: col, weight: 1.4, opacity: 0.42, dashArray: '3,5', interactive: false, renderer: canvasRenderer
+        }).addTo(tracksVectorGroup);
+      }
+
+      // Основна лінія курсу до цілі
+      L.polyline([[a.lat, a.lon], t.goal], {
+        color: col, weight: 2.2, opacity: 0.88, dashArray: '6,5', interactive: false, renderer: canvasRenderer
+      }).addTo(tracksVectorGroup);
+
+      // Точка прицілу
+      L.circleMarker(t.goal, {
+        radius: 3.5, color: col, weight: 1.5, fillColor: '#070b12', fillOpacity: 0.9, interactive: false, renderer: canvasRenderer
+      }).addTo(tracksVectorGroup);
+
+      // Перетягуваний приціл вектора в режимі Адміна
+      if (isAdmin) {
+        const rm = L.marker(t.goal, {
+          draggable: true,
+          icon: L.divIcon({ className: '', html: `<div class="reticle-handle" title="Перетягніть приціл для зміни курсу"></div>`, iconSize: [20, 20], iconAnchor: [10, 10] })
+        }).addTo(map);
+        rm.on('dragend', ev => {
+          const ll = ev.target.getLatLng();
+          selectedTrackId = t.id;
+          postSim({ steer: { id: t.id, lat: ll.lat, lon: ll.lng } });
+        });
+        reticleMarkerById[t.id] = rm;
+      }
+    }
+  });
+}
+
+// ── ПЛАВНА АНІМАЦІЯ РУХУ ЦІЛЕЙ 60 FPS ──
+let lastAnimTs = performance.now();
+function animateLoop(nowMs) {
+  const dt = Math.min(0.25, (nowMs - lastAnimTs) / 1000);
+  lastAnimTs = nowMs;
+
+  if (!isZooming) {
+    Object.values(serverTracks).forEach(t => {
+      const a = animState[t.id];
+      const m = markerLayerById[t.id];
+      if (!a || !m || m._isDragging) return;
+      if (!t.ended && t.v > 0 && a.hdg != null) {
+        const stepKm = (t.v * dt) / 3600;
+        if (t.goal) {
+          const rem = hav(a.lat, a.lon, t.goal[0], t.goal[1]);
+          if (rem > 0.25) {
+            const np = fwd(a.lat, a.lon, a.hdg, Math.min(stepKm, rem));
+            a.lat = np[0]; a.lon = np[1];
+          }
+        } else {
+          const np = fwd(a.lat, a.lon, a.hdg, stepKm);
+          a.lat = np[0]; a.lon = np[1];
+        }
+        m.setLatLng([a.lat, a.lon]);
+      }
+    });
+  }
+  requestAnimationFrame(animateLoop);
+}
+requestAnimationFrame(animateLoop);
+
+// ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ ──
+function applyServerState(st) {
+  if (!st) return;
+  if (st.home) home = st.home;
+
+  const d = new Date((st.now || Date.now() / 1000) * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('clock-txt').textContent =
+    `СТАНОМ НА ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+  const incomingIds = new Set();
+  const counts = { drone: 0, kab: 0, missile: 0, strike: 0 };
+  let activeTotal = 0;
+
+  (st.tracks || []).forEach(t => {
+    incomingIds.add(String(t.id));
+    serverTracks[t.id] = t;
+    if (!t.ended) {
+      activeTotal++;
+      if (counts[t.kind] != null) counts[t.kind]++;
+      else if (t.kind === 'impact') counts.strike++;
+    }
+
+    if (!animState[t.id]) {
+      animState[t.id] = { lat: t.lat, lon: t.lon, hdg: t.hdg };
+    } else {
+      const m = markerLayerById[t.id];
+      if (!m || !m._isDragging) {
+        animState[t.id].lat = t.lat;
+        animState[t.id].lon = t.lon;
+        animState[t.id].hdg = t.hdg;
+      }
+    }
+
+    if (hiddenKinds.has(t.kind)) {
+      if (markerLayerById[t.id]) {
+        map.removeLayer(markerLayerById[t.id]);
+        delete markerLayerById[t.id];
+      }
+      return;
+    }
+
+    if (!markerLayerById[t.id]) {
+      const m = L.marker([t.lat, t.lon], {
+        draggable: isAdmin,
+        icon: L.divIcon({
+          className: 't-icon-wrap',
+          html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
+          iconSize: [32, 32], iconAnchor: [16, 16]
+        })
+      }).addTo(map);
+
+      m.on('click', ev => {
+        L.DomEvent.stopPropagation(ev);
+        selectTrack(t.id);
+      });
+      m.on('dragstart', () => { m._isDragging = true; selectTrack(t.id); });
+      m.on('dragend', ev => {
+        m._isDragging = false;
+        const ll = ev.target.getLatLng();
+        animState[t.id].lat = ll.lat;
+        animState[t.id].lon = ll.lng;
+        postSim({ move: { id: t.id, lat: ll.lat, lon: ll.lng } });
+      });
+      markerLayerById[t.id] = m;
+    } else {
+      const m = markerLayerById[t.id];
+      if (!m._isDragging) m.setLatLng([t.lat, t.lon]);
+      m.setIcon(L.divIcon({
+        className: 't-icon-wrap',
+        html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin),
+        iconSize: [32, 32], iconAnchor: [16, 16]
+      }));
+    }
+  });
+
+  Object.keys(serverTracks).forEach(id => {
+    if (!incomingIds.has(String(id))) {
+      delete serverTracks[id];
+      delete animState[id];
+      if (markerLayerById[id]) {
+        map.removeLayer(markerLayerById[id]);
+        delete markerLayerById[id];
+      }
+      if (Number(id) === selectedTrackId) selectedTrackId = null;
+    }
+  });
+
+  if (selectedTrackId == null && Object.keys(serverTracks).length > 0) {
+    const firstActive = Object.values(serverTracks).find(x => !x.ended);
+    if (firstActive) selectTrack(firstActive.id);
+  }
+
+  document.getElementById('active-cnt-txt').textContent = `ЦІЛЕЙ: ${activeTotal}`;
+  document.getElementById('tab-targets-btn').querySelector('span').textContent = `Цілі (${activeTotal})`;
+  document.getElementById('sheet-title-txt').textContent =
+    activeTotal > 0 ? `АКТИВНИХ ЦІЛЕЙ НА РАДАРІ: ${activeTotal}` : `НЕБО ЧИСТЕ · ЦІЛЕЙ НЕ ФІКСУЄТЬСЯ`;
+  document.getElementById('fc-drone').textContent = counts.drone;
+  document.getElementById('fc-kab').textContent = counts.kab;
+  document.getElementById('fc-missile').textContent = counts.missile;
+  document.getElementById('fc-strike').textContent = counts.strike;
+
+  const scope = document.getElementById('radar-scope');
+  scope.className = 'radar-scope' + (counts.kab > 0 || counts.missile > 0 ? ' err' : (activeTotal > 0 ? ' warn' : ''));
+
+  renderAllMapVectors();
+  renderTargetsList();
+  renderFeedList(st.feed || []);
+  renderChannelsList(st.channels || []);
+}
+
+function renderTargetsList() {
+  const pane = document.getElementById('pane-targets');
+  const list = Object.values(serverTracks).sort((a, b) => (a.ended === b.ended ? b.id - a.id : a.ended ? 1 : -1));
+  if (!list.length) {
+    pane.innerHTML = `<div style="padding:18px 10px;text-align:center;color:#64748b;font-size:11px;font-weight:600;letter-spacing:0.3px">Повітряний простір чистий. Активних цілей не виявлено.</div>`;
+    return;
+  }
+  pane.innerHTML = list.map(t => {
+    const spec = getTargetVisualSpec(t);
+    const route = t.to ? `${t.frm} &rarr; <b>${t.to}</b>` : `${t.frm}`;
+    const etaBadge = (!t.ended && t.eta != null) ? `<span class="eta-pill">~${fmtEta(t.eta)}</span>` : (t.status ? `<span class="eta-pill">${t.status}</span>` : '');
+    const cntBadge = t.cnt ? `<span class="cnt-pill">${t.cnt}x</span>` : '';
+    const threatsHtml = (t.threats && t.threats.length && !t.ended)
+      ? `<div class="threat-box">Загроза по курсу: <b>${t.threats.join(', ')}</b></div>` : '';
+    return `<div class="card ${t.ended ? 'ended' : ''} ${t.id === selectedTrackId ? 'selected' : ''}" style="--c:${spec.col}" data-id="${t.id}">
+      <div class="card-top">
+        <div class="card-title">
+          ${renderSilhouetteSVG(spec.type, spec.col, 45)}
+          <span>${t.name}</span> ${cntBadge}
+        </div>
+        ${etaBadge}
+      </div>
+      <div class="card-sub">
+        <span>${route}</span>
+        ${t.v ? `<span>· ${t.v} км/год</span>` : ''}
+        ${t.hdg != null ? `<span>· курс ${t.hdg}°</span>` : ''}
+        ${t.alt ? `<span>· H=${t.alt} м</span>` : ''}
+      </div>
+      ${threatsHtml}
+      <div class="card-msg">${t.text || ''}</div>
+    </div>`;
+  }).join('');
+
+  pane.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = Number(el.dataset.id);
+      selectTrack(id);
+      const t = serverTracks[id];
+      if (t) map.panTo([t.lat, t.lon], { animate: true });
+    });
+  });
+}
+
+function renderFeedList(feed) {
+  const pane = document.getElementById('pane-feed');
+  if (!feed.length) {
+    pane.innerHTML = `<div style="padding:16px;text-align:center;color:#64748b;font-size:11px">Очікування оперативних повідомлень...</div>`;
+    return;
+  }
+  pane.innerHTML = feed.slice(0, 30).map(f => {
+    const d = new Date((f.t || Date.now() / 1000) * 1000);
+    const tm = d.toTimeString().slice(0, 8);
+    return `<div class="feed-item">
+      <div class="feed-head">
+        <span>@${f.ch || 'радар'} · ${tm}</span>
+        <span class="feed-place">${f.place || ''}</span>
+      </div>
+      <div style="color:#e2e8f0">${f.text || ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderChannelsList(chs) {
+  const box = document.getElementById('ch-list');
+  if (!box) return;
+  box.innerHTML = chs.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:3px 6px;background:rgba(6,10,18,0.6);border-radius:4px;border:1px solid rgba(148,163,184,0.1)">
+      <span style="color:${c.ok ? '#34d399' : '#94a3b8'};font-weight:700">@${c.name}</span>
+      <span style="color:#64748b">${c.checked || '—'}</span>
+    </div>
+  `).join('');
+}
+
+// ── ФІЛЬТРИ, ВКЛАДКИ ТА МОБІЛЬНА ШТОРКА ──
+document.querySelectorAll('.fchip').forEach(ch => {
+  ch.addEventListener('click', () => {
+    const k = ch.dataset.k;
+    if (hiddenKinds.has(k)) { hiddenKinds.delete(k); ch.classList.remove('off'); }
+    else { hiddenKinds.add(k); ch.classList.add('off'); }
+    fetch('/state').then(r => r.json()).then(applyServerState);
+  });
+});
+
+document.querySelectorAll('.tab').forEach(tb => {
+  tb.addEventListener('click', () => {
+    const target = tb.dataset.t;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === tb));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + target));
+    document.getElementById('dock').classList.remove('collapsed');
+    document.getElementById('sheet-toggle-lbl').textContent = 'ЗГОРНУТИ';
+  });
+});
+
+document.getElementById('sheet-handle').addEventListener('click', () => {
+  const dock = document.getElementById('dock');
+  const collapsed = dock.classList.toggle('collapsed');
+  document.getElementById('sheet-toggle-lbl').textContent = collapsed ? 'ВІДКРИТИ' : 'ЗГОРНУТИ';
+});
+
+// ── АРСЕНАЛ СПАВНУ РІЗНИХ БПЛА ТА ОЗБРОЄННЯ (ШАХЕД, РЕАКТИВНИЙ, МОЛНІЯ, FPV, ЛАНЦЕТ, РОЗВІДНИК, ГЕРБЕРА, КАБ, РАКЕТИ) ──
+const DEFAULT_SPAWN_PRESETS = {
+  geran2:    { lat: 47.728, lon: 35.245, frm: 'підліт до ЗП', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
+  geran3:    { lat: 47.685, lon: 36.960, frm: 'Донецька обл.', goal_lat: 47.482, goal_lon: 36.254, goal_name: 'Пологи' },
+  molniya:   { lat: 47.512, lon: 35.345, frm: "Кам'янське (ЛБЗ)", goal_lat: 47.587, goal_lon: 35.361, goal_name: 'Степногірськ' },
+  fpv:       { lat: 47.541, lon: 35.349, frm: "Кам'янське", goal_lat: 47.659, goal_lon: 35.260, goal_name: 'Малокатеринівка' },
+  lancet:    { lat: 47.458, lon: 35.755, frm: 'Копані (ЛБЗ)', goal_lat: 47.567, goal_lon: 35.784, goal_name: 'Оріхів' },
+  recon:     { lat: 47.690, lon: 35.280, frm: 'Григорівка', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
+  gerbera:   { lat: 47.740, lon: 35.380, frm: 'Новоолександрівка', goal_lat: 47.945, goal_lon: 35.433, goal_name: 'Вільнянськ' },
+  kab:       { lat: 47.254, lon: 35.704, frm: 'Токмак', goal_lat: 47.567, goal_lon: 35.784, goal_name: 'Оріхів' },
+  kh101:     { lat: 47.150, lon: 36.500, frm: 'Південний Схід', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' },
+  ballistic: { lat: 47.236, lon: 38.896, frm: 'Таганрог (РФ)', goal_lat: 47.838, goal_lon: 35.139, goal_name: 'Запоріжжя' }
 };
 
-applyAdminState();
-render(D);
+const chkClickSpawn = document.getElementById('chk-click-spawn');
+chkClickSpawn.addEventListener('change', () => {
+  if (!chkClickSpawn.checked) {
+    clickSpawnSub = null;
+    document.querySelectorAll('.uav-spawn-btn').forEach(b => b.classList.remove('active-place'));
+    map.getContainer().style.cursor = '';
+  }
+});
 
-let esInstance = null;
-function connect() {
-  try {
-    if (esInstance) {
-      try { esInstance.close(); } catch (_) {}
+document.querySelectorAll('.uav-spawn-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sub = btn.dataset.sub;
+    if (chkClickSpawn.checked) {
+      clickSpawnSub = sub;
+      pickVectorMode = false;
+      document.querySelectorAll('.uav-spawn-btn').forEach(b => b.classList.toggle('active-place', b === btn));
+      map.getContainer().style.cursor = 'crosshair';
+      document.getElementById('spawn-hint-txt').textContent =
+        `Клікніть у будь-яку точку на карті, щоб розмістити «${btn.querySelector('.uav-meta span').textContent}».`;
+    } else {
+      const preset = DEFAULT_SPAWN_PRESETS[sub] || DEFAULT_SPAWN_PRESETS.geran2;
+      postSim({ spawn: { sub, ...preset } });
     }
-    const es = new EventSource('/events');
-    esInstance = es;
-    es.onmessage = e => {
-      render(JSON.parse(e.data));
-    };
-    es.addEventListener('alert', e => alarm(JSON.parse(e.data)));
-    es.onerror = () => {};
+  });
+});
+
+// ── КОМАНДИ ТА КЕРУВАННЯ ВЕКТОРОМ В АДМІН-ПАНЕЛІ ──
+document.getElementById('sim-send-btn').addEventListener('click', () => {
+  const inp = document.getElementById('sim-inp');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  postSim({ text: txt });
+  inp.value = '';
+});
+document.getElementById('sim-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('sim-send-btn').click();
+});
+document.getElementById('sim-clr-btn').addEventListener('click', () => postSim({ clear: true }));
+
+document.querySelectorAll('.qchip[data-q]').forEach(q => {
+  q.addEventListener('click', () => postSim({ text: q.dataset.q }));
+});
+
+document.querySelectorAll('.vec-place-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    if (!selectedTrackId) return;
+    postSim({ steer: { id: selectedTrackId, name: b.dataset.place, lat: parseFloat(b.dataset.lat), lon: parseFloat(b.dataset.lon) } });
+  });
+});
+
+document.getElementById('vec-loiter-btn').addEventListener('click', () => {
+  if (!selectedTrackId) return;
+  postSim({ steer: { id: selectedTrackId, loiter: true } });
+});
+
+const pickMapBtn = document.getElementById('vec-pick-map-btn');
+pickMapBtn.addEventListener('click', () => {
+  pickVectorMode = !pickVectorMode;
+  if (pickVectorMode) {
+    chkClickSpawn.checked = false;
+    clickSpawnSub = null;
+    document.querySelectorAll('.uav-spawn-btn').forEach(b => b.classList.remove('active-place'));
+  }
+  pickMapBtn.classList.toggle('active', pickVectorMode);
+  map.getContainer().style.cursor = pickVectorMode ? 'crosshair' : '';
+});
+
+map.on('click', e => {
+  if (isAdmin && clickSpawnSub) {
+    const preset = DEFAULT_SPAWN_PRESETS[clickSpawnSub] || DEFAULT_SPAWN_PRESETS.geran2;
+    postSim({
+      spawn: {
+        sub: clickSpawnSub,
+        lat: e.latlng.lat,
+        lon: e.latlng.lng,
+        goal_lat: preset.goal_lat,
+        goal_lon: preset.goal_lon,
+        goal_name: preset.goal_name
+      }
+    });
+    return;
+  }
+  if (isAdmin && pickVectorMode && selectedTrackId) {
+    pickVectorMode = false;
+    pickMapBtn.classList.remove('active');
+    map.getContainer().style.cursor = '';
+    postSim({ steer: { id: selectedTrackId, lat: e.latlng.lat, lon: e.latlng.lng } });
+    return;
+  }
+  if (rulerActive) {
+    handleRulerClick(e.latlng);
+  }
+});
+
+const hdgRng = document.getElementById('vec-hdg-rng');
+hdgRng.addEventListener('input', () => {
+  document.getElementById('vec-hdg-val').textContent = hdgRng.value + '°';
+});
+hdgRng.addEventListener('change', () => {
+  if (selectedTrackId) postSim({ steer: { id: selectedTrackId, hdg: Number(hdgRng.value) } });
+});
+
+const spdRng = document.getElementById('vec-spd-rng');
+spdRng.addEventListener('input', () => {
+  document.getElementById('vec-spd-val').textContent = spdRng.value;
+});
+spdRng.addEventListener('change', () => {
+  if (selectedTrackId) postSim({ steer: { id: selectedTrackId, v: Number(spdRng.value) } });
+});
+
+document.getElementById('vec-del-btn').addEventListener('click', () => {
+  if (selectedTrackId) postSim({ dismiss: selectedTrackId });
+});
+
+document.getElementById('ch-add-btn').addEventListener('click', () => {
+  const inp = document.getElementById('ch-add-inp');
+  const v = inp.value.trim();
+  if (!v) return;
+  postSim({ add_channel: v });
+  inp.value = '';
+});
+
+// ── ІНСТРУМЕНТИ КАРТИ (ЗВУК, ЛІНІЙКА, ГЕОЛОКАЦІЯ, ЗАПОРІЖЖЯ, ОГЛЯД ЛБЗ УКРАЇНИ) ──
+let soundOn = false;
+document.getElementById('sndbtn').addEventListener('click', e => {
+  soundOn = !soundOn;
+  e.currentTarget.classList.toggle('on', soundOn);
+});
+function playAlertTone(lvl) {
+  if (!soundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = lvl >= 2 ? 880 : 620;
+    g.gain.value = 0.08;
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.35);
   } catch (_) {}
 }
-connect();
 
-setInterval(async () => {
-  if (isDraggingTarget) return;
-  try {
-    const r = await fetch('/state', { cache: 'no-store' });
-    if (r.ok) {
-      const st = await r.json();
-      render(st);
-    }
-  } catch (_) {}
-}, 2000);
+let rulerActive = false, rulerPts = [], rulerLayer = L.layerGroup().addTo(map);
+document.getElementById('rulerbtn').addEventListener('click', e => {
+  rulerActive = !rulerActive;
+  e.currentTarget.classList.toggle('on', rulerActive);
+  rulerPts = [];
+  rulerLayer.clearLayers();
+  map.getContainer().style.cursor = rulerActive ? 'crosshair' : '';
+});
+function handleRulerClick(ll) {
+  rulerPts.push([ll.lat, ll.lng]);
+  L.circleMarker([ll.lat, ll.lng], { radius: 4, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 1 }).addTo(rulerLayer);
+  if (rulerPts.length === 2) {
+    const dKm = hav(rulerPts[0][0], rulerPts[0][1], rulerPts[1][0], rulerPts[1][1]);
+    const tShahed = Math.round(dKm / 185 * 60);
+    const tMolniya = Math.round(dKm / 145 * 60);
+    const tKab = Math.round(dKm / 680 * 60);
+    L.polyline(rulerPts, { color: '#38bdf8', weight: 2, dashArray: '4,4' })
+      .bindTooltip(`${dKm.toFixed(1)} км · Шахед ~${tShahed} хв · Молнія ~${tMolniya} хв · КАБ ~${tKab} хв`, { permanent: true, direction: 'center' })
+      .addTo(rulerLayer);
+    rulerPts = [];
+  }
+}
+
+document.getElementById('myposbtn').addEventListener('click', () => {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    L.circleMarker(ll, { radius: 6, color: '#10b981', weight: 2, fillColor: '#10b981', fillOpacity: 0.85 })
+      .bindTooltip("Ваша позиція").addTo(map);
+    map.setView(ll, 12);
+  });
+});
+document.getElementById('homebtn').addEventListener('click', () => map.setView([home[1], home[2]], 10));
+document.getElementById('ukrainebtn').addEventListener('click', () => map.setView([47.85, 35.80], 7));
+
+// ── ПІДКЛЮЧЕННЯ ДО ПОТОКУ РАДАРА (SSE + POLLING FALLBACK) ──
+syncAdminUI();
+fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
+
+function connectSSE() {
+  const es = new EventSource('/events');
+  es.onmessage = ev => {
+    try { applyServerState(JSON.parse(ev.data)); } catch (_) {}
+  };
+  es.addEventListener('alert', ev => {
+    try {
+      const a = JSON.parse(ev.data);
+      const b = document.getElementById('banner');
+      b.textContent = a.text;
+      b.className = 'l' + (a.lvl || 1);
+      playAlertTone(a.lvl || 1);
+      setTimeout(() => { b.className = ''; b.style.display = 'none'; }, 14000);
+    } catch (_) {}
+  });
+  es.onerror = () => {
+    es.close();
+    setTimeout(connectSSE, 3000);
+  };
+}
+connectSSE();
+setInterval(() => {
+  fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
+}, 3500);
 </script>
 </body>
 </html>
