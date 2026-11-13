@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Оперативний Радар ZP v10 (DeepSeek Neural AI + Instant Tactical Engine).
+"""Оперативний Радар ZP v11 (DeepSeek Neural AI + Адмін-панель керування векторами та перетягування цілей).
 Сумісний з Python 3.7 / 3.8 / 3.9 / 3.10 / 3.11 / 3.12+ (Render.com та локальний запуск).
 Запуск: pip install aiohttp beautifulsoup4 && python server.py
 Відкрити: http://localhost:8080"""
@@ -15,6 +15,8 @@ from datetime import datetime
 import aiohttp
 from aiohttp import web
 from bs4 import BeautifulSoup
+
+ADMIN_SECRET_CODE = os.getenv("ADMIN_CODE", "KDLEPL1@D")
 
 DEFAULT_CHANNELS = [
     "overativnoradarzp", "eyes_everywhere_ua", "operatyvnohlep", "gnilayachereha",
@@ -60,7 +62,7 @@ RAW_PLACES = [
     ("Старомлинівка", 47.695, 36.832, r"старомлинівк\w*|старомлыновк\w*"),
     ("Велика Новосілка", 47.838, 36.835, r"велик\w+\s+новосілк\w*|больш\w+\s+новоселк\w*|новосілк\w*|новоселк\w*"),
 
-    # ── МІКРОРАЙОНИ, ОСТРІВ, СЕЛИЩА ТА ПРОМЗОНИ М. ЗАПОРІЖЖЯ (НАЙВИЩИЙ ПРІОРИТЕТ) ──
+    # ── МІКРОРАЙОНИ, ОСТРІВ, СЕЛИЩА ТА ПРОМЗОНИ М. ЗАПОРІЖЖЯ ──
     ("Зелений Яр (ЗП)", 47.849, 35.208,
      r"зелен\w*\s+яр\w*|зелен\w*\s+га[йю]\w*|\bзелен(?:ий|ый|ого|ому|им|ым|ім|е|ое|а|ую|ій|ом|ка|ку)\b|\bзелён(?:ый|ого|ому|ым|ом)\b"),
     ("Шевченківський р-н / Шевчик (ЗП)", 47.828, 35.238,
@@ -277,7 +279,6 @@ BROAD_REGIONS = {"Запорізька обл.", "Дніпро", "Запоріз
 PLACES = [(n, la, lo, rx) for n, la, lo, rx in RAW_PLACES]
 PLACE_BY_NAME = {n: (n, la, lo) for n, la, lo, _ in RAW_PLACES}
 
-# Швидкий пошук локації за назвою (включно з короткими назвами від ШІ DeepSeek)
 def resolve_place_by_fuzzy_name(q):
     if not q:
         return None
@@ -294,6 +295,20 @@ def resolve_place_by_fuzzy_name(q):
             return (n, la, lo)
     return None
 
+def nearest_place_name(lat, lon):
+    best_n, best_d = "Точка на карті", 999.0
+    for n, pla, plo, _ in RAW_PLACES:
+        if n in ("Запоріжжя", "Запорізький р-н (передмістя ЗП)"):
+            continue
+        d = hav(lat, lon, pla, plo)
+        if d < best_d:
+            best_d, best_n = d, n
+    if best_d <= 6.5:
+        return best_n.replace(" (ЗП)", "")
+    if hav(lat, lon, HOME[1], HOME[2]) <= 9.0:
+        return "Запоріжжя"
+    return f"{lat:.3f}, {lon:.3f}"
+
 ZP_UNIQUE_RX = re.compile(
     "(?:" + "|".join(rx for n, _, _, rx in RAW_PLACES if n not in NEIGHBOR_OBLAST_ORIGINS and n not in AMBIGUOUS_PLACES) + ")",
     re.I
@@ -308,7 +323,6 @@ OTHER_OBLAST_RX = re.compile(
     re.I
 )
 
-# ── КАТАЛОГ ЦІЛЕЙ ─────────────────────────────────────────────────────────────
 def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
     return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=ttl, ico=ico, col=col, generic=generic)
 
@@ -331,7 +345,6 @@ SUBS = [
     S("drone", "drone", "БпЛА",
       r"бпл\w*|\bбла\b|дрон\w*|безпілотн\w*|беспилотн\w*|камікадзе|камикадзе|\bуав\b|\bбпак\w*|невідом\w+\s+бпла|повітрян\w+\s+ціл\w*|воздушн\w+\s+цел\w*|🛸|\bпташк\w*",
       180, 32, 1200, "delta", None, True),
-    # КАБ має високу швидкість планування (680 км/год), щоб рух на карті був добре помітним у реальному часі!
     S("kab_big", "kab", "ФАБ-1500/3000", r"(?:фаб|каб|рбк)-?\s*(?:1500|3000)", 680, 32, 300, "kab", None),
     S("kab", "kab", "КАБ",
       r"\bкаб(?:и|ів|ах|ам|ом|у|а|ів|чик|чики|ы|ов|ам|ами)?\b|авіабомб\w*|авиабомб\w*|умпк\w*|умпб\w*|\bфаб\w*|\bодаб\w*|д-?30сн|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|пуск\w*\s+каб\w*|(?:пуск\w*|виход\w*|выход\w*)\s+(?:з|із|с|из|з-?під|из-?под)?\s*(?:пришиб|токмак|молочанськ|полог|михайлівк|василівк|васильевк)",
@@ -384,10 +397,7 @@ IMPLICIT_FLIGHT_RX = re.compile(
 )
 IMPLICIT_KAB_RX = re.compile(r"(?:пуск\w*|виход\w*|выход\w*|кида\w+|скида\w+|керован\w+|управляем\w+)", re.I)
 
-LOITER_RX = re.compile(
-    r"(?:кружля\w*|кружит\w*|кружляють|кружат|завис\w*)",
-    re.I
-)
+LOITER_RX = re.compile(r"(?:кружля\w*|кружит\w*|кружляють|кружат|завис\w*)", re.I)
 
 OVER_CITY_RX = re.compile(
     r"(?:\bнад\s+|\bв\s+межах\s+|\bу\s+межах\s+|\bв\s+самому\s+|\bу\s+самому\s+|\bкружля\w*\s+(?:над|в|у)\s+|\bкружит\w*\s+(?:над|в)\s+|\bліта\w*\s+над\s+|\bлета\w*\s+над\s+|\bпроліта\w*\s+|\bпролет\w*\s+)"
@@ -534,7 +544,6 @@ def detect(tl):
         out.append((s, count_around(tl, st, en)))
     return out
 
-# ВИПРАВЛЕНО в v10: TO_PRE_RX та FROM_PRE_RX підтримують російський прийменник «с / из» («кабы с пришиба») та «в сторону / на» без конфлікту з VIA_PRE_RX!
 TO_PRE_RX = re.compile(
     r"(?:(?:→|->|=>|➡|🔜|—>|–>)|"
     r"(?:\bна|\bдо|\bк|\bпо|\bу\s+бік|\bв\s+бік|\bв\s+сторону|\bу\s+сторону|\bу\s+напрям\w*|\bв\s+напрям\w*|\bв\s+направ\w*|"
@@ -663,7 +672,6 @@ def extract_routes(tl):
         return [(origin, unk_pts[0])]
 
     if origin:
-        # Якщо це точка пуску («кабы с пришиба», «з Токмака», «з Донецької обл.») — це from, інакше перевіряємо чи це не підліт
         return [(origin, None)]
 
     if unk_pts:
@@ -672,7 +680,6 @@ def extract_routes(tl):
             return [(unk_pts[0], unk_pts[1])]
         if p0[0] in LAUNCH_ONLY_ORIGINS:
             return [(p0, None)]
-        # Якщо згадано район Запоріжжя, місто або село без «над» (напр. «бпла шевчик», «бпла на запорожье», «курс зеленый», «остров») — це ЦІЛЬ ПОЛЬОТУ (tgt), щоб ціль летіла туди, а не висіла на місці!
         if not OVER_CITY_RX.search(tl) and not LOITER_RX.search(tl) and not VIA_PRE_RX.search(tl):
             return [(None, p0)]
         return [(p0, None)]
@@ -747,10 +754,6 @@ def real_kab_launch_origin_for(tgt):
     return ("Кінські Роздори (пусковий рубіж)", 47.382, 36.418)
 
 def default_target_for_launch_origin(sub_kind, pos):
-    """ВИПРАВЛЕННЯ БАГУ («написали кабы с пришиба они даже не летят тупо на месте стоят»):
-    Коли пишуть тільки точку вильоту/пуску («кабы с пришиба», «пуски з Токмака», «шахеди з Приморсько-Ахтарська», «реактив в Донецькій області»),
-    ціль НЕ може стояти на місці (0 км/год)! Вона одразу летить за реальним секторним напрямком до лінії фронту / Запоріжжя,
-    доки наступне повідомлення не уточнить конкретне село чи район!"""
     pname, pla, plo = pos[0], pos[1], pos[2]
     if sub_kind == "kab":
         if plo <= 35.45:
@@ -843,10 +846,8 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None):
     if sub_kind == "kab":
         if pos and not tgt:
             if is_free_territory(pos[1], pos[2]):
-                # Наприклад: «КАБи Малокатеринівка» -> Малокатеринівка це ціль, а пуск з Пришиба!
                 tgt, pos = pos, None
             else:
-                # Наприклад: «КАБи з Пришиба» -> Пришиб це точка пуску, ставимо сектор планування на північ!
                 tgt = default_target_for_launch_origin("kab", pos)
         if not pos and not tgt:
             pos = ("Пришиб (пусковий рубіж)", 47.258, 35.324)
@@ -859,7 +860,6 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None):
             hdg_ovr = None
         return pos, tgt, hdg_ovr
 
-    # Для БпЛА: якщо вказано лише пусковий рубіж або сусідню область без цілі («шахеди з Приморсько-Ахтарська», «реактив в Донецькій обл.»)
     if sub_kind == "drone" and pos and not tgt and hdg_ovr is None:
         def_tgt = default_target_for_launch_origin("drone", pos)
         if def_tgt:
@@ -1101,7 +1101,6 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             eff_goal = adjust_city_entry_goal((t["frm"], t["lat"], t["lon"]), tgt) if (t["kind"] == "drone" and tgt[0] == "Запоріжжя") else tgt
             dist_to_goal = hav(t["lat"], t["lon"], eff_goal[1], eff_goal[2])
             if dist_to_goal < 0.25:
-                # Якщо ціль вже майже в цій точці, зміщуємо старт трохи назад, щоб показати вектор руху
                 in_b = (t["hdg"] + 180) % 360 if t["hdg"] is not None else 148.0
                 t["lat"], t["lon"] = fwd(eff_goal[1], eff_goal[2], in_b, 2.5)
             old_to = t.get("to_name")
@@ -1342,7 +1341,6 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
             act(intent, subs, None, None, ts, seg, ch, msg_key=msg_key)
         return subs
 
-    # Якщо написали просто «пуски кабов» без конкретного міста — запускаємо з Пришиба курсом на північ!
     if not routes and any(sb["kind"] == "kab" for sb, _ in subs):
         routes = [(("Пришиб (пусковий рубіж)", 47.258, 35.324), ("Малокатеринівка / Кушугум", 47.685, 35.235))]
 
@@ -1406,25 +1404,24 @@ def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
         ingest_segment(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx, full_post_has_zp=full_has_zp)
     ai_stats["last_ms"] = max(1, round((time.perf_counter() - t0) * 1000))
 
-# ── СПРАВЖНЯ НЕЙРОМЕРЕЖА DEEPSEEK / LLM (ПРАЦЮЄ БЕЗКОШТОВНО З КОРОБКИ + ПІДТРИМУЄ API КЛЮЧІ) ──
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY")
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 FREE_AI_ENABLED = os.getenv("FREE_AI", "1") != "0"
 
-ai_stats = {"provider": "DeepSeek Neural AI v10", "calls": 0, "ok": 0, "last_ms": 1}
+ai_stats = {"provider": "DeepSeek Neural AI v11", "calls": 0, "ok": 0, "last_ms": 1}
 
 def active_ai_provider():
     if DEEPSEEK_KEY:
-        return "DeepSeek-V3 API + Tactical v10"
+        return "DeepSeek-V3 API + Tactical v11"
     if GROQ_KEY:
-        return "Groq Llama-3.3-70B + Tactical v10"
+        return "Groq Llama-3.3-70B + Tactical v11"
     if GEMINI_KEY:
-        return "Gemini 2.5 Flash + Tactical v10"
+        return "Gemini 2.5 Flash + Tactical v11"
     if OPENAI_KEY:
-        return "OpenAI GPT-4o + Tactical v10"
-    return "DeepSeek-V3 Neural AI (Free Cloud) v10"
+        return "OpenAI GPT-4o + Tactical v11"
+    return "DeepSeek-V3 Neural AI (Free Cloud) v11"
 
 NEURAL_SYSTEM_PROMPT = """Ти — нейромережевий тактичний диспетчер ППО радару м. Запоріжжя та Запорізької області.
 Твоє завдання — розпізнати повідомлення (навіть з одруківками, суржиком чи сленгом) і повернути СУВОРО JSON без пояснень.
@@ -1453,7 +1450,6 @@ NEURAL_SYSTEM_PROMPT = """Ти — нейромережевий тактични
 {"intent": "flight|downed|clear|impact", "sub": "geran2|geran3|kab|ballistic|missile", "from": "назва з переліку або null", "to": "назва з переліку або null"}"""
 
 async def ai_neural_parse(session, text):
-    """Звертається до нейромережі DeepSeek-V3 / Llama-3.3 / GPT (включно з безкоштовним хмарним роутером Pollinations AI без ключів!)."""
     active_ctx = [
         f"{t['sub']} біля {t['frm']}" + (f" курсом на {t['to_name']}" if t.get("to_name") else "")
         for t in tracks.values() if not t.get("ended")
@@ -1465,7 +1461,6 @@ async def ai_neural_parse(session, text):
     ]
 
     try:
-        # 1. Прямий ключ DeepSeek API (якщо задано)
         if DEEPSEEK_KEY:
             async with session.post(
                 "https://api.deepseek.com/v1/chat/completions",
@@ -1477,7 +1472,6 @@ async def ai_neural_parse(session, text):
                     d = await r.json()
                     return json.loads(d["choices"][0]["message"]["content"])
 
-        # 2. Прямий ключ Groq API (якщо задано)
         if GROQ_KEY:
             async with session.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -1489,7 +1483,6 @@ async def ai_neural_parse(session, text):
                     d = await r.json()
                     return json.loads(d["choices"][0]["message"]["content"])
 
-        # 3. Безкоштовна нейромережа DeepSeek / OpenAI без жодних API-ключів (Pollinations Cloud AI)
         if FREE_AI_ENABLED:
             async with session.post(
                 "https://text.pollinations.ai/openai",
@@ -1577,7 +1570,6 @@ async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
             return
         before_ok = ai_stats["ok"]
         ingest(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx)
-        # Якщо локальний парсер не знайшов маршруту у нестандартному повідомленні — одразу викликаємо нейромережу DeepSeek AI!
         if ai_stats["ok"] == before_ok and s is not None:
             neural_res = await ai_neural_parse(s, cleaned)
             if neural_res:
@@ -1782,15 +1774,42 @@ async def poll(s, ch):
 async def sim_endpoint(req):
     try:
         data = await req.json()
+        # Перевірка секретного коду адмін-панелі
+        if data.get("auth_check") is not None:
+            ok = str(data.get("auth_check")).strip() == ADMIN_SECRET_CODE
+            return web.json_response({"ok": ok})
+
         if data.get("clear"):
             tracks.clear()
             await push()
             return web.json_response({"ok": True, "tracks": 0, "state": snap(time.time())})
+
         if data.get("dismiss") is not None:
             tid = int(data["dismiss"])
             tracks.pop(tid, None)
             await push()
             return web.json_response({"ok": True, "tracks": len(tracks), "state": snap(time.time())})
+
+        # Перетягування цілі мишкою/пальцем на карті (drag & drop об'єкта)
+        if data.get("move") is not None:
+            mv = data["move"]
+            tid = int(mv.get("id", 0))
+            t = tracks.get(tid)
+            if t and mv.get("lat") is not None and mv.get("lon") is not None:
+                now = time.time()
+                nla, nlo = float(mv["lat"]), float(mv["lon"])
+                t["lat"], t["lon"] = nla, nlo
+                t["ls"] = now
+                t["seen"] = now
+                place_lbl = mv.get("frm") or nearest_place_name(nla, nlo)
+                t["frm"] = place_lbl
+                if t.get("goal") and not t.get("passed_goal"):
+                    if hav(nla, nlo, t["goal"][1], t["goal"][2]) > 0.25:
+                        t["hdg"] = t["thdg"] = brg(nla, nlo, t["goal"][1], t["goal"][2])
+                await push()
+                return web.json_response({"ok": True, "tracks": len(tracks), "state": snap(time.time())})
+
+        # Керування вектором / курсом / швидкістю цілі з адмін-панелі або перетягуванням прицілу
         if data.get("steer") is not None:
             st = data["steer"]
             tid = int(st.get("id", 0))
@@ -1798,15 +1817,26 @@ async def sim_endpoint(req):
             if t:
                 now = time.time()
                 step(t, now)
+                if st.get("v") is not None:
+                    t["v"] = max(40, min(5000, int(st["v"])))
                 if st.get("loiter"):
                     t["goal"] = None
                     t["to_name"] = None
                     t["hdg"] = None
                     t["thdg"] = None
                     t["status_msg"] = f"Кружляє в районі {t['frm'].replace(' (ЗП)', '')}"
+                elif st.get("hdg") is not None and st.get("lat") is None:
+                    h_deg = float(st["hdg"]) % 360
+                    proj_km = 18.0 if t["v"] < 400 else 45.0
+                    gla, glo = fwd(t["lat"], t["lon"], h_deg, proj_km)
+                    t["goal"] = (f"курс {round(h_deg)}°", gla, glo)
+                    t["to_name"] = f"курс {round(h_deg)}°"
+                    t["passed_goal"] = False
+                    t["thdg"] = t["hdg"] = h_deg
+                    t["status_msg"] = f"↪ Вектор {round(h_deg)}°"
                 elif st.get("lat") is not None and st.get("lon") is not None:
                     tla, tlo = float(st["lat"]), float(st["lon"])
-                    tname = str(st.get("name") or "Вказана точка")
+                    tname = str(st.get("name") or nearest_place_name(tla, tlo))
                     t["goal"] = (tname, tla, tlo)
                     t["to_name"] = tname
                     t["passed_goal"] = False
@@ -1816,6 +1846,25 @@ async def sim_endpoint(req):
                 t["seen"] = now
                 await push()
                 return web.json_response({"ok": True, "tracks": len(tracks), "state": snap(time.time())})
+
+        # Ручний спавн об'єкта з адмін-панелі у конкретній точці на карті
+        if data.get("spawn") is not None:
+            sp = data["spawn"]
+            sub_id = str(sp.get("sub") or "geran2")
+            sb = SUB.get(sub_id, SUB["geran2"])
+            sla, slo = float(sp["lat"]), float(sp["lon"])
+            sfrm = str(sp.get("frm") or nearest_place_name(sla, slo))
+            pos = (sfrm, sla, slo)
+            tgt = None
+            if sp.get("goal_lat") is not None and sp.get("goal_lon") is not None:
+                gla, glo = float(sp["goal_lat"]), float(sp["goal_lon"])
+                gname = str(sp.get("goal_name") or nearest_place_name(gla, glo))
+                tgt = (gname, gla, glo)
+            now = time.time()
+            upsert(sb, pos, tgt, now, f"[Адмін] {sb['name']}: {sfrm}" + (f" → {tgt[0]}" if tgt else ""), ch="адмін", force_new=True)
+            await push()
+            return web.json_response({"ok": True, "tracks": len(tracks), "state": snap(time.time())})
+
         if data.get("add_channel"):
             ch_new = re.sub(r"^.*t\.me/(?:s/)?|@", "", str(data["add_channel"]).strip()).strip("/")
             if re.match(r"^[a-zA-Z0-9_]{4,40}$", ch_new) and ch_new not in CHANNELS:
@@ -1823,8 +1872,9 @@ async def sim_endpoint(req):
                 asyncio.create_task(poll(req.app["session"], ch_new))
                 await push()
             return web.json_response({"ok": True, "channels": CHANNELS, "state": snap(time.time())})
+
         text = str(data.get("text", "")).strip()
-        ch = str(data.get("ch", "оператор")).strip() or "оператор"
+        ch = str(data.get("ch", "адмін")).strip() or "адмін"
         if not text:
             return web.json_response({"ok": False, "error": "empty text"}, status=400)
         ts = time.time()
@@ -1902,7 +1952,7 @@ async def main():
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()
-    print(f"Оперативний Радар ZP v10 (DeepSeek Neural AI) started on http://localhost:8080 | Places: {len(PLACES)}")
+    print(f"Оперативний Радар ZP v11 started on http://localhost:8080 | Places: {len(PLACES)}")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":

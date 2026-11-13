@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Оперативний Радар ZP · DeepSeek AI v10</title>
+<title>Оперативний Радар ZP · DeepSeek AI v11</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#080c14">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
@@ -228,7 +228,7 @@ html, body {
   background: rgba(13, 19, 31, 0.96);
   border: 1px solid rgba(56, 139, 253, 0.45);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
-  max-width: 470px;
+  max-width: 480px;
   position: relative;
 }
 #infocard .close {
@@ -256,7 +256,7 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: 8px;
+  margin-top: 7px;
 }
 .st-pill {
   background: #172236;
@@ -329,7 +329,7 @@ html, body {
     bottom: 12px;
     right: 12px;
     left: auto;
-    width: 410px;
+    width: 420px;
     height: auto !important;
     border-radius: 16px;
     border: 1px solid var(--border);
@@ -343,7 +343,7 @@ html, body {
     bottom: 24px !important;
   }
   #topLeftHud {
-    right: 436px;
+    right: 446px;
   }
 }
 
@@ -377,10 +377,36 @@ html, body {
   align-items: center;
   gap: 7px;
 }
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .panel-sub {
   font-size: 11px;
   color: #56d364;
   font-weight: 700;
+}
+
+#adminLoginBtn {
+  background: rgba(56, 139, 253, 0.14);
+  border: 1px solid rgba(56, 139, 253, 0.38);
+  color: #79c0ff;
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#adminLoginBtn:hover {
+  background: rgba(56, 139, 253, 0.28);
+  color: #fff;
+}
+#adminLoginBtn.unlocked {
+  background: rgba(46, 160, 67, 0.2);
+  border-color: rgba(63, 185, 80, 0.55);
+  color: #56d364;
 }
 
 #tabs {
@@ -393,7 +419,7 @@ html, body {
 }
 #tabs b {
   cursor: pointer;
-  padding: 5px 12px;
+  padding: 5px 11px;
   border-radius: 8px;
   white-space: nowrap;
   font-size: 12.5px;
@@ -411,9 +437,11 @@ html, body {
   border: 1px solid rgba(56, 139, 253, 0.45);
 }
 
+/* АДМІН-БЛОК КОМАНД (ПРИХОВАНИЙ ДЛЯ ЗВИЧАЙНИХ КОРИСТУВАЧІВ) */
 #simbox {
+  display: none;
   padding: 9px 12px;
-  background: rgba(7, 11, 18, 0.65);
+  background: rgba(7, 11, 18, 0.72);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
@@ -622,11 +650,57 @@ html, body {
   background: rgba(248, 81, 73, 0.3);
 }
 
+/* КАРТКА АДМІН-ПАНЕЛІ */
+.adm-box {
+  padding: 11px 12px;
+  border-radius: 11px;
+  background: var(--card);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 9px;
+}
+.adm-box h4 {
+  margin: 0 0 7px;
+  font-size: 12.5px;
+  color: #79c0ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.adm-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.adm-btn {
+  background: #1a2740;
+  border: 1px solid rgba(56, 139, 253, 0.35);
+  color: #dce8f5;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.14s;
+}
+.adm-btn:hover, .adm-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* МАРКЕРИ НА КАРТІ */
 .mk {
   position: relative;
   width: 30px;
   height: 30px;
   will-change: transform;
+}
+.mk.admin-drag {
+  cursor: grab;
+}
+.mk.admin-drag:active {
+  cursor: grabbing;
 }
 .mk svg {
   width: 30px;
@@ -660,19 +734,70 @@ html, body {
   text-shadow: 0 0 3px #000;
 }
 .tgt-reticle {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border: 2px solid var(--c);
   border-radius: 50%;
   position: relative;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
 }
 .tgt-reticle::after {
   content: '';
   position: absolute;
-  inset: 3px;
+  inset: 3.5px;
   background: var(--c);
   border-radius: 50%;
+}
+
+/* МОДАЛЬНЕ ВІКНО ВХОДУ В АДМІН-ПАНЕЛЬ */
+#adminModal {
+  position: fixed;
+  z-index: 1500;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 14, 0.82);
+  padding: 16px;
+}
+.modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: #101827;
+  border: 1px solid rgba(56, 139, 253, 0.45);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.75);
+}
+.modal-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #fff;
+}
+.modal-card p {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+#adminCodeIn {
+  width: 100%;
+  background: #080c14;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 8px;
+}
+#adminCodeIn:focus {
+  border-color: var(--accent);
+}
+#adminErr {
+  color: #ff7b72;
+  font-size: 12px;
+  min-height: 18px;
+  margin-bottom: 6px;
 }
 
 #al {
@@ -714,7 +839,7 @@ html, body {
       <span>Станом на <b id="clock">--.--.---- --:--:--</b> · ОПЕРАТИВНИЙ РАДАР ZP</span>
     </div>
     <div id="aiBadge" title="Підключена нейромережа DeepSeek-V3 + Тактичний рушій">
-      🧠 <span id="aiProviderTx">DeepSeek-V3 Neural AI v10</span>
+      🧠 <span id="aiProviderTx">DeepSeek-V3 Neural AI v11</span>
     </div>
   </div>
 
@@ -739,23 +864,28 @@ html, body {
   <button class="b" id="bl" title="Перемкнути стиль карти">🗺</button>
 </div>
 
-<!-- ПАНЕЛЬ КЕРУВАННЯ ТА AI-МОНІТОРИНГУ (БЕЗ ЗАЙВИХ НАЛАШТУВАНЬ!) -->
+<!-- ПАНЕЛЬ МОНІТОРИНГУ ТА ЗАХИЩЕНА АДМІН-ПАНЕЛЬ -->
 <div id="sheet">
   <div id="grip"><i></i></div>
   <div class="panel-hdr">
     <div class="panel-title">📡 ОПЕРАТИВНИЙ РАДАР ZP</div>
-    <div class="panel-sub" id="connStatus">● DeepSeek AI Активний</div>
+    <div class="hdr-right">
+      <div class="panel-sub" id="connStatus">● DeepSeek AI</div>
+      <button id="adminLoginBtn" title="Вхід в адмін-панель">🔐 Адмін</button>
+    </div>
   </div>
 
   <div id="tabs">
     <b class="on" data-t="list">🎯 Цілі <span id="tcnt"></span></b>
     <b data-t="feed">📡 Стрічка</b>
-    <b data-t="chans">⚙️ Канали</b>
+    <b data-t="admin" id="tabAdminBtn" hidden>🛠 Адмін-панель</b>
+    <b data-t="chans" id="tabChansBtn" hidden>⚙️ Канали</b>
   </div>
 
+  <!-- РЯДОК ШВИДКОГО ВВЕДЕННЯ (ДОСТУПНИЙ ЛИШЕ АДМІНУ ПІСЛЯ ВВЕДЕННЯ КОДУ РАЗ І НАЗАВЖДИ) -->
   <div id="simbox">
     <div class="sim-input-row">
-      <input id="simin" placeholder="Введіть зведення (напр.: кабы с пришиба, курс зеленый, на остров, на шевчик)">
+      <input id="simin" placeholder="Адмін-команда (напр.: кабы с пришиба, курс зеленый, на остров)">
       <button id="simbtn">На карту</button>
       <button id="clrbtn" title="Очистити всі цілі">Очистити</button>
     </div>
@@ -776,12 +906,46 @@ html, body {
     <div id="aiSummaryBox">
       <div class="ai-h"><span>🧠 НЕЙРОМЕРЕЖА DEEPSEEK AI</span><span id="aiMs">Активна</span></div>
       <div class="ai-main" id="aiSumTitle">Повітряний простір Запоріжжя чистий</div>
-      <div class="ai-det" id="aiSumDet">DeepSeek AI в реальному часі розпізнає райони Запоріжжя (Шевчик, Зелений Яр, Острів Хортиця, Бабурка, Космос, Кічкас) та пуски КАБів.</div>
+      <div class="ai-det" id="aiSumDet">DeepSeek AI в реальному часі розпізнає райони Запоріжжя та пуски КАБів.</div>
     </div>
     <div id="tracksList"></div>
   </div>
 
   <div id="feed" class="pane" hidden></div>
+
+  <!-- ВКЛАДКА АДМІН-ПАНЕЛІ (ВІДКРИВАЄТЬСЯ ПІСЛЯ ОДНОРАЗОВОГО ВВЕДЕННЯ КОДУ KDLEPL1@D) -->
+  <div id="admin" class="pane" hidden>
+    <div class="adm-box">
+      <h4>
+        <span>🖐 Перетягування та Керування на карті</span>
+        <span style="color:#56d364;font-size:11px">● Розблоковано</span>
+      </h4>
+      <div style="font-size:12px;color:#b8c7d9;margin-bottom:8px">
+        • <b>Переміщення об'єктів:</b> просто затисніть будь-який БпЛА чи КАБ мишкою/пальцем на карті і перетягніть у потрібне місце!<br>
+        • <b>Зміна вектора:</b> перетягніть кружок-приціл на кінці лінії курсу або натисніть на ціль і виберіть район.
+      </div>
+      <div style="font-size:11.5px;font-weight:700;color:#ffd875;margin-bottom:5px">➕ ДОДАТИ ЦІЛЬ КЛІКОМ НА КАРТУ:</div>
+      <div class="adm-grid-2" id="spawnToolGrid">
+        <button class="adm-btn" data-spawn="geran2">🛵 Поставити Шахед</button>
+        <button class="adm-btn" data-spawn="geran3">⚡ Поставити Реактивний</button>
+        <button class="adm-btn" data-spawn="kab">💣 Поставити КАБ</button>
+        <button class="adm-btn" data-spawn="ballistic">🚀 Поставити Балістику</button>
+      </div>
+      <div id="spawnHint" style="display:none;margin-top:7px;padding:6px 9px;border-radius:8px;background:rgba(227,179,65,.16);border:1px solid rgba(227,179,65,.45);color:#ffd875;font-size:12px;font-weight:600"></div>
+    </div>
+
+    <div class="adm-box" id="admSelectedBox">
+      <h4><span>🎯 Керування обраною ціллю</span><span id="admSelName" style="color:#ffd875">Оберіть ціль на карті</span></h4>
+      <div id="admSelControls" style="font-size:12px;color:var(--muted)">
+        Натисніть на будь-яку активну мітку на карті або в списку, щоб змінити її вектор, азимут (0°–360°) або швидкість.
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <span style="font-size:11.5px;color:var(--muted)">Сесія адміністратора збережена в браузері</span>
+      <button id="adminLogoutBtn" style="background:rgba(248,81,73,.14);border:1px solid rgba(248,81,73,.35);color:#ff7b72;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer">🔒 Вийти з адмінки</button>
+    </div>
+  </div>
 
   <div id="chans" class="pane" hidden>
     <div style="display:flex;gap:6px;margin:4px 0 10px">
@@ -792,19 +956,112 @@ html, body {
   </div>
 </div>
 
+<!-- МОДАЛЬНЕ ВІКНО АВТОРИЗАЦІЇ АДМІНА (КОД ВВОДИТЬСЯ ОДИН РАЗ) -->
+<div id="adminModal">
+  <div class="modal-card">
+    <h3>🔐 Доступ до Адмін-панелі</h3>
+    <p>Введіть секретний код адміністратора один раз — браузер запам'ятає вас назавжди на цьому пристрої.</p>
+    <input type="password" id="adminCodeIn" placeholder="Введіть секретний код..." autocomplete="off">
+    <div id="adminErr"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="adminCancelBtn" style="background:var(--card);border:1px solid var(--border-subtle);color:var(--muted);border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button id="adminSubmitBtn" style="background:var(--accent);border:0;color:#fff;border-radius:9px;padding:8px 16px;font-weight:700;cursor:pointer">Увійти</button>
+    </div>
+  </div>
+</div>
+
 <div id="al">
   <div id="at"></div>
   <button id="stopAlarmBtn">Зрозуміло</button>
 </div>
 
 <script>
-/* Очищаємо старий ServiceWorker, щоб браузер ніколи не показував старий кеш v8 */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
 }
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ── ПЕРЕВІРКА ТА ЗБЕРЕЖЕННЯ АДМІН-ДОСТУПУ (КОД KDLEPL1@D ВВОДИТЬСЯ ОДИН РАЗ) ── */
+const ADMIN_SECRET = 'KDLEPL1@D';
+const ADMIN_STORAGE_KEY = 'zp_radar_admin_token_v11';
+let isAdmin = false;
+try {
+  if (localStorage.getItem(ADMIN_STORAGE_KEY) === ADMIN_SECRET) {
+    isAdmin = true;
+  }
+} catch (_) {}
+
+function applyAdminState() {
+  const btn = $('adminLoginBtn');
+  if (isAdmin) {
+    btn.textContent = '🛠 Адмін ✓';
+    btn.classList.add('unlocked');
+    $('simbox').style.display = 'block';
+    $('tabAdminBtn').hidden = false;
+    $('tabChansBtn').hidden = false;
+  } else {
+    btn.textContent = '🔐 Адмін';
+    btn.classList.remove('unlocked');
+    $('simbox').style.display = 'none';
+    $('tabAdminBtn').hidden = true;
+    $('tabChansBtn').hidden = true;
+    if (!$('admin').hidden || !$('chans').hidden) {
+      switchTab('list');
+    }
+  }
+  // Вмикаємо або вимикаємо перетягування (dragging) усіх маркерів на карті
+  for (const id in objs) {
+    const o = objs[id];
+    if (o.mk && o.mk.dragging) {
+      isAdmin ? o.mk.dragging.enable() : o.mk.dragging.disable();
+    }
+    if (o.ret && o.ret.dragging) {
+      isAdmin ? o.ret.dragging.enable() : o.ret.dragging.disable();
+    }
+  }
+  list();
+  if (selectedTrackId && objs[selectedTrackId]) {
+    showTargetInfo(objs[selectedTrackId].t);
+  }
+}
+
+$('adminLoginBtn').onclick = () => {
+  if (isAdmin) {
+    switchTab('admin');
+    return;
+  }
+  $('adminErr').textContent = '';
+  $('adminCodeIn').value = '';
+  $('adminModal').style.display = 'flex';
+  setTimeout(() => $('adminCodeIn').focus(), 50);
+};
+
+$('adminCancelBtn').onclick = () => {
+  $('adminModal').style.display = 'none';
+};
+
+function submitAdminCode() {
+  const code = $('adminCodeIn').value.trim();
+  if (code === ADMIN_SECRET) {
+    isAdmin = true;
+    try { localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_SECRET); } catch (_) {}
+    $('adminModal').style.display = 'none';
+    applyAdminState();
+    switchTab('admin');
+  } else {
+    $('adminErr').textContent = '❌ Невірний секретний код!';
+  }
+}
+$('adminSubmitBtn').onclick = submitAdminCode;
+$('adminCodeIn').onkeydown = e => { if (e.key === 'Enter') submitAdminCode(); };
+
+$('adminLogoutBtn').onclick = () => {
+  isAdmin = false;
+  try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch (_) {}
+  applyAdminState();
+};
 
 const K = {
   drone:   { n: 'БпЛА',         c: '#e3b341' },
@@ -893,6 +1150,7 @@ let base = TILES.tac.addTo(map);
 updateWatermark();
 
 let isMapInteracting = false;
+let isDraggingTarget = false;
 map.on('zoomstart movestart', () => { isMapInteracting = true; });
 map.on('zoomend moveend', () => {
   isMapInteracting = false;
@@ -913,7 +1171,7 @@ let D = {
     { name: 'vanek_nikolaev', ok: true, checked: 'онлайн', last: 'Моніторинг південного напрямку' }
   ],
   ai: {
-    provider: 'DeepSeek-V3 Neural AI v10',
+    provider: 'DeepSeek-V3 Neural AI v11',
     ms: 1,
     summary: {
       level: 'green',
@@ -932,7 +1190,7 @@ let ringsOk = 0, oblOk = 0, frontOk = 0;
 let me = null, meMk = null;
 let actx, alarmT, soundOn = false;
 let rulerOn = false, rulerLayer = L.layerGroup().addTo(map);
-let selectedTrackId = null, mapSteerTrackId = null;
+let selectedTrackId = null, mapSteerTrackId = null, pendingSpawnSub = null;
 
 function updateClock() {
   const now = new Date();
@@ -1035,11 +1293,10 @@ function icon(t, hdgOvr) {
     className: '',
     iconSize: [30, 30],
     iconAnchor: [15, 15],
-    html: `<div class="mk" style="--c:${c};opacity:${op}"><i class="pulse-ring"></i><svg viewBox="-13 -13 26 26" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#080b10" stroke-width="1.35" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`
+    html: `<div class="mk${isAdmin ? ' admin-drag' : ''}" style="--c:${c};opacity:${op}"><i class="pulse-ring"></i><svg viewBox="-13 -13 26 26" style="transform:rotate(${rot}deg)"><g fill="${c}" stroke="#080b10" stroke-width="1.35" stroke-linejoin="round">${g}</g></svg><span class="lb">${esc(lab)}</span></div>`
   });
 }
 
-/* ── ВБУДОВАНИЙ ТАКТИЧНИЙ РУШІЙ + ХМАРНА НЕЙРОМЕРЕЖА DEEPSEEK (ДЛЯ CANVAS ТА РЕЗЕРВУ) ── */
 const LOCAL_PLACES = [
   { name: 'Донецька обл. (східний рубіж)', lat: 47.685, lon: 36.960, rx: /(?:донецьк\w*|донецк\w*|лонцецьк\w*|лонецьк\w*|лонецк\w*|донец\w*)\s*(?:обл\w*|напрям\w*)?|донеччин\w*/i, neighbor: true },
   { name: 'Дніпропетровська обл. (північний рубіж)', lat: 48.165, lon: 35.420, rx: /(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*/i, neighbor: true },
@@ -1087,6 +1344,18 @@ const LOCAL_PLACES = [
   { name: 'Запоріжжя', lat: 47.838, lon: 35.139, rx: /запоріж\w*|запорож\w*|\bзп\b|\bмісто\b|\bгород\b/i }
 ];
 
+function nearestLocalPlace(lat, lon) {
+  let best = 'Точка на карті', minD = 999;
+  for (const p of LOCAL_PLACES) {
+    if (p.name === 'Запоріжжя') continue;
+    const d = hav(lat, lon, p.lat, p.lon);
+    if (d < minD) { minD = d; best = p.name.replace(' (ЗП)', ''); }
+  }
+  if (minD <= 6.5) return best;
+  if (hav(lat, lon, 47.838, 35.139) <= 9.0) return 'Запоріжжя';
+  return `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+}
+
 let localIdSeq = 1;
 
 function localPredictThreats(lat, lon, hdg) {
@@ -1115,7 +1384,7 @@ function runLocalAiIngest(text) {
       t.v = 0;
       t.status = '🛡 Збито / Чисто';
     });
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'оператор', text, kinds: ['drone'], place: 'Запоріжжя' });
+    D.feed.unshift({ t: Date.now() / 1000, ch: 'адмін', text, kinds: ['drone'], place: 'Запоріжжя' });
     rebuildLocalAiSummary();
     render(D);
     return;
@@ -1166,7 +1435,6 @@ function runLocalAiIngest(text) {
     }
   }
 
-  // Якщо написали «кабы с пришиба» (є лише точка пуску fromPlace, без toPlace) — ставимо сектор планування на північ, щоб КАБ одразу летів!
   if (isKab && fromPlace && !toPlace) {
     if (fromPlace.lon <= 35.45) {
       toPlace = { name: 'Малокатеринівка / Кушугум', lat: 47.685, lon: 35.235 };
@@ -1232,7 +1500,7 @@ function runLocalAiIngest(text) {
     }
     t.text = text;
     t.age = 0;
-    D.feed.unshift({ t: Date.now() / 1000, ch: 'оператор', text, kinds: [kind], place: `${t.frm}${t.to ? ' → ' + t.to : ''}` });
+    D.feed.unshift({ t: Date.now() / 1000, ch: 'адмін', text, kinds: [kind], place: `${t.frm}${t.to ? ' → ' + t.to : ''}` });
     rebuildLocalAiSummary();
     render(D);
     return;
@@ -1312,9 +1580,8 @@ function runLocalAiIngest(text) {
   render(D);
 }
 
-/* Живий рух усіх цілей щосекунди (навіть якщо SSE тимчасово перепідключається!) */
 setInterval(() => {
-  if (!D.tracks || !D.tracks.length) return;
+  if (isDraggingTarget || !D.tracks || !D.tracks.length) return;
   let reachedAny = false;
   for (const t of D.tracks) {
     if (t.ended || !t.v || t.hdg == null || !t.goal) continue;
@@ -1372,11 +1639,84 @@ function rebuildLocalAiSummary() {
   };
 }
 
+function buildAdminVectorControlsHtml(t) {
+  const curHdg = t.hdg != null ? Math.round(t.hdg) : 330;
+  const curV = t.v || 185;
+  return `
+    <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border-subtle)">
+      <div style="font-size:11px;font-weight:700;color:#79c0ff;margin-bottom:4px">🛠 АДМІН: ВИСТАВИТИ ВЕКТОР / КУРС ЦІЛІ:</div>
+      <div class="steer-grid" data-steer-for="${t.id}">
+        <button class="st-pill" data-st="Зелений Яр" data-lat="47.849" data-lon="35.208">↪ Зелений Яр</button>
+        <button class="st-pill" data-st="Шевчик" data-lat="47.828" data-lon="35.238">↪ Шевчик</button>
+        <button class="st-pill" data-st="Острів Хортиця" data-lat="47.822" data-lon="35.075">↪ Острів</button>
+        <button class="st-pill" data-st="Бабурка" data-lat="47.816" data-lon="35.025">↪ Бабурка</button>
+        <button class="st-pill" data-st="Космос" data-lat="47.785" data-lon="35.185">↪ Космос</button>
+        <button class="st-pill" data-st="Кічкас" data-lat="47.888" data-lon="35.158">↪ Кічкас</button>
+        <button class="st-pill" data-st="Правий берег" data-lat="47.868" data-lon="35.062">↪ Правий берег</button>
+        <button class="st-pill" data-st="Центр" data-lat="47.842" data-lon="35.128">↪ Центр</button>
+        <button class="st-pill" data-loiter="1">🔄 Кружляє</button>
+        <button class="st-pill pick-map-goal" style="border-color:#e3b341;color:#ffd875">📍 Вказати на карті</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px">
+        <span style="min-width:88px;color:var(--muted)">Азимут: <b id="hdgVal_${t.id}" style="color:#fff">${curHdg}°</b></span>
+        <input type="range" min="0" max="359" value="${curHdg}" data-hdg-slider="${t.id}" style="flex:1;accent-color:var(--accent)">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:11.5px">
+        <span style="min-width:88px;color:var(--muted)">Швидкість: <b id="spdVal_${t.id}" style="color:#fff">${curV}</b></span>
+        <input type="range" min="80" max="1200" step="10" value="${Math.min(1200, curV)}" data-spd-slider="${t.id}" style="flex:1;accent-color:var(--amber)">
+      </div>
+      <div style="font-size:11px;color:#8b9bb0;margin-top:5px">💡 Ви також можете просто перетягнути саму іконку цілі або її приціл мишкою прямо по карті!</div>
+    </div>`;
+}
+
+function attachVectorControlEvents(container, t) {
+  const grid = container.querySelector(`[data-steer-for="${t.id}"]`);
+  if (grid) {
+    grid.onclick = async ev => {
+      const btn = ev.target.closest('.st-pill');
+      if (!btn) return;
+      if (btn.classList.contains('pick-map-goal')) {
+        mapSteerTrackId = t.id;
+        btn.classList.add('active');
+        btn.textContent = '👆 Клікніть точку на карті...';
+        return;
+      }
+      if (btn.dataset.loiter) {
+        await steerTrack(t.id, { loiter: true });
+      } else if (btn.dataset.lat) {
+        await steerTrack(t.id, { name: btn.dataset.st, lat: +btn.dataset.lat, lon: +btn.dataset.lon });
+      }
+    };
+  }
+  const hSlider = container.querySelector(`[data-hdg-slider="${t.id}"]`);
+  if (hSlider) {
+    hSlider.oninput = e => {
+      const lbl = container.querySelector(`#hdgVal_${t.id}`);
+      if (lbl) lbl.textContent = e.target.value + '°';
+    };
+    hSlider.onchange = e => steerTrack(t.id, { hdg: +e.target.value });
+  }
+  const sSlider = container.querySelector(`[data-spd-slider="${t.id}"]`);
+  if (sSlider) {
+    sSlider.oninput = e => {
+      const lbl = container.querySelector(`#spdVal_${t.id}`);
+      if (lbl) lbl.textContent = e.target.value;
+    };
+    sSlider.onchange = e => steerTrack(t.id, { v: +e.target.value });
+  }
+}
+
 function showTargetInfo(t) {
   selectedTrackId = t.id;
   const chs = t.chs && t.chs.length ? t.chs.join(', ') : 'overativnoradarzp';
   const threatsHtml = (t.threats && t.threats.length)
     ? `<div style="margin-top:6px"><span style="font-size:11px;color:#8b9bb0">🧠 DeepSeek-прогноз по курсу:</span><div class="threat-pills">${t.threats.map(x => `<span class="th-pill">⚠️ ${esc(x)}</span>`).join('')}</div></div>`
+    : '';
+
+  // Векторні кнопки та кнопка видалення показуються ЛИШЕ адміністратору!
+  const adminControlsHtml = isAdmin ? buildAdminVectorControlsHtml(t) : '';
+  const deleteBtnHtml = isAdmin
+    ? `<button id="dismissTargetBtn" style="background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.45);color:#ff7b72;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">✖ Прибрати ціль</button>`
     : '';
 
   $('infobody').innerHTML = `
@@ -1391,53 +1731,33 @@ function showTargetInfo(t) {
       Швидкість: <b>${t.v && t.hdg != null ? t.v + ' км/год' : 'очікує вектор'}</b> · Курс: <b>${t.hdg != null ? t.hdg + '°' : 'немає'}</b> · До центру ЗП: <b>${t.home} км</b>${t.eta ? ' (~' + fmt(t.eta) + ')' : ''}
     </div>
     ${threatsHtml}
-    <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border-subtle)">
-      <div style="font-size:11px;font-weight:700;color:#79c0ff;margin-bottom:4px">🎯 ШВИДКО ЗАДАТИ КУРС ЦІЛІ (1-КЛІК):</div>
-      <div class="steer-grid" id="steerGrid">
-        <button class="st-pill" data-st="Зелений Яр" data-lat="47.849" data-lon="35.208">↪ Зелений Яр</button>
-        <button class="st-pill" data-st="Шевчик" data-lat="47.828" data-lon="35.238">↪ Шевчик</button>
-        <button class="st-pill" data-st="Острів Хортиця" data-lat="47.822" data-lon="35.075">↪ Острів</button>
-        <button class="st-pill" data-st="Бабурка" data-lat="47.816" data-lon="35.025">↪ Бабурка</button>
-        <button class="st-pill" data-st="Космос" data-lat="47.785" data-lon="35.185">↪ Космос</button>
-        <button class="st-pill" data-st="Кічкас" data-lat="47.888" data-lon="35.158">↪ Кічкас</button>
-        <button class="st-pill" data-st="Правий берег" data-lat="47.868" data-lon="35.062">↪ Правий берег</button>
-        <button class="st-pill" data-st="Центр" data-lat="47.842" data-lon="35.128">↪ Центр</button>
-        <button class="st-pill" data-loiter="1">🔄 Кружляє</button>
-        <button class="st-pill" id="pickMapGoalBtn" style="border-color:#e3b341;color:#ffd875">📍 Точка на карті</button>
-      </div>
-    </div>
+    ${adminControlsHtml}
     <div style="font-size:11.5px;color:#b1bac4;margin-top:8px;padding:6px 8px;background:#080c14;border-radius:8px">${esc(t.text)}</div>
     <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:11px;color:#56d364">Джерело: @${esc(chs)}</span>
-      <button id="dismissTargetBtn" style="background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.45);color:#ff7b72;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">✖ Прибрати ціль</button>
+      ${deleteBtnHtml}
     </div>`;
   $('infocard').style.display = 'block';
 
-  $('dismissTargetBtn').onclick = () => dismissTrack(t.id);
-  $('steerGrid').onclick = async (ev) => {
-    const btn = ev.target.closest('.st-pill');
-    if (!btn) return;
-    if (btn.id === 'pickMapGoalBtn') {
-      mapSteerTrackId = t.id;
-      btn.classList.add('active');
-      btn.textContent = '👆 Клікніть точку на карті...';
-      return;
-    }
-    if (btn.dataset.loiter) {
-      await steerTrack(t.id, { loiter: true });
-    } else if (btn.dataset.lat) {
-      await steerTrack(t.id, { name: btn.dataset.st, lat: +btn.dataset.lat, lon: +btn.dataset.lon });
-    }
-  };
+  if (isAdmin) {
+    const dBtn = $('dismissTargetBtn');
+    if (dBtn) dBtn.onclick = () => dismissTrack(t.id);
+    attachVectorControlEvents($('infobody'), t);
+
+    // Також оновлюємо блок обраної цілі у вкладці Адмін-панель
+    $('admSelName').textContent = `${t.name} (${t.frm}${t.to ? ' → ' + t.to : ''})`;
+    $('admSelControls').innerHTML = buildAdminVectorControlsHtml(t);
+    attachVectorControlEvents($('admSelControls'), t);
+  }
 }
 
-/* ЗАВЖДИ пробуємо відправити на сервер /sim, і миттєво рендеримо відповідь (без залежності від прапорця serverOnline!) */
-async function steerTrack(id, opts) {
+async function moveTrackPosition(id, lat, lon) {
+  const frmName = nearestLocalPlace(lat, lon);
   try {
     const r = await fetch('/sim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steer: { id, ...opts } })
+      body: JSON.stringify({ move: { id, lat, lon, frm: frmName } })
     });
     if (r.ok) {
       const j = await r.json();
@@ -1448,6 +1768,39 @@ async function steerTrack(id, opts) {
 
   const t = D.tracks.find(x => x.id === id);
   if (!t) return;
+  t.lat = lat;
+  t.lon = lon;
+  t.frm = frmName;
+  t.home = +(hav(lat, lon, 47.838, 35.139).toFixed(1));
+  if (t.goal) {
+    t.hdg = Math.round(brg(lat, lon, t.goal[0], t.goal[1]));
+    t.threats = localPredictThreats(lat, lon, t.hdg);
+  }
+  rebuildLocalAiSummary();
+  render(D);
+}
+
+async function steerTrack(id, opts) {
+  try {
+    const r = await fetch('/sim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steer: { id, ...opts } })
+    });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.state) {
+        render(j.state);
+        const updated = j.state.tracks.find(x => x.id === id);
+        if (updated) showTargetInfo(updated);
+      }
+      return;
+    }
+  } catch (_) {}
+
+  const t = D.tracks.find(x => x.id === id);
+  if (!t) return;
+  if (opts.v != null) t.v = opts.v;
   if (opts.loiter) {
     t.goal = null;
     t.to = null;
@@ -1455,9 +1808,18 @@ async function steerTrack(id, opts) {
     t.eta = null;
     t.status = `Кружляє над ${t.frm}`;
     t.threats = [];
+  } else if (opts.hdg != null && opts.lat == null) {
+    const h = opts.hdg % 360;
+    const [gla, glo] = fwdPt(t.lat, t.lon, h, 18);
+    t.goal = [gla, glo];
+    t.to = `курс ${Math.round(h)}°`;
+    t.hdg = Math.round(h);
+    t.eta = Math.round(18 / (t.v || 185) * 3600);
+    t.status = `↪ Вектор ${Math.round(h)}°`;
+    t.threats = localPredictThreats(t.lat, t.lon, t.hdg);
   } else if (opts.lat != null && opts.lon != null) {
     t.goal = [opts.lat, opts.lon];
-    t.to = opts.name || 'Точка на карті';
+    t.to = opts.name || nearestLocalPlace(opts.lat, opts.lon);
     t.hdg = Math.round(brg(t.lat, t.lon, opts.lat, opts.lon));
     const d = hav(t.lat, t.lon, opts.lat, opts.lon);
     t.eta = Math.max(10, Math.round(d / (t.v || 185) * 3600));
@@ -1469,7 +1831,75 @@ async function steerTrack(id, opts) {
   showTargetInfo(t);
 }
 
+async function spawnTrackAt(subId, lat, lon) {
+  const frmName = nearestLocalPlace(lat, lon);
+  try {
+    const r = await fetch('/sim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        spawn: {
+          sub: subId,
+          lat,
+          lon,
+          frm: frmName,
+          goal_lat: 47.838,
+          goal_lon: 35.139,
+          goal_name: 'Запоріжжя'
+        }
+      })
+    });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.state) render(j.state);
+      return;
+    }
+  } catch (_) {}
+
+  const isKab = subId === 'kab';
+  const isJet = subId === 'geran3';
+  const isBal = subId === 'ballistic';
+  const kind = isKab ? 'kab' : (isBal ? 'missile' : 'drone');
+  const v = isKab ? 680 : (isBal ? 3600 : (isJet ? 640 : 185));
+  const hdg = Math.round(brg(lat, lon, 47.838, 35.139));
+  const homeDist = +(hav(lat, lon, 47.838, 35.139).toFixed(1));
+  const newT = {
+    id: localIdSeq++,
+    kind,
+    name: isKab ? 'КАБ' : (isBal ? 'Балістика' : (isJet ? 'Реактивний Шахед' : 'Шахед (БпЛА)')),
+    ico: isKab ? 'kab' : (isBal ? 'ballistic' : (isJet ? 'jet' : 'delta')),
+    col: isJet ? '#ff5533' : K[kind].c,
+    lat,
+    lon,
+    unc: 1.5,
+    v,
+    hdg,
+    thdg: hdg,
+    goal: [47.838, 35.139],
+    frm: frmName,
+    to: 'Запоріжжя',
+    fx: [[lat, lon], [lat, lon]],
+    n: 1,
+    chs: ['адмін'],
+    conf: 95,
+    age: 0,
+    text: `[Адмін] ${frmName} → Запоріжжя`,
+    eta: Math.max(10, Math.round(homeDist / v * 3600)),
+    etah: Math.max(10, Math.round(homeDist / v * 3600)),
+    ended: false,
+    status: null,
+    home: homeDist,
+    threats: localPredictThreats(lat, lon, hdg),
+    alt: isKab ? 7500 : null
+  };
+  D.tracks.push(newT);
+  rebuildLocalAiSummary();
+  render(D);
+  showTargetInfo(newT);
+}
+
 async function dismissTrack(id) {
+  if (!isAdmin) return;
   $('infocard').style.display = 'none';
   try {
     const r = await fetch('/sim', {
@@ -1493,6 +1923,7 @@ function visibleTracks() {
 }
 
 function render(d) {
+  if (isDraggingTarget) return;
   D = d;
   snapT = performance.now();
   if (!ringsOk && d.home) { initRings(d.home); ringsOk = 1; }
@@ -1520,7 +1951,7 @@ function render(d) {
   }
 
   if (d.ai) {
-    $('aiProviderTx').textContent = d.ai.provider || 'DeepSeek-V3 Neural AI v10';
+    $('aiProviderTx').textContent = d.ai.provider || 'DeepSeek-V3 Neural AI v11';
     if (d.ai.ms != null) $('aiMs').textContent = d.ai.ms + ' мс';
     if (d.ai.summary) {
       $('aiSumTitle').textContent = d.ai.summary.headline;
@@ -1537,18 +1968,18 @@ function render(d) {
     if (!o) {
       o = {
         g: L.layerGroup().addTo(map),
-        mk: L.marker([t.lat, t.lon], { icon: icon(t), keyboard: false }),
+        mk: L.marker([t.lat, t.lon], { icon: icon(t), draggable: isAdmin, keyboard: false }),
         cone: L.polygon([], { renderer: canvasRenderer, color: c, weight: 0, fillColor: c, fillOpacity: 0.14, interactive: false }),
         tr: L.polyline([], { renderer: canvasRenderer, color: c, weight: 1.6, opacity: 0.4 }),
         ln: L.polyline([], { renderer: canvasRenderer, color: c, weight: 2.2, opacity: 0.88, dashArray: '6 6', interactive: false }),
         ret: L.marker([t.lat, t.lon], {
-          interactive: false,
+          draggable: isAdmin,
           opacity: 0,
           icon: L.divIcon({
             className: '',
-            html: `<div class="tgt-reticle" style="--c:${c}"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7]
+            html: `<div class="tgt-reticle" style="--c:${c}" title="Перетягніть приціл для зміни вектора"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
           })
         }),
         un: L.circle([t.lat, t.lon], {
@@ -1562,11 +1993,55 @@ function render(d) {
         })
       };
       o.mk.on('click', () => showTargetInfo(o.t));
+
+      /* ПЕРЕТЯГУВАННЯ ОБ'ЄКТА (DRAG & DROP ЦІЛІ НА КАРТІ В АДМІН-РЕЖИМІ) */
+      o.mk.on('dragstart', () => { isDraggingTarget = true; });
+      o.mk.on('drag', ev => {
+        const ll = ev.target.getLatLng();
+        o.t.lat = ll.lat;
+        o.t.lon = ll.lng;
+        o.un.setLatLng(ll);
+        if (o.t.goal) {
+          o.ln.setLatLngs([[ll.lat, ll.lng], o.t.goal]);
+          const newH = brg(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1]);
+          o.t.hdg = Math.round(newH);
+          o.cone.setLatLngs(conePts(ll.lat, ll.lng, newH, Math.min(18, hav(ll.lat, ll.lng, o.t.goal[0], o.t.goal[1])), 16));
+          const el = o.mk.getElement();
+          const svg = el && el.querySelector('svg');
+          if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
+        }
+      });
+      o.mk.on('dragend', async ev => {
+        isDraggingTarget = false;
+        const ll = ev.target.getLatLng();
+        await moveTrackPosition(o.t.id, ll.lat, ll.lng);
+      });
+
+      /* ПЕРЕТЯГУВАННЯ ПРИЦІЛУ ВЕКТОРА (ЗМІНА КУРСУ МИШКОЮ ПРЯМО НА КАРТІ) */
+      o.ret.on('dragstart', () => { isDraggingTarget = true; });
+      o.ret.on('drag', ev => {
+        const gll = ev.target.getLatLng();
+        const pos = o.mk.getLatLng();
+        o.ln.setLatLngs([[pos.lat, pos.lng], [gll.lat, gll.lng]]);
+        const newH = brg(pos.lat, pos.lng, gll.lat, gll.lng);
+        o.cone.setLatLngs(conePts(pos.lat, pos.lng, newH, Math.min(18, hav(pos.lat, pos.lng, gll.lat, gll.lng)), 16));
+        const el = o.mk.getElement();
+        const svg = el && el.querySelector('svg');
+        if (svg && !NOROT.has(o.t.ico)) svg.style.transform = `rotate(${newH.toFixed(1)}deg)`;
+      });
+      o.ret.on('dragend', async ev => {
+        isDraggingTarget = false;
+        const gll = ev.target.getLatLng();
+        await steerTrack(o.t.id, { lat: gll.lat, lon: gll.lng, name: nearestLocalPlace(gll.lat, gll.lng) });
+      });
+
       o.g.addLayer(o.un).addLayer(o.cone).addLayer(o.tr).addLayer(o.ln).addLayer(o.ret).addLayer(o.mk);
       objs[t.id] = o;
     }
     o.t = t;
     o.mk.setIcon(icon(t));
+    if (o.mk.dragging) { isAdmin ? o.mk.dragging.enable() : o.mk.dragging.disable(); }
+    if (o.ret.dragging) { isAdmin ? o.ret.dragging.enable() : o.ret.dragging.disable(); }
     o.un.setRadius(t.ended ? 350 : (t.unc || 1.8) * 1000);
     if (t.goal && !t.ended && t.kind !== 'strike') {
       o.ret.setLatLng(t.goal);
@@ -1590,7 +2065,7 @@ function render(d) {
 }
 
 function tick() {
-  if (isMapInteracting) return;
+  if (isMapInteracting || isDraggingTarget) return;
   const dt = (performance.now() - snapT) / 1000;
   for (const id in objs) {
     const o = objs[id], t = o.t;
@@ -1667,8 +2142,9 @@ function list() {
     const thPills = (t.threats && t.threats.length && !t.ended)
       ? `<div class="threat-pills">${t.threats.map(x => `<span class="th-pill">🎯 ${esc(x)}</span>`).join('')}</div>`
       : '';
+    const delBtn = isAdmin ? `<button class="del-b" data-del="${t.id}" title="Прибрати мітку">✖</button>` : '';
     return `<div class="r-card" data-id="${t.id}">
-      <button class="del-b" data-del="${t.id}" title="Прибрати мітку">✖</button>
+      ${delBtn}
       <b style="color:${t.ended ? '#8b949e' : t.col}">${esc(t.name)}${t.cnt ? ' ×' + t.cnt : ''}</b>
       ${t.status ? `<span class="st-b">${esc(t.status)}</span>` : ''}
       ${chs.length > 1 ? `<span class="ch-b">✓ ${chs.length} кан.</span>` : ''}
@@ -1680,12 +2156,12 @@ function list() {
       <small>${t.hdg != null && !t.ended ? 'Курс ' + t.hdg + '° · ' : (!t.ended ? 'Очікує вектор · ' : '')}${t.v && t.hdg != null && !t.ended ? t.v + ' км/год · ' : ''}до центру ${esc(D.home[0])}: <b>${t.home} км</b>${e != null && !t.ended ? ' · ~<b>' + fmt(e) + '</b>' : ''}</small>
       <div class="tx">${esc(t.text)}</div>
     </div>`;
-  }).join('') || '<div style="text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border-subtle);border-radius:11px">Активних повітряних цілей немає.<br><small>Натисніть кнопку пресету вище або введіть текст сводки для перевірки DeepSeek AI.</small></div>';
+  }).join('') || '<div style="text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border-subtle);border-radius:11px">Активних повітряних цілей у Запорізькій області наразі немає.</div>';
 }
 
 $('tracksList').onclick = e => {
   const delBtn = e.target.closest('[data-del]');
-  if (delBtn) {
+  if (delBtn && isAdmin) {
     e.stopPropagation();
     dismissTrack(+delBtn.dataset.del);
     return;
@@ -1722,12 +2198,15 @@ function renderChans() {
   ).join('');
 }
 
+function switchTab(t) {
+  [...$('tabs').querySelectorAll('b')].forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  ['list', 'feed', 'admin', 'chans'].forEach(id => $(id).hidden = (id !== t));
+}
+
 $('tabs').onclick = e => {
   const b = e.target.closest('b');
-  if (!b) return;
-  const t = b.dataset.t;
-  [...$('tabs').querySelectorAll('b')].forEach(x => x.classList.toggle('on', x === b));
-  ['list', 'feed', 'chans'].forEach(id => $(id).hidden = (id !== t));
+  if (!b || b.hidden) return;
+  switchTab(b.dataset.t);
 };
 
 $('grip').onclick = () => {
@@ -1752,6 +2231,24 @@ $('bl').onclick = () => {
   setMapStyle(order[(order.indexOf(curMapKey) + 1) % order.length]);
 };
 
+/* Кнопки ручного спавну цілі на карті в Адмін-панелі */
+$('spawnToolGrid').onclick = e => {
+  if (!isAdmin) return;
+  const b = e.target.closest('[data-spawn]');
+  if (!b) return;
+  const sub = b.dataset.spawn;
+  if (pendingSpawnSub === sub) {
+    pendingSpawnSub = null;
+    b.classList.remove('active');
+    $('spawnHint').style.display = 'none';
+  } else {
+    pendingSpawnSub = sub;
+    [...$('spawnToolGrid').querySelectorAll('.adm-btn')].forEach(x => x.classList.toggle('active', x === b));
+    $('spawnHint').textContent = '👆 Клікніть будь-де на карті, щоб розмістити ціль (потім її можна перетягувати мишкою та міняти вектор)!';
+    $('spawnHint').style.display = 'block';
+  }
+};
+
 function clearRuler() { rulerLayer.clearLayers(); }
 $('infoCloseBtn').onclick = () => {
   $('infocard').style.display = 'none';
@@ -1772,11 +2269,19 @@ $('brul').onclick = () => {
 };
 
 map.on('click', async e => {
-  if (mapSteerTrackId != null) {
+  if (isAdmin && pendingSpawnSub) {
+    const s = pendingSpawnSub;
+    pendingSpawnSub = null;
+    [...$('spawnToolGrid').querySelectorAll('.adm-btn')].forEach(x => x.classList.remove('active'));
+    $('spawnHint').style.display = 'none';
+    await spawnTrackAt(s, e.latlng.lat, e.latlng.lng);
+    return;
+  }
+  if (isAdmin && mapSteerTrackId != null) {
     const tid = mapSteerTrackId;
     mapSteerTrackId = null;
     await steerTrack(tid, {
-      name: `Точка (${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)})`,
+      name: nearestLocalPlace(e.latlng.lat, e.latlng.lng),
       lat: e.latlng.lat,
       lon: e.latlng.lng
     });
@@ -1814,9 +2319,8 @@ $('bm').onclick = () => navigator.geolocation && navigator.geolocation.watchPosi
   list();
 }, () => {}, { enableHighAccuracy: true });
 
-/* ── ВІДПРАВКА КОМАНДИ НА СЕРВЕР ЗАВЖДИ В ПЕРШУ ЧЕРГУ ── */
 async function dispatchCommand(tx) {
-  if (!tx) return;
+  if (!isAdmin || !tx) return;
   try {
     const r = await fetch('/sim', {
       method: 'POST',
@@ -1833,6 +2337,7 @@ async function dispatchCommand(tx) {
 }
 
 async function sendSim() {
+  if (!isAdmin) return;
   const inp = $('simin'), tx = inp.value.trim();
   if (!tx) return;
   inp.value = '';
@@ -1842,11 +2347,13 @@ $('simbtn').onclick = sendSim;
 $('simin').onkeydown = e => { if (e.key === 'Enter') sendSim(); };
 
 $('quickBar').onclick = e => {
+  if (!isAdmin) return;
   const btn = e.target.closest('.q-btn');
   if (btn && btn.dataset.q) dispatchCommand(btn.dataset.q);
 };
 
 $('clrbtn').onclick = async () => {
+  if (!isAdmin) return;
   $('infocard').style.display = 'none';
   try {
     const r = await fetch('/sim', {
@@ -1866,6 +2373,7 @@ $('clrbtn').onclick = async () => {
 };
 
 $('chanbtn').onclick = async () => {
+  if (!isAdmin) return;
   const inp = $('chanin'), v = inp.value.trim().replace(/^@/, '');
   if (!v) return;
   inp.value = '';
@@ -1931,7 +2439,7 @@ $('bs').onclick = async () => {
   }
 };
 
-/* ── БЕЗПЕРЕРВНИЙ ЗВ'ЯЗОК ІЗ СЕРВЕРОМ (НІКОЛИ НЕ ЗАКРИВАЄТЬСЯ НАЗАВЖДИ ПРИ ПОМИЛЦІ!) ── */
+applyAdminState();
 render(D);
 
 let esInstance = null;
@@ -1943,27 +2451,25 @@ function connect() {
     const es = new EventSource('/events');
     esInstance = es;
     es.onopen = () => {
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI v10';
+      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
     };
     es.onmessage = e => {
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI v10';
+      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
       render(JSON.parse(e.data));
     };
     es.addEventListener('alert', e => alarm(JSON.parse(e.data)));
-    es.onerror = () => {
-      /* Не закриваємо з'єднання назавжди — браузер перепідключається автоматично */
-    };
+    es.onerror = () => {};
   } catch (_) {}
 }
 connect();
 
-/* Додаткове резервне опитування /state кожні 2 секунди, щоб навіть при блокуванні SSE проксі-сервером цілі рухалися синхронно з сервером */
 setInterval(async () => {
+  if (isDraggingTarget) return;
   try {
     const r = await fetch('/state', { cache: 'no-store' });
     if (r.ok) {
       const st = await r.json();
-      $('connStatus').textContent = '● Онлайн · DeepSeek AI v10';
+      $('connStatus').textContent = '● Онлайн · DeepSeek AI';
       render(st);
     }
   } catch (_) {}
