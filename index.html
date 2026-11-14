@@ -31,12 +31,12 @@ html, body {
 
 #map { position: fixed; inset: 0; z-index: 1; background: #070b12; }
 
-/* Підсвітка та фільтри для 10 підкладок карти */
+/* Підсвітка та фільтри для 10 підкладок карти (без водяних знаків CARTO) */
 #map.theme-tactical .leaflet-tile-pane {
   filter: brightness(0.84) contrast(1.12) saturate(0.88);
 }
 #map.theme-dark .leaflet-tile-pane {
-  filter: brightness(1.42) contrast(1.22) saturate(1.15);
+  filter: invert(1) hue-rotate(185deg) brightness(0.86) contrast(1.25) saturate(0.85);
 }
 #map.theme-sat .leaflet-tile-pane {
   filter: brightness(0.92) contrast(1.14) saturate(1.08);
@@ -131,22 +131,20 @@ html, body {
 }
 .pov-quick-pill {
   pointer-events: auto;
-  display: inline-flex; align-items: center; gap: 5px;
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.92), rgba(15, 23, 42, 0.95));
-  border: 1px solid rgba(56, 189, 248, 0.55);
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.95), rgba(15, 23, 42, 0.96));
+  border: 1px solid rgba(56, 189, 248, 0.65);
   border-radius: 9px;
-  padding: 5px 10px;
-  color: #e0f2fe; font-size: 11px; font-weight: 800;
+  padding: 6px 12px;
+  color: #f0f9ff; font-size: 11px; font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
-  transition: transform 0.14s, border-color 0.14s;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.42);
+  transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
 }
-.pov-quick-pill:hover { transform: translateY(-1px); border-color: #7dd3fc; }
-.pov-quick-pill.off {
-  background: rgba(9, 14, 24, 0.85);
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #94a3b8;
-  box-shadow: none;
+.pov-quick-pill:hover {
+  transform: translateY(-1px);
+  border-color: #bae6fd;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.55);
 }
 
 #banner {
@@ -194,6 +192,50 @@ html, body {
   border-radius: 5px;
   padding: 0 5px;
   font-size: 10px; font-weight: 800; color: #38bdf8;
+}
+
+/* ── ПЛАВАЮЧА КНОПКА ЗАПУСКУ 3D-ПОЛЬОТУ ДЛЯ ОБРАНОЇ ЦІЛІ НА КАРТІ ── */
+#selected-target-bar {
+  position: fixed;
+  left: 12px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 1000;
+  display: none;
+  align-items: center; gap: 10px;
+  background: rgba(8, 13, 23, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  border-radius: 11px;
+  padding: 7px 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75);
+}
+#selected-target-bar.visible { display: inline-flex; }
+#sel-bar-info {
+  display: flex; flex-direction: column; gap: 1px;
+}
+#sel-bar-title {
+  font-size: 12px; font-weight: 800; color: #f8fafc;
+  display: flex; align-items: center; gap: 6px;
+}
+#sel-bar-sub {
+  font-size: 10.5px; color: #94a3b8; font-weight: 600;
+}
+#sel-bar-pov-btn {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  font-size: 11.5px; font-weight: 800;
+  padding: 7px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  transition: all 0.15s ease;
+}
+#sel-bar-pov-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  border-color: #7dd3fc;
+  transform: translateY(-1px);
 }
 
 /* ── ПРАВІ КНОПКИ ІНСТРУМЕНТІВ ── */
@@ -340,16 +382,16 @@ html, body {
 }
 .card-pov-btn {
   display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(14, 116, 144, 0.32);
-  border: 1px solid rgba(56, 189, 248, 0.45);
-  color: #7dd3fc;
-  font-size: 10px; font-weight: 800;
-  padding: 2px 7px; border-radius: 5px;
+  background: rgba(2, 132, 199, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #e0f2fe;
+  font-size: 10.5px; font-weight: 800;
+  padding: 3px 8px; border-radius: 6px;
   cursor: pointer;
   transition: all 0.14s;
 }
 .card-pov-btn:hover {
-  background: rgba(2, 132, 199, 0.55);
+  background: rgba(2, 132, 199, 0.75);
   color: #fff;
 }
 .card-msg {
@@ -517,7 +559,7 @@ html, body {
   100% { transform: scale(1.75); opacity: 0; }
 }
 
-/* Підпис під ціллю: СУВОРО ТІЛЬКИ ЧАС І ВІДСТАНЬ (без курсу і назв!) */
+/* Підпис під ціллю: СУВОРО ТІЛЬКИ ЧАС І ВІДСТАНЬ */
 .t-lbl-tag {
   position: absolute;
   top: 37px; left: 50%;
@@ -554,24 +596,24 @@ html, body {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   3D GOOGLE EARTH POV FLIGHT SIMULATOR (ВІД 1-Ї ТА 3-Ї ОСОБИ)
+   РЕАЛІСТИЧНИЙ 3D-ПОЛІТ GOOGLE EARTH POV (ПРОГРУЗ 100+ КМ ДО ГОРИЗОНТУ)
    ══════════════════════════════════════════════════════════════════════════ */
 #pov-overlay {
   position: fixed; inset: 0;
   z-index: 2500;
-  background: #030712;
+  background: #02060d;
   display: none;
   overflow: hidden;
   touch-action: none;
 }
 #pov-overlay.active { display: block; }
 
-/* 3D Перспективна сцена супутникової поверхні Землі */
+/* 3D Перспективна сцена з двома рівнями деталізації (160 км Дальній LOD + Ближній HD LOD) */
 #pov-viewport {
   position: absolute; inset: 0;
-  perspective: 760px;
+  perspective: 800px;
   overflow: hidden;
-  background: linear-gradient(180deg, #040916 0%, #0b192e 38%, #162a45 48%, #09131c 52%, #050a10 100%);
+  background: #030914;
 }
 #pov-camera-rig {
   position: absolute;
@@ -580,29 +622,43 @@ html, body {
   transform-style: preserve-3d;
   will-change: transform;
 }
+/* Дальній шар 160x160 км (z=10, 9x9 тайлів, масштаб x8 відносно z=13) — тягнеться до самого горизонту! */
+#pov-earth-far {
+  position: absolute;
+  width: 2304px; height: 2304px;
+  left: -1152px; top: -1152px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  background: #0b1610;
+  filter: brightness(0.92) contrast(1.08) saturate(1.05);
+}
+/* Ближній HD шар (z=13, 9x9 тайлів) із плавним радіальним переходом у дальній шар */
 #pov-earth-plane {
   position: absolute;
   width: 2304px; height: 2304px;
   left: -1152px; top: -1152px;
   transform-style: preserve-3d;
   will-change: transform;
-  background: #0b1520;
+  -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 96%);
+  mask-image: radial-gradient(circle, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 96%);
+  filter: brightness(0.96) contrast(1.12) saturate(1.08);
 }
 .pov-tile {
   position: absolute;
   width: 256px; height: 256px;
   backface-visibility: hidden;
-  image-rendering: auto;
   pointer-events: none;
 }
+#pov-overlay.flir-mode #pov-earth-far,
 #pov-overlay.flir-mode #pov-earth-plane {
-  filter: grayscale(1) contrast(1.65) brightness(0.95) sepia(0.85) hue-rotate(75deg) saturate(2.4);
+  filter: grayscale(1) contrast(1.75) brightness(0.92) sepia(0.9) hue-rotate(72deg) saturate(2.5);
 }
+#pov-overlay.topo-mode #pov-earth-far,
 #pov-overlay.topo-mode #pov-earth-plane {
-  filter: contrast(1.18) brightness(0.90) saturate(1.1);
+  filter: contrast(1.16) brightness(0.90) saturate(1.05);
 }
 
-/* Повноекранний 3D HUD, небо, хмари, 3D-модель цілі та орієнтири */
+/* Повноекранний 3D HUD, атмосферний горизонт, 3D-підсвітка сіл та модель цілі */
 #pov-canvas {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
@@ -611,7 +667,7 @@ html, body {
 }
 #pov-canvas:active { cursor: grabbing; }
 
-/* Верхня панель керування 3D POV */
+/* Верхня тактична консоль керування 3D-польотом */
 #pov-topbar {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
@@ -623,18 +679,18 @@ html, body {
 }
 .pov-bar-group {
   pointer-events: auto;
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  background: rgba(6, 11, 20, 0.88);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(56, 189, 248, 0.34);
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  background: rgba(5, 10, 18, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.32);
   border-radius: 10px;
-  padding: 5px 9px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.7);
+  padding: 5px 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.75);
 }
 .pov-btn {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
   font-size: 11px; font-weight: 800;
   padding: 5px 10px;
   border-radius: 7px;
@@ -643,61 +699,65 @@ html, body {
   transition: all 0.14s ease;
 }
 .pov-btn:hover, .pov-btn.active {
-  background: rgba(2, 132, 199, 0.35);
+  background: rgba(2, 132, 199, 0.38);
   border-color: #38bdf8;
-  color: #fff;
+  color: #ffffff;
 }
 .pov-btn.exit-btn {
-  background: rgba(185, 28, 28, 0.85);
+  background: rgba(185, 28, 28, 0.88);
   border-color: #f87171;
   color: #fff;
 }
-.pov-btn.exit-btn:hover { background: rgba(220, 38, 38, 0.95); }
+.pov-btn.exit-btn:hover { background: rgba(220, 38, 38, 0.96); }
 
-/* Нижня панель швидкого задання курсу прямо з 3D-кабіни */
+/* Нижня панель швидкого керування курсом у 3D-польоті */
 #pov-bottombar {
   position: absolute;
   bottom: max(12px, env(safe-area-inset-bottom));
   left: 50%; transform: translateX(-50%);
   z-index: 2530;
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
-  background: rgba(6, 11, 20, 0.90);
-  backdrop-filter: blur(14px);
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: center;
+  background: rgba(5, 10, 18, 0.90);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(56, 189, 248, 0.32);
   border-radius: 11px;
   padding: 6px 11px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
   max-width: calc(100vw - 24px);
 }
 .pov-steer-lbl {
-  font-size: 10.5px; font-weight: 800; color: #38bdf8;
-  text-transform: uppercase; letter-spacing: 0.4px;
-  margin-right: 2px;
+  font-size: 10px; font-weight: 800; color: #38bdf8;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-right: 3px;
 }
 
-/* Міні-радар (PiP) у лівому нижньому кутку 3D-режиму */
+/* Міні-радар (PiP) у лівому нижньому кутку 3D-режиму (супутник Esri без водяних знаків) */
 #pov-minimap-wrap {
   position: absolute;
-  left: 12px;
-  bottom: max(64px, calc(env(safe-area-inset-bottom) + 56px));
-  width: 176px; height: 176px;
+  left: 14px;
+  bottom: max(68px, calc(env(safe-area-inset-bottom) + 58px));
+  width: 184px; height: 184px;
   z-index: 2530;
   border-radius: 12px;
-  border: 1.5px solid rgba(56, 189, 248, 0.48);
-  background: rgba(5, 10, 18, 0.92);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.8);
+  border: 1.5px solid rgba(56, 189, 248, 0.50);
+  background: #050a12;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
   overflow: hidden;
 }
-#pov-minimap { width: 100%; height: 100%; }
+#pov-minimap {
+  width: 100%; height: 100%;
+  filter: brightness(0.88) contrast(1.18) saturate(1.05);
+}
 #pov-minimap-tag {
-  position: absolute; top: 4px; left: 6px; z-index: 900;
+  position: absolute; top: 5px; left: 7px; z-index: 900;
   font-size: 9px; font-weight: 800; color: #38bdf8;
-  background: rgba(5, 10, 18, 0.85);
-  padding: 1px 5px; border-radius: 4px;
+  background: rgba(5, 10, 18, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 1.5px 6px; border-radius: 4px;
   pointer-events: none;
+  letter-spacing: 0.4px;
 }
 
-/* Адаптивність для смартфонів та планшетів */
 @media (max-width: 768px) {
   #top-hud { left: 6px; right: 46px; gap: 4px; }
   .status-pill { padding: 4px 8px; font-size: 10.5px; gap: 6px; }
@@ -705,6 +765,12 @@ html, body {
   .fchip { padding: 3px 7px; font-size: 10px; }
   #map-tools { right: 6px; top: max(6px, env(safe-area-inset-top)); gap: 4px; }
   .tool-btn { width: 31px; height: 31px; }
+
+  #selected-target-bar {
+    left: 8px; right: 8px;
+    bottom: 58px;
+    justify-content: space-between;
+  }
 
   #dock {
     top: auto; right: 0; left: 0; bottom: 0;
@@ -719,7 +785,7 @@ html, body {
   #dock.collapsed .pane { display: none !important; }
   #sheet-handle { display: flex; flex-direction: column; }
 
-  #pov-minimap-wrap { width: 124px; height: 124px; bottom: 74px; left: 8px; }
+  #pov-minimap-wrap { width: 126px; height: 126px; bottom: 78px; left: 8px; }
   .pov-btn { padding: 4px 7px; font-size: 10px; }
 }
 </style>
@@ -741,7 +807,7 @@ html, body {
       <div class="hud-divider"></div>
       <span class="hud-brand-tag">ОПЕРАТИВНИЙ РАДАР ZP</span>
     </div>
-    <div id="pov-open-selected-btn" class="pov-quick-pill" title="Натисніть на будь-яку ціль на карті або сюди для 3D-польоту від 1-ї особи (Google Earth)">
+    <div id="pov-open-selected-btn" class="pov-quick-pill" title="Відкрити 3D-політ від обличчя обраної цілі (Google Earth)">
       <span>🎥 3D ПОЛІТ ВІД ЦІЛІ</span>
     </div>
   </div>
@@ -772,6 +838,15 @@ html, body {
       РСЗВ/Арта <span class="cnt-badge" id="fc-strike">0</span>
     </div>
   </div>
+</div>
+
+<!-- ПЛАВАЮЧА ПЛАШКА ОБРАНОЇ ЦІЛІ (КЛІК НА БПЛА НЕ КИДАЄ ОДРАЗУ В ПОЛІТ, А ПОКАЗУЄ КНОПКУ!) -->
+<div id="selected-target-bar">
+  <div id="sel-bar-info">
+    <div id="sel-bar-title">Шахед-136</div>
+    <div id="sel-bar-sub">18.4 км · 185 км/год</div>
+  </div>
+  <button id="sel-bar-pov-btn">🎥 Дивитись 3D-політ</button>
 </div>
 
 <!-- ПРАВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ -->
@@ -830,7 +905,7 @@ html, body {
       <div class="sec-title">Робочі картографічні підкладки (10 без API)</div>
       <div class="style-grid">
         <div class="style-btn active" data-style="tactical">Тактична ОСІНТ</div>
-        <div class="style-btn" data-style="dark">Нічний ППО (CARTO)</div>
+        <div class="style-btn" data-style="dark">Нічний ППО (Темна)</div>
         <div class="style-btn" data-style="sat">Супутник Esri HD</div>
         <div class="style-btn" data-style="topo">Топографічна (Висоти)</div>
         <div class="style-btn" data-style="esri_topo">Рельєф Генштаб</div>
@@ -843,11 +918,7 @@ html, body {
     </div>
 
     <div class="sec-box">
-      <div class="sec-title">Тактичні шари та 3D-камера</div>
-      <label class="ctrl-row">
-        <span>Відкривати 3D-політ при кліку на ціль</span>
-        <input type="checkbox" id="chk-click-pov" checked>
-      </label>
+      <div class="sec-title">Тактичні шари радара</div>
       <label class="ctrl-row">
         <span>Сектори загрози та вектори курсу</span>
         <input type="checkbox" id="chk-cones" checked>
@@ -1011,11 +1082,12 @@ html, body {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
-     3D GOOGLE EARTH POV OVERLAY (ПОЛІТ ВІД ОБЛИЧЧЯ ЦІЛІ)
+     3D GOOGLE EARTH POV OVERLAY (ПРОГРУЗ 100+ КМ, ПІДСВІТКА СІЛ, АВІАЦІЙНИЙ HUD)
      ══════════════════════════════════════════════════════════════════════════ -->
 <div id="pov-overlay">
   <div id="pov-viewport">
     <div id="pov-camera-rig">
+      <div id="pov-earth-far"></div>
       <div id="pov-earth-plane"></div>
     </div>
   </div>
@@ -1025,20 +1097,21 @@ html, body {
   <div id="pov-topbar">
     <div class="pov-bar-group">
       <button class="pov-btn exit-btn" id="pov-close-btn">✕ На 2D радар (ESC)</button>
-      <button class="pov-btn active" data-cam="fpv" id="pov-cam-fpv">👁 Від 1-ї особи (ГСН)</button>
-      <button class="pov-btn" data-cam="chase" id="pov-cam-chase">✈️ Від 3-ї особи (Літак)</button>
+      <button class="pov-btn active" data-cam="fpv" id="pov-cam-fpv">👁 Від 1-ї особи (Оптика ГСН)</button>
+      <button class="pov-btn" data-cam="chase" id="pov-cam-chase">✈️ Від 3-ї особи (3D Модель)</button>
       <button class="pov-btn" id="pov-reset-look-btn" title="Вирівняти камеру за курсом польоту">🎯 За курсом</button>
     </div>
     <div class="pov-bar-group">
-      <button class="pov-btn active" data-vis="sat" id="pov-vis-sat">🌍 Супутник Google Earth</button>
+      <button class="pov-btn active" data-vis="sat" id="pov-vis-sat">🌍 Супутник 100 км</button>
       <button class="pov-btn" data-vis="flir" id="pov-vis-flir">🟢 Тепловізор (FLIR)</button>
       <button class="pov-btn" data-vis="topo" id="pov-vis-topo">🗺 Топо-рельєф</button>
-      <button class="pov-btn" id="pov-warp-btn" title="Прискорення часу візуалізації польоту">⏩ Швидкість: 1x</button>
+      <button class="pov-btn active" id="pov-villages-btn" title="Підсвітка сіл та міст на екрані">📍 Села: УВІМК</button>
+      <button class="pov-btn" id="pov-warp-btn" title="Прискорення часу візуалізації польоту">⏩ 1x</button>
     </div>
   </div>
 
   <div id="pov-minimap-wrap">
-    <div id="pov-minimap-tag">РАДАР СЛІДУВАННЯ</div>
+    <div id="pov-minimap-tag">РАДАР СЛІДУВАННЯ · 100 КМ</div>
     <div id="pov-minimap"></div>
   </div>
 
@@ -1051,6 +1124,7 @@ html, body {
     <span class="qchip pov-course-chip" data-place="Степногірськ" data-lat="47.587" data-lon="35.361">Степногірськ</span>
     <span class="qchip pov-course-chip" data-place="Кушугум" data-lat="47.712" data-lon="35.208">Кушугум</span>
     <span class="qchip pov-course-chip" data-place="Комишуваха" data-lat="47.717" data-lon="35.529">Комишуваха</span>
+    <span class="qchip pov-course-chip" data-place="Гуляйполе" data-lat="47.661" data-lon="36.259">Гуляйполе</span>
     <span class="qchip" id="pov-turn-left-btn">◀ -15°</span>
     <span class="qchip" id="pov-turn-right-btn">+15° ▶</span>
     <span class="qchip" id="pov-hold-btn" style="color:#fde68a;border-color:rgba(245,158,11,0.4)">⏸ Чекати курс</span>
@@ -1077,9 +1151,10 @@ const map = L.map('map', {
   markerZoomAnimation: false
 }).setView([47.74, 35.35], 9);
 
+// Усі 10 шарів карти працюють БЕЗ API-ключів та БЕЗ водяних знаків CARTO!
 const BASEMAPS = {
   tactical:    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM · Оперативний Радар ZP' }),
-  dark:        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' }),
+  dark:        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM Dark · Оперативний Радар ZP' }),
   sat:         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri · Оперативний Радар ZP' }),
   topo:        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap · Оперативний Радар ZP' }),
   esri_topo:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri Topo · Оперативний Радар ZP' }),
@@ -1087,10 +1162,10 @@ const BASEMAPS = {
   esri_street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri Street · Оперативний Радар ZP' }),
   osm_hot:     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM HOT · Оперативний Радар ZP' }),
   cyclosm:     L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© CyclOSM · Оперативний Радар ZP' }),
-  light:       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' })
+  light:       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri Light · Оперативний Радар ZP' })
 };
 let currentBasemap = BASEMAPS.tactical.addTo(map);
-let satLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19, pane: 'overlayPane' });
+let satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, pane: 'overlayPane' });
 let esriDarkRefLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, pane: 'overlayPane' });
 
 function setMapStyle(styleKey) {
@@ -1155,32 +1230,130 @@ const KHARKIV_NORTH_POLY = [
   [50.45, 37.08], [50.45, 36.32], [50.23, 36.32]
 ];
 
-const ZP_KEY_LANDMARKS = [
-  ["Запоріжжя", 47.838, 35.139],
-  ["Шевчик", 47.828, 35.238],
-  ["Зелений Яр", 47.849, 35.208],
-  ["Космос", 47.785, 35.185],
-  ["Піски", 47.768, 35.192],
-  ["Бабурка", 47.816, 35.025],
-  ["о. Хортиця", 47.822, 35.075],
-  ["ДніпроГЕС", 47.869, 35.086],
-  ["Кічкас", 47.888, 35.158],
-  ["Бородок", 47.882, 35.075],
-  ["Осипок", 47.868, 35.042],
-  ["Балабине", 47.745, 35.220],
-  ["Кушугум (Шугум)", 47.712, 35.208],
-  ["Малокатеринівка", 47.659, 35.260],
-  ["Степногірськ", 47.587, 35.361],
-  ["Комишуваха", 47.717, 35.529],
-  ["Оріхів", 47.567, 35.784],
-  ["Гуляйполе", 47.661, 36.259],
-  ["Вільнянськ", 47.945, 35.433],
-  ["Василівка", 47.435, 35.278],
-  ["Токмак", 47.254, 35.704]
+// ── ПОВНА БАЗА НАСЕЛЕНИХ ПУНКТІВ, СІЛ ТА МІКРОРАЙОНІВ НА 100+ КМ ДЛЯ 3D-ПІДСВІТКИ ──
+const POV_SETTLEMENTS = [
+  // Місто Запоріжжя та мікрорайони
+  ["Запоріжжя", 47.838, 35.139, 3],
+  ["Шевчик", 47.828, 35.238, 2],
+  ["Зелений Яр", 47.849, 35.208, 2],
+  ["Космос", 47.785, 35.185, 2],
+  ["Піски", 47.768, 35.192, 2],
+  ["Бабурка", 47.816, 35.025, 2],
+  ["о. Хортиця", 47.822, 35.075, 2],
+  ["ДніпроГЕС", 47.869, 35.086, 2],
+  ["Кічкас", 47.888, 35.158, 2],
+  ["Бородок", 47.882, 35.075, 2],
+  ["Осипок", 47.868, 35.042, 2],
+  ["Великий Луг", 47.908, 35.092, 1],
+  ["Верхня Хортиця", 47.855, 35.015, 1],
+  ["Нижня Хортиця", 47.772, 35.033, 1],
+  ["Аеропорт / Мокрянка", 47.866, 35.312, 1],
+  ["Мотор Січ", 47.821, 35.186, 1],
+  ["Тепличний", 47.798, 35.255, 1],
+  ["Леваневського", 47.826, 35.275, 1],
+  ["Соцмісто", 47.858, 35.125, 1],
+  // Передмістя та села Запорізького району
+  ["Балабине", 47.745, 35.220, 2],
+  ["Кушугум", 47.712, 35.208, 2],
+  ["Осетрівка", 47.728, 35.195, 1],
+  ["Малокатеринівка", 47.659, 35.260, 2],
+  ["Канівське", 47.721, 35.118, 1],
+  ["Розумівка", 47.752, 35.038, 1],
+  ["Лисогірка", 47.648, 35.085, 1],
+  ["Біленьке", 47.625, 35.041, 2],
+  ["Мар'ївка", 47.669, 35.064, 1],
+  ["Червонодніпровка", 47.595, 34.982, 1],
+  ["Долинське", 47.788, 34.943, 1],
+  ["Нове Запоріжжя", 47.818, 34.925, 1],
+  ["Широке", 47.892, 34.906, 1],
+  ["Сонячне", 47.866, 34.985, 1],
+  ["Відрадне", 47.942, 35.058, 1],
+  ["Володимирівське", 47.902, 35.068, 1],
+  ["Миколай-Поле", 47.975, 34.905, 1],
+  ["Лукашеве", 47.952, 34.955, 1],
+  ["Лежине", 47.807, 35.335, 1],
+  ["Наталівка", 47.838, 35.349, 1],
+  ["Степне", 47.795, 35.308, 1],
+  ["Новоолександрівка", 47.755, 35.355, 1],
+  ["Юльївка", 47.718, 35.425, 1],
+  ["Матвіївка", 47.909, 35.313, 1],
+  ["Кам'яне", 47.878, 35.398, 1],
+  ["Дружелюбівка", 47.893, 35.367, 1],
+  ["Куприянівка", 47.875, 35.475, 1],
+  // Степногірський, Комишуваський, Оріхівський та Гуляйпільський напрямки
+  ["Степногірськ", 47.587, 35.361, 2],
+  ["Приморське", 47.619, 35.291, 1],
+  ["Плавні", 47.561, 35.312, 1],
+  ["Кам'янське", 47.541, 35.349, 2],
+  ["Лобкове", 47.523, 35.437, 1],
+  ["П'ятихатки", 47.508, 35.456, 1],
+  ["Жереб'янки", 47.492, 35.426, 1],
+  ["Комишуваха", 47.717, 35.529, 2],
+  ["Григорівка", 47.680, 35.331, 1],
+  ["Веселянка", 47.684, 35.398, 1],
+  ["Річне", 47.697, 35.428, 1],
+  ["Юрківка", 47.651, 35.662, 1],
+  ["Таврійське", 47.638, 35.696, 1],
+  ["Преображенка", 47.595, 35.816, 1],
+  ["Оріхів", 47.567, 35.784, 3],
+  ["Мала Токмачка", 47.535, 35.893, 1],
+  ["Новоданилівка", 47.515, 35.808, 1],
+  ["Роботине", 47.445, 35.839, 1],
+  ["Вербове", 47.428, 35.955, 1],
+  ["Білогір'я", 47.525, 36.002, 1],
+  ["Нестерянка", 47.495, 35.654, 1],
+  ["Копані", 47.454, 35.736, 1],
+  ["Гуляйполе", 47.661, 36.259, 3],
+  ["Залізничне", 47.649, 36.165, 1],
+  ["Гуляйпільське", 47.612, 36.065, 1],
+  ["Чарівне", 47.575, 36.052, 1],
+  ["Червоне", 47.652, 36.382, 1],
+  ["Зелене", 47.721, 36.208, 1],
+  ["Малинівка", 47.676, 36.471, 1],
+  ["Полтавка", 47.712, 36.482, 1],
+  ["Успенівка", 47.768, 36.452, 1],
+  ["Воздвижівка", 47.742, 36.175, 1],
+  ["Верхня Терса", 47.691, 36.071, 1],
+  // Вільнянський та Новомиколаївський напрямок
+  ["Вільнянськ", 47.945, 35.433, 2],
+  ["Люцерна", 47.921, 35.231, 1],
+  ["Соколівка", 47.985, 35.225, 1],
+  ["Петро-Михайлівка", 48.055, 35.235, 1],
+  ["Максимівка", 48.046, 35.405, 1],
+  ["Павлівське", 47.962, 35.485, 1],
+  ["Новогупалівка", 48.023, 35.421, 1],
+  ["Антонівка", 47.975, 35.615, 1],
+  ["Новомиколаївка", 47.976, 35.908, 2],
+  ["Терсянка", 47.882, 35.885, 1],
+  ["Тернувате", 47.828, 36.128, 1],
+  ["Різдвянка", 47.795, 36.055, 1],
+  ["Любицьке", 47.768, 35.955, 1],
+  // Південні рубежі (Василівка, Токмак, Пологи, Енергодар, Мелітополь)
+  ["Василівка", 47.435, 35.278, 3],
+  ["Скельки", 47.376, 35.125, 1],
+  ["Бурчак", 47.358, 35.261, 1],
+  ["Пришиб", 47.258, 35.324, 2],
+  ["Михайлівка", 47.272, 35.222, 2],
+  ["Плодородне", 47.163, 35.318, 1],
+  ["Дніпрорудне", 47.381, 34.985, 2],
+  ["Енергодар", 47.499, 34.658, 3],
+  ["Кам'янка-Дніпровська", 47.494, 34.417, 2],
+  ["Токмак", 47.254, 35.704, 3],
+  ["Молочанськ", 47.194, 35.624, 2],
+  ["Пологи", 47.482, 36.254, 3],
+  ["Кінські Роздори", 47.382, 36.418, 2],
+  ["Більмак", 47.358, 36.652, 2],
+  ["Чернігівка", 47.192, 36.201, 2],
+  ["Мелітополь", 46.849, 35.365, 3],
+  // Суміжні міста у радіусі 100 км
+  ["Марганець", 47.645, 34.604, 2],
+  ["Нікополь", 47.567, 34.400, 3],
+  ["Томаківка", 47.816, 34.742, 1],
+  ["Синельникове", 48.318, 35.518, 2],
+  ["Покровське", 47.982, 36.228, 2]
 ];
 
 let showCones = true, showFrontline = true, showRings = true, showLandmarks = true, showTrails = true;
-let autoOpenPovOnClick = true;
 const staticLayerGroup = L.layerGroup().addTo(map);
 const ringsLayerGroup = L.layerGroup().addTo(map);
 const flLayerGroup = L.layerGroup().addTo(map);
@@ -1206,7 +1379,7 @@ function drawStaticLayers() {
   }
 
   if (showLandmarks && map.getZoom() >= 9) {
-    ZP_KEY_LANDMARKS.slice(1).forEach(([name, la, lo]) => {
+    POV_SETTLEMENTS.filter(s => s[3] >= 2 && s[0] !== "Запоріжжя").forEach(([name, la, lo]) => {
       L.circleMarker([la, lo], {
         radius: 2.5, color: '#38bdf8', weight: 1, fillColor: '#0284c7', fillOpacity: 0.7, interactive: false, renderer: canvasRenderer
       }).bindTooltip(name, { permanent: map.getZoom() >= 11, direction: 'right', className: 'landmark-lbl', offset: [4, 0] }).addTo(landmarksLayerGroup);
@@ -1244,7 +1417,6 @@ map.on('zoomend', () => {
   syncTrackVectorLayers(true);
 });
 
-document.getElementById('chk-click-pov').addEventListener('change', e => { autoOpenPovOnClick = e.target.checked; });
 document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; syncTrackVectorLayers(true); });
 document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
@@ -1262,10 +1434,11 @@ function hav(a, b, c, d) {
 }
 function brg(a, b, c, d) {
   const p = Math.PI / 180;
-  const y = Math.sin((d - b) * p) * Math.cos(c * p);
-  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
+  const y = Math.sin((d - b) * p) * mathCos(c * p);
+  const x = mathCos(a * p) * Math.sin(c * p) - Math.sin(a * p) * mathCos(c * p) * mathCos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
+function mathCos(v) { return Math.cos(v); }
 function angDiff(a, b) {
   return ((a - b + 540) % 360) - 180;
 }
@@ -1292,14 +1465,12 @@ function getTargetVisualSpec(t) {
 // ── ТОЧНІ РЕАЛІСТИЧНІ ТЕКСТУРИ ВСІХ ЦІЛЕЙ (ВКЛЮЧНО З АВІАБОМБОЮ КАБ/УМПК ТА РАКЕТАМИ) ──
 function renderSilhouetteSVG(type, col, rotDeg = 0, sz = 38) {
   if (type === 'shahed') {
-    // Shahed-136 / Герань-2: дельта-крило з плавним напливом, гострим носом і кінцевими шайбами
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 3 C23.1 3 23.7 5.8 23.9 9.8 C24.2 13.8 26.8 17.2 38.5 29.2 L38.5 33.8 L36.6 33.8 L36.6 31.2 L24.4 29.8 L23.5 34.8 L20.5 34.8 L19.6 29.8 L7.4 31.2 L7.4 33.8 L5.5 33.8 L5.5 29.2 C17.2 17.2 19.8 13.8 20.1 9.8 C20.3 5.8 20.9 3 22 3 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M22 4.8 C22.6 4.8 23 8 23 12 L22.8 33 L21.2 33 L21 12 C21 8 21.4 4.8 22 4.8 Z" fill="rgba(255,255,255,0.28)"/>
     </svg>`;
   }
   if (type === 'jet_drone') {
-    // Реактивний Shahed-238 / Герань-3
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 2.5 C23.1 2.5 23.8 5.8 24 10.2 L37.8 28.5 L37.8 33 L35.8 33 L35.8 30.6 L24.4 29.2 L23.4 34.8 L20.6 34.8 L19.6 29.2 L8.2 30.6 L8.2 33 L6.2 33 L6.2 28.5 L20 10.2 C20.2 5.8 20.9 2.5 22 2.5 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M20.6 16 L23.4 16 L23.8 28.5 L20.2 28.5 Z" fill="rgba(7,11,18,0.45)"/>
@@ -1307,14 +1478,12 @@ function renderSilhouetteSVG(type, col, rotDeg = 0, sz = 38) {
     </svg>`;
   }
   if (type === 'molniya') {
-    // БпЛА «Молнія»: моноплан з прямим крилом
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 4 C23.2 4 23.8 6.5 23.8 10 L23.8 13.5 L39.5 14.5 L39.5 18.8 L23.8 18.5 L23.4 31.5 L30.5 32.8 L30.5 35.5 L22 34.8 L13.5 35.5 L13.5 32.8 L20.6 31.5 L20.2 18.5 L4.5 18.8 L4.5 14.5 L20.2 13.5 L20.2 10 C20.2 6.5 20.8 4 22 4 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M21.2 6.5 L22.8 6.5 L22.6 32 L21.4 32 Z" fill="rgba(255,255,255,0.26)"/>
     </svg>`;
   }
   if (type === 'fpv') {
-    // FPV-дрон: тактичний квадрокоптер
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <circle cx="10.5" cy="11.5" r="6.2" fill="rgba(250,204,21,0.16)" stroke="${col}" stroke-width="1.3"/>
       <circle cx="33.5" cy="11.5" r="6.2" fill="rgba(250,204,21,0.16)" stroke="${col}" stroke-width="1.3"/>
@@ -1329,76 +1498,53 @@ function renderSilhouetteSVG(type, col, rotDeg = 0, sz = 38) {
     </svg>`;
   }
   if (type === 'lancet') {
-    // БпЛА «Ланцет»: подвійне Х-крило
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 3 C23.4 3 24 6.5 24 11 L37.5 13.5 L37.5 17.2 L24 16.5 L24 25.5 L36.5 28.5 L36.5 32 L23.8 30.8 L23.4 36.5 L20.6 36.5 L20.2 30.8 L7.5 32 L7.5 28.5 L20 25.5 L20 16.5 L6.5 17.2 L6.5 13.5 L20 11 C20 6.5 20.6 3 22 3 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M21.2 5.5 L22.8 5.5 L22.6 34.5 L21.4 34.5 Z" fill="rgba(255,255,255,0.28)"/>
     </svg>`;
   }
   if (type === 'recon') {
-    // РозвідБпЛА Орлан-10 / ZALA
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 4.5 C23.2 4.5 23.7 7.5 23.7 12.2 L41 15.5 L40.5 19 L23.6 17.8 L23.1 31.5 L29.5 34.5 L29.5 36.8 L22 35.2 L14.5 36.8 L14.5 34.5 L20.9 31.5 L20.4 17.8 L3.5 19 L3 15.5 L20.3 12.2 C20.3 7.5 20.8 4.5 22 4.5 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
     </svg>`;
   }
   if (type === 'gerbera') {
-    // БпЛА «Гербера»
     return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
       <path d="M22 4 C23.2 4 23.8 7 23.8 11 L36.5 26 L36.5 30.5 L24 29 L23.4 34.5 L20.6 34.5 L20 29 L7.5 30.5 L7.5 26 L20.2 11 C20.2 7 20.8 4 22 4 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
     </svg>`;
   }
   if (type === 'kab') {
-    // АВІАБОМБА КАБ / ФАБ-500 З МОДУЛЕМ УМПК:
-    // Важкий краплеподібно-циліндричний чавунний корпус авіабомби з носовим детонатором (ВДВ),
-    // коробчастим/кільцевим стабілізатором ФАБ у хвості, сталевими хомутами та вузькими розкладними крилами планера УМПК
+    // АВІАБОМБА КАБ / ФАБ-500 З МОДУЛЕМ УМПК
     return `<svg class="target-rot-svg" viewBox="0 0 48 48" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
-      <!-- Вузькі довгі розкладні крила модуля УМПК -->
       <path d="M24 14.5 L45.5 20.8 L45.5 24.4 L24 20.4 L2.5 24.4 L2.5 20.8 Z" fill="#ef4444" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
-      <!-- Кільцевий/коробчастий хвостовий стабілізатор авіабомби ФАБ-500 -->
       <path d="M18.2 33.2 L29.8 33.2 L31.8 41.2 L28.2 41.2 L26.5 37.8 L21.5 37.8 L19.8 41.2 L16.2 41.2 Z" fill="#b91c1c" stroke="#070b12" stroke-width="1.35" stroke-linejoin="round"/>
       <line x1="16.5" y1="39.5" x2="31.5" y2="39.5" stroke="#fca5a5" stroke-width="1.1"/>
-      <!-- Товстий важкий корпус самої авіабомби ФАБ -->
       <path d="M24 5.2 C27.8 5.2 29.6 10.2 29.6 17.5 C29.6 24.8 28.0 30.5 26.8 34.5 L21.2 34.5 C20.0 30.5 18.4 24.8 18.4 17.5 C18.4 10.2 20.2 5.2 24 5.2 Z" fill="#dc2626" stroke="#070b12" stroke-width="1.45" stroke-linejoin="round"/>
-      <!-- Носовий балістичний наконечник і шток детонатора бомби -->
       <line x1="24" y1="1.5" x2="24" y2="5.4" stroke="#f8fafc" stroke-width="1.8" stroke-linecap="round"/>
       <circle cx="24" cy="2.2" r="1.4" fill="#fca5a5" stroke="#070b12" stroke-width="0.8"/>
-      <!-- Поздовжній хребет УМПК та 2 сталеві стяжні хомути на корпусі бомби -->
       <rect x="22.3" y="11" width="3.4" height="22" rx="1.2" fill="#7f1d1d" stroke="#070b12" stroke-width="0.9"/>
       <path d="M18.7 14.5 L29.3 14.5 M18.9 23.5 L29.1 23.5" stroke="#fecaca" stroke-width="1.5" stroke-linecap="round"/>
     </svg>`;
   }
   if (type === 'cruise') {
-    // КРИЛАТА РАКЕТА Х-101 / 3М-14 «КАЛІБР»:
-    // Довгий вузький олівцеподібний циліндричний фюзеляж ракети, гострий обтічник ГСН,
-    // тонкі складні стрілоподібні крила малої хорди, хрестоподібні хвостові рулі та факел турбореактивного двигуна
+    // КРИЛАТА РАКЕТА Х-101 / 3М-14 «КАЛІБР»
     return `<svg class="target-rot-svg" viewBox="0 0 48 48" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
-      <!-- Реактивний факел двигуна -->
       <polygon points="21.8,37.2 24,45.5 26.2,37.2" fill="#fde047"/>
       <polygon points="22.6,37.2 24,42.5 25.4,37.2" fill="#ffffff"/>
-      <!-- Вузькі складні крила крилатої ракети -->
       <path d="M24 18.2 L43 24.5 L42.5 27.6 L24 23.2 L5.5 27.6 L5 24.5 Z" fill="#ea580c" stroke="#070b12" stroke-width="1.3" stroke-linejoin="round"/>
-      <!-- Хрестоподібне хвостове оперення ракети -->
       <path d="M24 31.2 L32.8 35.2 L32.8 37.6 L24 36.2 L15.2 37.6 L15.2 35.2 Z" fill="#c2410c" stroke="#070b12" stroke-width="1.25" stroke-linejoin="round"/>
-      <!-- Тонкий довгий циліндричний корпус ракети -->
       <path d="M24 1.8 C25.6 1.8 26.5 6.8 26.5 12.2 L26.5 36.8 L21.5 36.8 L21.5 12.2 C21.5 6.8 22.4 1.8 24 1.8 Z" fill="${col}" stroke="#070b12" stroke-width="1.4" stroke-linejoin="round"/>
-      <!-- Блік обтічника ГСН та кільце бойової частини -->
       <path d="M23.3 4.2 L24.7 4.2 L24.7 35.2 L23.3 35.2 Z" fill="rgba(255,255,255,0.32)"/>
       <line x1="21.6" y1="11.5" x2="26.4" y2="11.5" stroke="#070b12" stroke-width="1.1"/>
     </svg>`;
   }
   if (type === 'ballistic') {
-    // БАЛІСТИЧНА РАКЕТА 9М723 «ІСКАНДЕР-М» / «КИНДЖАЛ»:
-    // Суцільний гостроконечний біконічно-циліндричний корпус ракети БЕЗ КРИЛ,
-    // лінія відділення ГЧ, 4 малі трапецієподібні стабілізатори біля сопла та потужний гіперзвуковий факел
+    // БАЛІСТИЧНА РАКЕТА 9М723 «ІСКАНДЕР-М» / «КИНДЖАЛ»
     return `<svg class="target-rot-svg" viewBox="0 0 48 48" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
-      <!-- Потужний плазмовий факел РДТП -->
       <polygon points="20.2,36.2 24,46.5 27.8,36.2" fill="#fb7185"/>
       <polygon points="21.8,36.2 24,43.5 26.2,36.2" fill="#fef08a"/>
-      <!-- 4 малі хвостові стабілізатори в основі сопла -->
       <path d="M18.8 29.5 L12.5 34.8 L12.5 37.2 L19.2 36.2 M29.2 29.5 L35.5 34.8 L35.5 37.2 L28.8 36.2" fill="#be123c" stroke="#070b12" stroke-width="1.3" stroke-linejoin="round"/>
-      <!-- Конічно-циліндричний корпус балістичної ракети (без самолітних крил!) -->
       <path d="M24 1.2 L27.6 14.5 L28.2 36.2 L19.8 36.2 L20.4 14.5 Z" fill="${col}" stroke="#070b12" stroke-width="1.45" stroke-linejoin="round"/>
-      <!-- Шов відділення головної частини та центральне ребро -->
       <line x1="20.4" y1="14.5" x2="27.6" y2="14.5" stroke="#fecdd3" stroke-width="1.35"/>
       <path d="M24 3.5 L25.2 14.5 L25.2 35 L22.8 35 L22.8 14.5 Z" fill="rgba(255,255,255,0.26)"/>
     </svg>`;
@@ -1414,7 +1560,7 @@ document.querySelectorAll('.spawn-ico').forEach(el => {
   el.innerHTML = renderSilhouetteSVG(el.dataset.type, el.dataset.col, 0, 24);
 });
 
-// ── ПІДПИС ПІД ЦІЛЛЮ НА КАРТІ: СУВОРО ТІЛЬКИ ЧАС І ВІДСТАНЬ (БЕЗ КУРСУ І НАЗВ!) ──
+// ── ПІДПИС ПІД ЦІЛЛЮ НА КАРТІ: СУВОРО ТІЛЬКИ ЧАС І ВІДСТАНЬ ──
 function getTargetLabelText(t, aState) {
   const curLat = (aState && aState.lat != null) ? aState.lat : t.lat;
   const curLon = (aState && aState.lon != null) ? aState.lon : t.lon;
@@ -1475,6 +1621,22 @@ function updateMarkerDOMWithoutRecreating(m, t, isSelected) {
     if (lblEl.textContent !== newTxt) lblEl.textContent = newTxt;
   }
   return true;
+}
+
+function updateSelectedTargetBar() {
+  const bar = document.getElementById('selected-target-bar');
+  const t = selectedTrackId ? serverTracks[selectedTrackId] : null;
+  if (!t || t.ended) {
+    bar.classList.remove('visible');
+    return;
+  }
+  bar.classList.add('visible');
+  const spec = getTargetVisualSpec(t);
+  const a = animState[t.id] || t;
+  const lblTxt = getTargetLabelText(t, a);
+  const waitStr = (t.holding || a.holding || !a.goal) ? ' · Очікує курс' : '';
+  document.getElementById('sel-bar-title').innerHTML = `${renderSilhouetteSVG(spec.type, spec.col, 45, 18)} <span>${t.name}</span>`;
+  document.getElementById('sel-bar-sub').textContent = `${lblTxt} · ${t.v || 185} км/год${waitStr}`;
 }
 
 function syncAdminUI() {
@@ -1572,8 +1734,13 @@ function selectTrack(id) {
       updateMarkerDOMWithoutRecreating(markerLayerById[k], tr, Number(k) === selectedTrackId);
     }
   });
+  updateSelectedTargetBar();
   renderTargetsList();
 }
+
+document.getElementById('sel-bar-pov-btn').addEventListener('click', () => {
+  if (selectedTrackId) openPovForTrack(selectedTrackId);
+});
 
 function removeTrackVectorLayers(id) {
   if (vectorPolyById[id]) { tracksVectorGroup.removeLayer(vectorPolyById[id]); delete vectorPolyById[id]; }
@@ -1792,6 +1959,9 @@ function stepClientKinematics() {
     }
   });
 
+  if (selectedTrackId) {
+    updateSelectedTargetBar();
+  }
   if (povActive) {
     renderPovFrame(dt);
   }
@@ -1880,12 +2050,10 @@ function applyServerState(st) {
       }).addTo(map);
       m._sig = sig;
 
+      // Клік по маркеру на карті ТІЛЬКИ обирає ціль (і показує кнопку «🎥 Дивитись 3D-політ»), НЕ кидає в політ сам!
       m.on('click', ev => {
         L.DomEvent.stopPropagation(ev);
         selectTrack(t.id);
-        if (autoOpenPovOnClick && !pickVectorMode && !clickSpawnSub) {
-          openPovForTrack(t.id);
-        }
       });
       m.on('dragstart', () => { m._isDragging = true; selectTrack(t.id); });
       m.on('dragend', ev => {
@@ -1932,6 +2100,7 @@ function applyServerState(st) {
     const firstActive = Object.values(serverTracks).find(x => !x.ended);
     if (firstActive) selectTrack(firstActive.id);
   }
+  updateSelectedTargetBar();
 
   document.getElementById('active-cnt-txt').textContent = `ЦІЛЕЙ: ${activeTotal}`;
   document.getElementById('tab-targets-btn').querySelector('span').textContent = `Цілі (${activeTotal})`;
@@ -2147,12 +2316,6 @@ document.getElementById('pov-open-selected-btn').addEventListener('click', () =>
     if (first) {
       selectTrack(first.id);
       openPovForTrack(first.id);
-    } else {
-      // Якщо на карті ще немає цілей — створюємо демонстраційний КАБ для перегляду 3D-польоту
-      postSim({ spawn: { sub: 'kab', lat: 47.254, lon: 35.704, frm: 'Токмак' } }).then(() => {
-        const created = Object.values(serverTracks)[0];
-        if (created) openPovForTrack(created.id);
-      });
     }
   }
 });
@@ -2221,10 +2384,15 @@ document.getElementById('ch-add-btn').addEventListener('click', () => {
 });
 
 /* ══════════════════════════════════════════════════════════════════════════
-   3D GOOGLE EARTH FLIGHT POV ENGINE (ВІД 1-Ї ТА 3-Ї ОСОБИ)
+   3D GOOGLE EARTH FLIGHT POV ENGINE (ПРОГРУЗ 100+ КМ, ПІДСВІТКА СІЛ, БЕЗ ХМАР)
    ══════════════════════════════════════════════════════════════════════════ */
+const POV_PERSPECTIVE = 800;
+const POV_NEAR_ZOOM = 13;
+const POV_FAR_ZOOM = 10; // На z=10 9x9 тайлів покривають ~165x165 км (прогруз > 100 км до самого горизонту!)
+
 let povCamMode = 'fpv'; // 'fpv' | 'chase'
 let povVisStyle = 'sat'; // 'sat' | 'flir' | 'topo'
+let povShowVillages = true;
 let povYawOffset = 0;
 let povPitchOffset = 0;
 let povRollSmooth = 0;
@@ -2232,24 +2400,12 @@ let povHdgSmooth = 320;
 let povLastHdg = 320;
 let povDragging = false;
 let povDragStart = [0, 0];
-let povTileCache = {};
-let povCurrentCenterTile = null;
+let povNearTileKey = null;
+let povFarTileKey = null;
 let povMiniMap = null;
 let povMiniMarker = null;
 let povMiniLine = null;
 let povPropAngle = 0;
-let povClouds = [];
-
-for (let i = 0; i < 28; i++) {
-  povClouds.push({
-    x: (Math.random() - 0.5) * 3000,
-    y: 40 + Math.random() * 220,
-    z: Math.random() * 2000,
-    w: 140 + Math.random() * 220,
-    h: 22 + Math.random() * 35,
-    alpha: 0.08 + Math.random() * 0.16
-  });
-}
 
 function lon2tileFloat(lon, z) {
   return ((lon + 180) / 360) * Math.pow(2, z);
@@ -2281,57 +2437,102 @@ function ensurePovMiniMap() {
     doubleClickZoom: false,
     boxZoom: false,
     keyboard: false
-  }).setView([home[1], home[2]], 10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(povMiniMap);
-  L.polyline(FULL_UKRAINE_FRONTLINE, { color: '#ef4444', weight: 1.8, dashArray: '4,3' }).addTo(povMiniMap);
+  }).setView([home[1], home[2]], 9);
+  // Супутникова підкладка Esri БЕЗ водяних знаків CARTO!
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }).addTo(povMiniMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }).addTo(povMiniMap);
+  L.polyline(FULL_UKRAINE_FRONTLINE, { color: '#ef4444', weight: 2, dashArray: '4,3' }).addTo(povMiniMap);
 }
 
-function updatePovEarthTiles(lat, lon, z) {
-  const plane = document.getElementById('pov-earth-plane');
-  const txFloat = lon2tileFloat(lon, z);
-  const tyFloat = lat2tileFloat(lat, z);
-  const cx = Math.floor(txFloat);
-  const cy = Math.floor(tyFloat);
-  const key = `${z}|${cx}|${cy}|${povVisStyle}`;
+function populateTileGrid(containerEl, cx, cy, z) {
+  containerEl.innerHTML = '';
+  const radius = 4; // 9x9 = 81 тайл (2304x2304px)
+  const tileBaseUrl = povVisStyle === 'topo'
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile';
 
-  if (povCurrentCenterTile !== key) {
-    povCurrentCenterTile = key;
-    plane.innerHTML = '';
-    const radius = 4; // 9x9 = 81 тайлів 256x256 = 2304x2304px
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const x = cx + dx;
-        const y = cy + dy;
-        const px = (dx + radius) * 256;
-        const py = (dy + radius) * 256;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = cx + dx;
+      const y = cy + dy;
+      const px = (dx + radius) * 256;
+      const py = (dy + radius) * 256;
 
-        const baseImg = document.createElement('img');
-        baseImg.className = 'pov-tile';
-        baseImg.style.left = px + 'px';
-        baseImg.style.top = py + 'px';
-        if (povVisStyle === 'topo') {
-          baseImg.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
-        } else {
-          baseImg.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-        }
-        plane.appendChild(baseImg);
-
-        if (povVisStyle !== 'topo') {
-          const lblImg = document.createElement('img');
-          lblImg.className = 'pov-tile';
-          lblImg.style.left = px + 'px';
-          lblImg.style.top = py + 'px';
-          lblImg.style.opacity = '0.88';
-          lblImg.src = `https://a.basemaps.cartocdn.com/dark_only_labels/${z}/${x}/${y}.png`;
-          plane.appendChild(lblImg);
-        }
-      }
+      const baseImg = document.createElement('img');
+      baseImg.className = 'pov-tile';
+      baseImg.style.left = px + 'px';
+      baseImg.style.top = py + 'px';
+      baseImg.src = `${tileBaseUrl}/${z}/${y}/${x}`;
+      containerEl.appendChild(baseImg);
     }
   }
+}
 
-  const fracX = (txFloat - cx) * 256;
-  const fracY = (tyFloat - cy) * 256;
-  return { offsetX: -(fracX - 128), offsetY: -(fracY - 128) };
+function updatePovEarthMultiLOD(lat, lon) {
+  // 1. Ближній HD шар (z=13)
+  const nearPlane = document.getElementById('pov-earth-plane');
+  const nTx = lon2tileFloat(lon, POV_NEAR_ZOOM);
+  const nTy = lat2tileFloat(lat, POV_NEAR_ZOOM);
+  const nCx = Math.floor(nTx);
+  const nCy = Math.floor(nTy);
+  const nKey = `${POV_NEAR_ZOOM}|${nCx}|${nCy}|${povVisStyle}`;
+  if (povNearTileKey !== nKey) {
+    povNearTileKey = nKey;
+    populateTileGrid(nearPlane, nCx, nCy, POV_NEAR_ZOOM);
+  }
+  const nearOffX = -((nTx - nCx) * 256 - 128);
+  const nearOffY = -((nTy - nCy) * 256 - 128);
+
+  // 2. Дальній шар 160 км (z=10) для 100% прогрузу до самого горизонту без обриву!
+  const farPlane = document.getElementById('pov-earth-far');
+  const fTx = lon2tileFloat(lon, POV_FAR_ZOOM);
+  const fTy = lat2tileFloat(lat, POV_FAR_ZOOM);
+  const fCx = Math.floor(fTx);
+  const fCy = Math.floor(fTy);
+  const fKey = `${POV_FAR_ZOOM}|${fCx}|${fCy}|${povVisStyle}`;
+  if (povFarTileKey !== fKey) {
+    povFarTileKey = fKey;
+    populateTileGrid(farPlane, fCx, fCy, POV_FAR_ZOOM);
+  }
+  const farOffX = -((fTx - fCx) * 256 - 128);
+  const farOffY = -((fTy - fCy) * 256 - 128);
+
+  return { nearOffX, nearOffY, farOffX, farOffY };
+}
+
+// Математично точна 3D-проекція будь-якої географічної точки (lat, lon) на екран 3D-камери
+function projectGeoToPovScreen(targetLat, targetLon, curLat, curLon, viewHdg, effPitch, rollDeg, scaleFactor, camY, W, H) {
+  const dxTilePx = (lon2tileFloat(targetLon, POV_NEAR_ZOOM) - lon2tileFloat(curLon, POV_NEAR_ZOOM)) * 256;
+  const dyTilePx = (lat2tileFloat(targetLat, POV_NEAR_ZOOM) - lat2tileFloat(curLat, POV_NEAR_ZOOM)) * 256;
+
+  // 1. Поворот площини Землі за курсом (-viewHdg) та масштабування (scaleFactor)
+  const radH = (-viewHdg * Math.PI) / 180;
+  const x1 = (dxTilePx * Math.cos(radH) - dyTilePx * Math.sin(radH)) * scaleFactor;
+  const y1 = (dxTilePx * Math.sin(radH) + dyTilePx * Math.cos(radH)) * scaleFactor;
+
+  // Точка має бути попереду камери (y1 < -8)
+  if (y1 > -8) return null;
+
+  // 2. Нахил площини Землі rotateX(effPitch)
+  const radP = (effPitch * Math.PI) / 180;
+  const x2 = x1;
+  const y2 = y1 * Math.cos(radP);
+  const z2 = y1 * Math.sin(radP); // z2 < 0 (вглиб екрана до горизонту)
+
+  // 3. Крен камери rotateZ(rollDeg)
+  const radR = (rollDeg * Math.PI) / 180;
+  const x3 = x2 * Math.cos(radR) - y2 * Math.sin(radR);
+  const y3 = x2 * Math.sin(radR) + y2 * Math.cos(radR);
+  const z3 = z2;
+
+  // 4. Зміщення камери по висоті camY та перспективне ділення CSS3D (perspective = 800)
+  const y4 = y3 + camY;
+  const w = 1 - (z3 / POV_PERSPECTIVE);
+  if (w <= 0.15) return null;
+
+  const sx = (W / 2) + (x3 / w);
+  const sy = (H / 2) + (y4 / w);
+  return { sx, sy, w, forwardPx: -y1 };
 }
 
 function openPovForTrack(id) {
@@ -2347,7 +2548,8 @@ function openPovForTrack(id) {
   povHdgSmooth = initH;
   povLastHdg = initH;
   povRollSmooth = 0;
-  povCurrentCenterTile = null;
+  povNearTileKey = null;
+  povFarTileKey = null;
 
   const ov = document.getElementById('pov-overlay');
   ov.classList.add('active');
@@ -2380,9 +2582,16 @@ document.querySelectorAll('#pov-topbar [data-vis]').forEach(btn => {
     const ov = document.getElementById('pov-overlay');
     ov.classList.toggle('flir-mode', povVisStyle === 'flir');
     ov.classList.toggle('topo-mode', povVisStyle === 'topo');
-    povCurrentCenterTile = null;
+    povNearTileKey = null;
+    povFarTileKey = null;
     document.querySelectorAll('#pov-topbar [data-vis]').forEach(b => b.classList.toggle('active', b === btn));
   });
+});
+
+document.getElementById('pov-villages-btn').addEventListener('click', e => {
+  povShowVillages = !povShowVillages;
+  e.currentTarget.classList.toggle('active', povShowVillages);
+  e.currentTarget.textContent = povShowVillages ? '📍 Села: УВІМК' : '📍 Села: ВИМК';
 });
 
 document.getElementById('pov-reset-look-btn').addEventListener('click', () => {
@@ -2392,7 +2601,7 @@ document.getElementById('pov-reset-look-btn').addEventListener('click', () => {
 
 document.getElementById('pov-warp-btn').addEventListener('click', e => {
   povTimeWarp = povTimeWarp === 1 ? 3 : (povTimeWarp === 3 ? 6 : 1);
-  e.currentTarget.textContent = `⏩ Швидкість: ${povTimeWarp}x`;
+  e.currentTarget.textContent = `⏩ ${povTimeWarp}x`;
 });
 
 document.querySelectorAll('.pov-course-chip').forEach(ch => {
@@ -2437,121 +2646,41 @@ povCanvas.addEventListener('pointermove', e => {
   const dx = e.clientX - povDragStart[0];
   const dy = e.clientY - povDragStart[1];
   povDragStart = [e.clientX, e.clientY];
-  povYawOffset = Math.max(-165, Math.min(165, povYawOffset + dx * 0.32));
-  povPitchOffset = Math.max(-28, Math.min(22, povPitchOffset - dy * 0.22));
+  povYawOffset = Math.max(-165, Math.min(165, povYawOffset + dx * 0.30));
+  povPitchOffset = Math.max(-14, Math.min(10, povPitchOffset - dy * 0.18));
 });
 povCanvas.addEventListener('pointerup', () => { povDragging = false; });
 
-function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, isChase) {
+function draw3DTargetModelChase(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng) {
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(cx, cy + 72 + pitchDeg * 1.4);
   ctx.rotate((rollDeg * Math.PI) / 180);
 
-  if (!isChase) {
-    // ВІД 1-Ї ОСОБИ: видима носова частина обтічника / шток детонатора КАБ / пропелери FPV внизу кадру
-    const noseY = Math.min(160, ctx.canvas.height * 0.25);
-    ctx.translate(0, noseY);
-    if (spec.type === 'kab') {
-      // Носова частина КАБ з головним детонатором ВДВ та передньою кромкою УМПК
-      const grad = ctx.createLinearGradient(0, -10, 0, 120);
-      grad.addColorStop(0, '#991b1b');
-      grad.addColorStop(1, '#1e293b');
-      ctx.fillStyle = grad;
-      ctx.strokeStyle = '#f87171';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-78, 120);
-      ctx.quadraticCurveTo(-52, 20, 0, 0);
-      ctx.quadraticCurveTo(52, 20, 78, 120);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Шток носового підривника ФАБ
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(0, 5);
-      ctx.lineTo(0, -34);
-      ctx.stroke();
-      ctx.fillStyle = '#fca5a5';
-      ctx.beginPath();
-      ctx.arc(0, -36, 7, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (spec.type === 'fpv') {
-      // Передні карбонові промені FPV-дрона з двома роторами, що обертаються, та об'єктивом курсової камери
-      [-150, 150].forEach(rx => {
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.moveTo(rx * 0.35, 95);
-        ctx.lineTo(rx, 8);
-        ctx.stroke();
-        ctx.save();
-        ctx.translate(rx, 8);
-        ctx.scale(1, 0.34);
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(0, 0, 68, 0, Math.PI * 2);
-        ctx.stroke();
-        for (let b = 0; b < 3; b++) {
-          const a = propAng + (b * Math.PI * 2) / 3;
-          ctx.strokeStyle = 'rgba(254, 240, 138, 0.78)';
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(Math.cos(a) * 65, Math.sin(a) * 65);
-          ctx.stroke();
-        }
-        ctx.restore();
-      });
-    } else {
-      // Гострий носовий обтічник Шахеда / КР Х-101 / Іскандера
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-      ctx.strokeStyle = spec.col;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-64, 120);
-      ctx.lineTo(0, -12);
-      ctx.lineTo(64, 120);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-    ctx.restore();
-    return;
-  }
-
-  // ВІД 3-Ї ОСОБИ (CHASE CAM): повноцінна об'ємна 3D-модель конкретної цілі у польоті!
-  ctx.translate(0, 62 + pitchDeg * 1.4);
-
-  // Тінь / світіння під ціллю
-  const glow = ctx.createRadialGradient(0, 14, 4, 0, 14, 110);
-  glow.addColorStop(0, spec.col + '55');
+  // Реалістичне атмосферне світіння та супутній струмінь позаду цілі
+  const glow = ctx.createRadialGradient(0, 12, 4, 0, 12, 120);
+  glow.addColorStop(0, spec.col + '44');
   glow.addColorStop(1, 'transparent');
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.ellipse(0, 18, 110, 38, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 16, 120, 36, 0, 0, Math.PI * 2);
   ctx.fill();
 
   if (spec.type === 'kab') {
-    // 3D-модель КАБ / ФАБ-500 з розкритими крилами УМПК та коробчастим хвостовим стабілізатором бомби
-    // Розкладні крила УМПК зверху
+    // 3D-модель КАБ / ФАБ-500 з розкритими крилами УМПК
     ctx.fillStyle = '#dc2626';
     ctx.strokeStyle = '#070b12';
     ctx.lineWidth = 2.2;
     ctx.beginPath();
     ctx.moveTo(0, -28);
-    ctx.lineTo(132, -4);
-    ctx.lineTo(126, 12);
+    ctx.lineTo(138, -4);
+    ctx.lineTo(132, 12);
     ctx.lineTo(0, -6);
-    ctx.lineTo(-126, 12);
-    ctx.lineTo(-132, -4);
+    ctx.lineTo(-132, 12);
+    ctx.lineTo(-138, -4);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Важкий чавунний корпус авіабомби ФАБ під крилами
     const bombGrad = ctx.createLinearGradient(-22, -45, 22, 42);
     bombGrad.addColorStop(0, '#475569');
     bombGrad.addColorStop(0.5, '#1e293b');
@@ -2564,7 +2693,6 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.fill();
     ctx.stroke();
 
-    // Поздовжній хребет УМПК та сталеві хомути
     ctx.fillStyle = '#991b1b';
     ctx.fillRect(-6, -30, 12, 58);
     ctx.strokeStyle = '#f8fafc';
@@ -2574,7 +2702,6 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.moveTo(-20, 12);  ctx.lineTo(20, 12);
     ctx.stroke();
 
-    // Кільцевий хвостовий стабілізатор авіабомби ФАБ
     ctx.strokeStyle = '#f87171';
     ctx.lineWidth = 2.5;
     ctx.strokeRect(-24, 30, 48, 16);
@@ -2583,22 +2710,20 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.moveTo(0, 26);   ctx.lineTo(0, 48);
     ctx.stroke();
   } else if (spec.type === 'cruise') {
-    // 3D-модель крилатої ракети Х-101 / Калібр із вузьким корпусом, тонкими крилами та реактивним соплом
     ctx.fillStyle = '#ea580c';
     ctx.strokeStyle = '#070b12';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, -14);
-    ctx.lineTo(118, 8);
-    ctx.lineTo(114, 20);
+    ctx.lineTo(122, 8);
+    ctx.lineTo(118, 20);
     ctx.lineTo(0, 4);
-    ctx.lineTo(-114, 20);
-    ctx.lineTo(-118, 8);
+    ctx.lineTo(-118, 20);
+    ctx.lineTo(-122, 8);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Хрестоподібне оперення
     ctx.beginPath();
     ctx.moveTo(0, 24);
     ctx.lineTo(44, 38);
@@ -2607,15 +2732,13 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.fill();
     ctx.stroke();
 
-    // Вузький сигароподібний корпус ракети
     ctx.fillStyle = '#f97316';
     ctx.beginPath();
     ctx.ellipse(0, -4, 9, 52, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Полум'я турбореактивного двигуна
-    const fl = 26 + Math.sin(propAng * 3) * 7;
+    const fl = 28 + Math.sin(propAng * 3) * 7;
     const fGrad = ctx.createRadialGradient(0, 44, 2, 0, 50, fl);
     fGrad.addColorStop(0, '#ffffff');
     fGrad.addColorStop(0.4, '#fde047');
@@ -2625,7 +2748,6 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.ellipse(0, 48, 12, fl, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (spec.type === 'ballistic') {
-    // 3D-модель балістичної ракети Іскандер-М (конічний корпус без крил + потужний плазмовий факел)
     ctx.fillStyle = '#f43f5e';
     ctx.strokeStyle = '#070b12';
     ctx.lineWidth = 2.2;
@@ -2639,7 +2761,7 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.fill();
     ctx.stroke();
 
-    const fl = 44 + Math.sin(propAng * 5) * 10;
+    const fl = 46 + Math.sin(propAng * 5) * 10;
     const fGrad = ctx.createRadialGradient(0, 48, 3, 0, 58, fl);
     fGrad.addColorStop(0, '#ffffff');
     fGrad.addColorStop(0.35, '#fef08a');
@@ -2650,7 +2772,6 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.ellipse(0, 58, 18, fl, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (spec.type === 'fpv') {
-    // 3D-модель FPV-дрона з 4 роторами та акумулятором зверху
     ctx.strokeStyle = '#eab308';
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -2681,36 +2802,46 @@ function draw3DTargetAirframe(ctx, cx, cy, spec, t, rollDeg, pitchDeg, propAng, 
     ctx.fillRect(-18, -22, 36, 44);
     ctx.strokeRect(-18, -22, 36, 44);
   } else {
-    // 3D-модель Шахед-136 / БпЛА (дельта-крило з кінцевими шайбами та штовхаючим гвинтом позаду)
-    ctx.fillStyle = spec.col;
+    // 3D-модель Шахед-136 (об'ємне дельта-крило з кінцевими шайбами та штовхаючим гвинтом)
+    const wingGrad = ctx.createLinearGradient(-96, -20, 96, 38);
+    wingGrad.addColorStop(0, '#d97706');
+    wingGrad.addColorStop(0.5, '#f59e0b');
+    wingGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = wingGrad;
     ctx.strokeStyle = '#070b12';
     ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo(0, -54);
-    ctx.lineTo(96, 26);
-    ctx.lineTo(96, 38);
-    ctx.lineTo(14, 28);
+    ctx.moveTo(0, -56);
+    ctx.lineTo(102, 26);
+    ctx.lineTo(102, 38);
+    ctx.lineTo(16, 28);
     ctx.lineTo(0, 38);
-    ctx.lineTo(-14, 28);
-    ctx.lineTo(-96, 38);
-    ctx.lineTo(-96, 26);
+    ctx.lineTo(-16, 28);
+    ctx.lineTo(-102, 38);
+    ctx.lineTo(-102, 26);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Кінцеві вертикальні стабілізатори (шайби крила Шахеда)
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(-98, 12, 6, 28);
-    ctx.fillRect(92, 12, 6, 28);
+    // Центральний фюзеляжний гребінь
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(0, -6, 9, 42, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Штовхаючий пропелер позаду
+    // Кінцеві шайби крила
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-104, 12, 6, 28);
+    ctx.fillRect(98, 12, 6, 28);
+
+    // Штовхаючий гвинт
     ctx.save();
     ctx.translate(0, 38);
     ctx.strokeStyle = '#fef08a';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(Math.cos(propAng) * -22, Math.sin(propAng) * -7);
-    ctx.lineTo(Math.cos(propAng) * 22, Math.sin(propAng) * 7);
+    ctx.moveTo(Math.cos(propAng) * -24, Math.sin(propAng) * -7);
+    ctx.lineTo(Math.cos(propAng) * 24, Math.sin(propAng) * 7);
     ctx.stroke();
     ctx.restore();
   }
@@ -2731,32 +2862,36 @@ function renderPovFrame(dt) {
     ? a.hdg
     : ((t.hdg != null) ? t.hdg : brg(curLat, curLon, home[1], home[2]));
 
-  // Плавна інтерполяція курсу та крену (bank angle при повороті як у справжньому літаку!)
+  // Плавна інтерполяція курсу та крену
   const hDiff = angDiff(rawHdg, povHdgSmooth);
   povHdgSmooth = (povHdgSmooth + hDiff * Math.min(1, dt * 6) + 360) % 360;
   const turnRate = angDiff(povHdgSmooth, povLastHdg) / Math.max(0.008, dt);
   povLastHdg = povHdgSmooth;
-  const targetRoll = Math.max(-32, Math.min(32, -turnRate * 0.45));
+  const targetRoll = Math.max(-28, Math.min(28, -turnRate * 0.42));
   povRollSmooth += (targetRoll - povRollSmooth) * Math.min(1, dt * 8);
 
   const viewHdg = (povHdgSmooth + povYawOffset + 360) % 360;
   const altMeters = getTargetNominalAltitude(t, a);
-  const tileZoom = altMeters > 2500 ? 12 : (altMeters < 130 ? 14 : 13);
-  const pitchBase = (t.kind === 'kab' && !isWaiting) ? 64 : 68;
-  const effPitch = Math.max(42, Math.min(80, pitchBase + povPitchOffset));
+  // Кут нахилу площини Землі (76° дає далекий реалістичний огляд на 100+ км до горизонту!)
+  const pitchBase = (t.kind === 'kab' && !isWaiting) ? 74 : 76.5;
+  const effPitch = Math.max(62, Math.min(82, pitchBase + povPitchOffset));
+  const scaleFactor = altMeters > 5000 ? 1.55 : (altMeters < 120 ? 2.40 : 1.95);
+  const camY = 175;
 
-  // Оновлюємо 3D-поверхню супутникових тайлів Google Earth
-  const { offsetX, offsetY } = updatePovEarthTiles(curLat, curLon, tileZoom);
+  // Оновлюємо двошарову 3D-поверхню Землі (Near HD z=13 + Far 160km z=10)
+  const { nearOffX, nearOffY, farOffX, farOffY } = updatePovEarthMultiLOD(curLat, curLon);
   const rig = document.getElementById('pov-camera-rig');
-  const plane = document.getElementById('pov-earth-plane');
-  const scaleFactor = altMeters > 5000 ? 1.35 : (altMeters < 120 ? 2.15 : 1.75);
+  const nearPlane = document.getElementById('pov-earth-plane');
+  const farPlane = document.getElementById('pov-earth-far');
+  const farScale = scaleFactor * 8; // 2^(13-10) = 8
 
-  rig.style.transform = `translate3d(0px, 140px, 0px) rotateZ(${povRollSmooth.toFixed(2)}deg) rotateX(${effPitch.toFixed(2)}deg)`;
-  plane.style.transform = `scale(${scaleFactor}) rotateZ(${(-viewHdg).toFixed(2)}deg) translate3d(${offsetX.toFixed(1)}px, ${offsetY.toFixed(1)}px, 0px)`;
+  rig.style.transform = `translate3d(0px, ${camY}px, 0px) rotateZ(${povRollSmooth.toFixed(2)}deg) rotateX(${effPitch.toFixed(2)}deg)`;
+  nearPlane.style.transform = `scale(${scaleFactor}) rotateZ(${(-viewHdg).toFixed(2)}deg) translate3d(${nearOffX.toFixed(1)}px, ${nearOffY.toFixed(1)}px, 0px)`;
+  farPlane.style.transform = `scale(${farScale}) rotateZ(${(-viewHdg).toFixed(2)}deg) translate3d(${farOffX.toFixed(1)}px, ${farOffY.toFixed(1)}px, 0px)`;
 
   // Оновлюємо міні-радар у кутку
   if (povMiniMap) {
-    povMiniMap.setView([curLat, curLon], 10, { animate: false });
+    povMiniMap.setView([curLat, curLon], 9, { animate: false });
     if (!povMiniMarker) {
       povMiniMarker = L.circleMarker([curLat, curLon], {
         radius: 5, color: '#fff', weight: 2, fillColor: spec.col, fillOpacity: 1
@@ -2765,7 +2900,7 @@ function renderPovFrame(dt) {
       povMiniMarker.setLatLng([curLat, curLon]);
       povMiniMarker.setStyle({ fillColor: spec.col });
     }
-    const lookPt = fwd(curLat, curLon, viewHdg, 14);
+    const lookPt = fwd(curLat, curLon, viewHdg, 25);
     if (!povMiniLine) {
       povMiniLine = L.polyline([[curLat, curLon], lookPt], { color: '#38bdf8', weight: 2, dashArray: '4,3' }).addTo(povMiniMap);
     } else {
@@ -2773,7 +2908,6 @@ function renderPovFrame(dt) {
     }
   }
 
-  // Малюємо 3D-небо, горизонт, хмари, повітряний коридор, 3D-орієнтири міст і авіаційний HUD
   const cvs = document.getElementById('pov-canvas');
   const W = window.innerWidth;
   const H = window.innerHeight;
@@ -2784,232 +2918,275 @@ function renderPovFrame(dt) {
   const ctx = cvs.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
-  const horizonY = H * (0.40 - (effPitch - 66) * 0.0085);
+  // Точна лінія математичного горизонту CSS3D-площини: Y_hor = H/2 - P * cot(effPitch)
+  const radPitch = (effPitch * Math.PI) / 180;
+  const horizonOffsetFromCenter = -POV_PERSPECTIVE * (Math.cos(radPitch) / Math.sin(radPitch));
 
-  // 1. Атмосферний купол неба та серпанок горизонту
+  // 1. Чисте реалістичне стратосферне небо та атмосферне розсіювання на горизонті (БЕЗ мультяшних хмар!)
   ctx.save();
-  ctx.translate(W / 2, horizonY);
+  ctx.translate(W / 2, H / 2);
   ctx.rotate((povRollSmooth * Math.PI) / 180);
 
-  const skyGrad = ctx.createLinearGradient(0, -H, 0, 36);
+  const skyTopY = -H;
+  const skyBotY = horizonOffsetFromCenter + 14;
+  const skyGrad = ctx.createLinearGradient(0, skyTopY, 0, skyBotY);
   if (povVisStyle === 'flir') {
-    skyGrad.addColorStop(0, '#021206');
-    skyGrad.addColorStop(0.85, '#072e12');
-    skyGrad.addColorStop(1, 'rgba(16, 185, 129, 0.38)');
+    skyGrad.addColorStop(0, '#010a04');
+    skyGrad.addColorStop(0.72, '#04220e');
+    skyGrad.addColorStop(1, '#0d4a22');
   } else {
-    skyGrad.addColorStop(0, '#020617');
-    skyGrad.addColorStop(0.55, '#0c1e38');
-    skyGrad.addColorStop(0.92, '#1e3a5f');
-    skyGrad.addColorStop(1, 'rgba(56, 189, 248, 0.36)');
+    skyGrad.addColorStop(0, '#020611');
+    skyGrad.addColorStop(0.55, '#071428');
+    skyGrad.addColorStop(0.88, '#102a4c');
+    skyGrad.addColorStop(1, '#1e4b7a');
   }
   ctx.fillStyle = skyGrad;
-  ctx.fillRect(-W * 1.5, -H * 1.5, W * 3, H * 1.5 + 24);
+  ctx.fillRect(-W * 1.5, skyTopY, W * 3, skyBotY - skyTopY);
 
-  // Атмосферний туман уздовж лінії горизонту (плавно з'єднує небо з 3D-тайлами Землі)
-  const fogGrad = ctx.createLinearGradient(0, -28, 0, 68);
-  const fogCol = povVisStyle === 'flir' ? '16, 185, 129' : '15, 32, 58';
-  fogGrad.addColorStop(0, `rgba(${fogCol}, 0)`);
-  fogGrad.addColorStop(0.48, `rgba(${fogCol}, 0.92)`);
-  fogGrad.addColorStop(1, `rgba(${fogCol}, 0)`);
-  ctx.fillStyle = fogGrad;
-  ctx.fillRect(-W * 1.5, -28, W * 3, 96);
+  // Реалістичний атмосферний серпанок уздовж лінії 100-кілометрового горизонту
+  const hazeGrad = ctx.createLinearGradient(0, horizonOffsetFromCenter - 26, 0, horizonOffsetFromCenter + 48);
+  const hazeRgb = povVisStyle === 'flir' ? '16, 185, 129' : '24, 58, 96';
+  hazeGrad.addColorStop(0, `rgba(${hazeRgb}, 0)`);
+  hazeGrad.addColorStop(0.45, `rgba(${hazeRgb}, 0.92)`);
+  hazeGrad.addColorStop(0.62, `rgba(${hazeRgb}, 0.85)`);
+  hazeGrad.addColorStop(1, `rgba(${hazeRgb}, 0)`);
+  ctx.fillStyle = hazeGrad;
+  ctx.fillRect(-W * 1.5, horizonOffsetFromCenter - 26, W * 3, 74);
 
-  // Об'ємні хмари, що пролітають назустріч зі швидкістю цілі
-  const effSpd = isWaiting ? 0 : (t.v || 185) * povTimeWarp;
-  povPropAngle += dt * (isWaiting ? 8 : 28);
-  povClouds.forEach(cl => {
-    cl.z -= (effSpd * dt) * 1.65;
-    if (cl.z < 40) {
-      cl.z = 1950;
-      cl.x = (Math.random() - 0.5) * 2800;
-    }
-    const scale = 380 / cl.z;
-    const sx = cl.x * scale;
-    const sy = -cl.y * scale;
-    if (sy < 10 && Math.abs(sx) < W * 0.9) {
-      ctx.fillStyle = povVisStyle === 'flir'
-        ? `rgba(74, 222, 128, ${cl.alpha * 0.7})`
-        : `rgba(226, 232, 240, ${cl.alpha})`;
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, cl.w * scale, cl.h * scale, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
+  ctx.restore();
 
-  // 2. 3D-коридор траєкторії в небі (як у Google Earth / тренажерах польоту)
-  if (!isWaiting && a && a.goal && Math.abs(povYawOffset) < 70) {
-    const goalBrg = brg(curLat, curLon, a.goal[0], a.goal[1]);
-    const relGoalDeg = angDiff(goalBrg, viewHdg);
-    const goalScreenX = (relGoalDeg / 45) * (W * 0.5);
-    for (let g = 1; g <= 5; g++) {
-      const depth = ((g * 320 - ((performance.now() * effSpd * 0.0005) % 320)) + 320) % 1600 + 120;
-      const sc = 360 / depth;
-      const gx = goalScreenX * (1 - sc * 0.35);
-      const gy = 38 + sc * 95;
-      const gw = 95 * sc;
-      const gh = 42 * sc;
-      ctx.strokeStyle = spec.col + '88';
-      ctx.lineWidth = Math.max(1, 2.2 * sc);
-      ctx.strokeRect(gx - gw / 2, gy - gh / 2, gw, gh);
-    }
-  }
-
-  // 3. 3D-проекція реальних населених пунктів та мікрорайонів Запоріжжя на горизонті й землі
-  const fovHalf = 48;
-  ZP_KEY_LANDMARKS.forEach(([name, lLat, lLon]) => {
-    const dKm = hav(curLat, curLon, lLat, lLon);
-    if (dKm > 55 || dKm < 0.15) return;
-    const b = brg(curLat, curLon, lLat, lLon);
-    const relDeg = angDiff(b, viewHdg);
-    if (Math.abs(relDeg) > fovHalf) return;
-
-    const sx = (relDeg / fovHalf) * (W * 0.48);
-    // Чим ближче орієнтир, тим нижче під горизонтом він проектується на 3D-поверхню Землі
-    const normDist = Math.min(1, dKm / 38);
-    const sy = 16 + Math.pow(1 - normDist, 1.65) * (H * 0.44);
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx, sy - 18);
-    ctx.stroke();
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath();
-    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    const lbl = `${name} · ${dKm.toFixed(1)} км`;
-    ctx.font = '700 10.5px Inter, sans-serif';
-    const tw = ctx.measureText(lbl).width + 10;
-    ctx.fillStyle = 'rgba(6, 11, 20, 0.84)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-    ctx.lineWidth = 1;
-    ctx.fillRect(sx - tw / 2, sy - 35, tw, 17);
-    ctx.strokeRect(sx - tw / 2, sy - 35, tw, 17);
-    ctx.fillStyle = '#e0f2fe';
-    ctx.textAlign = 'center';
-    ctx.fillText(lbl, sx, sy - 23);
-  });
-
-  // 4. Прицільний ромб точки призначення (якщо ціль має курс)
+  // 2. 3D-проекція наземної лазерної траєкторії польоту по рельєфу до цілі
   if (!isWaiting && a && a.goal) {
     const gDist = hav(curLat, curLon, a.goal[0], a.goal[1]);
     const gBrg = brg(curLat, curLon, a.goal[0], a.goal[1]);
-    const relDeg = angDiff(gBrg, viewHdg);
-    if (Math.abs(relDeg) <= fovHalf) {
-      const gx = (relDeg / fovHalf) * (W * 0.48);
-      const gy = 18 + Math.pow(1 - Math.min(1, gDist / 40), 1.6) * (H * 0.42);
+    const pathPts = [];
+    const steps = 16;
+    for (let s = 1; s <= steps; s++) {
+      const d = (gDist * s) / steps;
+      const pt = fwd(curLat, curLon, gBrg, d);
+      const prj = projectGeoToPovScreen(pt[0], pt[1], curLat, curLon, viewHdg, effPitch, povRollSmooth, scaleFactor, camY, W, H);
+      if (prj) pathPts.push(prj);
+    }
+    if (pathPts.length >= 2) {
       ctx.save();
-      ctx.translate(gx, gy);
+      ctx.strokeStyle = spec.col + 'aa';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 6]);
+      ctx.beginPath();
+      ctx.moveTo(pathPts[0].sx, pathPts[0].sy);
+      for (let i = 1; i < pathPts.length; i++) {
+        ctx.lineTo(pathPts[i].sx, pathPts[i].sy);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
+  // 3. 3D-ПІДСВІТКА СІЛ, МІСТ ТА МІКРОРАЙОНІВ НА РЕЛЬЄФІ ДО 100 КМ
+  if (povShowVillages) {
+    const goalBrg = (!isWaiting && a && a.goal) ? brg(curLat, curLon, a.goal[0], a.goal[1]) : null;
+    const goalDist = (!isWaiting && a && a.goal) ? hav(curLat, curLon, a.goal[0], a.goal[1]) : 0;
+
+    // Збираємо всі села в полі зору до 100 км, сортуємо від ближніх до дальніх для анти-перекриття підписів
+    const candidates = [];
+    for (let i = 0; i < POV_SETTLEMENTS.length; i++) {
+      const [name, sLat, sLon, prio] = POV_SETTLEMENTS[i];
+      const dKm = hav(curLat, curLon, sLat, sLon);
+      if (dKm > 100.0 || dKm < 0.2) continue;
+      // На великій дальності (45..100 км) показуємо більші села/міста (prio >= 2), а ближче 45 км — абсолютно всі села!
+      if (dKm > 45.0 && prio < 2) continue;
+
+      const prj = projectGeoToPovScreen(sLat, sLon, curLat, curLon, viewHdg, effPitch, povRollSmooth, scaleFactor, camY, W, H);
+      if (!prj) continue;
+      if (prj.sx < 40 || prj.sx > W - 40 || prj.sy < 70 || prj.sy > H - 70) continue;
+
+      const bToVillage = brg(curLat, curLon, sLat, sLon);
+      const onThreatVector = (goalBrg != null && dKm <= goalDist + 4.0 && Math.abs(angDiff(bToVillage, goalBrg)) <= 10.0);
+      candidates.push({ name, dKm, prio, sx: prj.sx, sy: prj.sy, w: prj.w, onThreatVector });
+    }
+
+    // Сортуємо: спочатку села по курсу загрози та великі вузли, потім за відстанню
+    candidates.sort((a, b) => {
+      if (a.onThreatVector !== b.onThreatVector) return a.onThreatVector ? -1 : 1;
+      if (a.prio !== b.prio) return b.prio - a.prio;
+      return a.dKm - b.dKm;
+    });
+
+    const placedBoxes = [];
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i];
+      const ringCol = c.onThreatVector ? '#f59e0b' : (povVisStyle === 'flir' ? '#4ade80' : '#38bdf8');
+      const ringRadiusX = Math.max(5, Math.min(28, 36 / Math.sqrt(c.dKm + 0.5)));
+      const ringRadiusY = ringRadiusX * 0.36;
+
+      // Підсвітка села прямо на поверхні 3D-землі (перспективний еліпс-маяк на рельєфі)
+      ctx.save();
+      ctx.strokeStyle = ringCol;
+      ctx.fillStyle = c.onThreatVector ? 'rgba(245, 158, 11, 0.22)' : 'rgba(56, 189, 248, 0.16)';
+      ctx.lineWidth = c.onThreatVector ? 2.0 : 1.4;
+      ctx.beginPath();
+      ctx.ellipse(c.sx, c.sy, ringRadiusX, ringRadiusY, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Центральна точка села на землі
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(c.sx, c.sy, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Перевіряємо, чи не перекривається текстова плашка з уже намальованими
+      const lbl = `${c.name} · ${c.dKm.toFixed(1)} км`;
+      ctx.font = c.onThreatVector ? '800 11px Inter, sans-serif' : '700 10px Inter, sans-serif';
+      const tw = ctx.measureText(lbl).width + 12;
+      const th = 18;
+      const pinH = c.onThreatVector ? 24 : 16;
+      const bx = c.sx - tw / 2;
+      const by = c.sy - pinH - th;
+
+      const overlaps = placedBoxes.some(b =>
+        !(bx + tw + 6 < b.x || bx - 6 > b.x + b.w || by + th + 4 < b.y || by - 4 > b.y + b.h)
+      );
+
+      if (!overlaps && placedBoxes.length < 26) {
+        placedBoxes.push({ x: bx, y: by, w: tw, h: th });
+
+        // Вертикальний лазерний пін від землі до плашки села
+        ctx.strokeStyle = ringCol;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(c.sx, c.sy);
+        ctx.lineTo(c.sx, c.sy - pinH);
+        ctx.stroke();
+
+        // Тактична плашка назви села та дистанції
+        ctx.fillStyle = c.onThreatVector ? 'rgba(69, 26, 3, 0.90)' : 'rgba(6, 12, 22, 0.86)';
+        ctx.strokeStyle = c.onThreatVector ? '#fbbf24' : 'rgba(56, 189, 248, 0.55)';
+        ctx.lineWidth = 1.1;
+        ctx.fillRect(bx, by, tw, th);
+        ctx.strokeRect(bx, by, tw, th);
+
+        ctx.fillStyle = c.onThreatVector ? '#fef3c7' : '#e0f2fe';
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl, c.sx, by + 12.5);
+      }
+      ctx.restore();
+    }
+  }
+
+  // 4. Прицільний 3D-контейнер точки призначення на землі
+  if (!isWaiting && a && a.goal) {
+    const gPrj = projectGeoToPovScreen(a.goal[0], a.goal[1], curLat, curLon, viewHdg, effPitch, povRollSmooth, scaleFactor, camY, W, H);
+    const gDist = hav(curLat, curLon, a.goal[0], a.goal[1]);
+    if (gPrj && gPrj.sx >= 20 && gPrj.sx <= W - 20 && gPrj.sy <= H - 40) {
+      ctx.save();
+      // Наземне кільце прицілювання
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(gPrj.sx, gPrj.sy, 22, 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Ромб захвата ГСН
+      ctx.translate(gPrj.sx, gPrj.sy - 26);
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 2;
       ctx.rotate(Math.PI / 4);
-      ctx.strokeRect(-11, -11, 22, 22);
+      ctx.strokeRect(-9, -9, 18, 18);
       ctx.restore();
 
       const etaSec = t.v ? Math.max(1, Math.round((gDist / t.v) * 3600)) : 0;
       const gTag = `${fmtEta(etaSec)} · ${gDist.toFixed(1)} км`;
+      ctx.save();
       ctx.font = '800 11.5px Inter, sans-serif';
       const gw = ctx.measureText(gTag).width + 14;
-      ctx.fillStyle = 'rgba(127, 29, 29, 0.90)';
+      ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
       ctx.strokeStyle = '#f87171';
       ctx.lineWidth = 1.4;
-      ctx.fillRect(gx - gw / 2, gy - 38, gw, 20);
-      ctx.strokeRect(gx - gw / 2, gy - 38, gw, 20);
+      ctx.fillRect(gPrj.sx - gw / 2, gPrj.sy - 62, gw, 20);
+      ctx.strokeRect(gPrj.sx - gw / 2, gPrj.sy - 62, gw, 20);
       ctx.fillStyle = '#fef2f2';
       ctx.textAlign = 'center';
-      ctx.fillText(gTag, gx, gy - 24);
+      ctx.fillText(gTag, gPrj.sx, gPrj.sy - 48);
+      ctx.restore();
     }
   }
 
-  ctx.restore();
+  // 5. У режимі від 3-ї особи малюємо деталізовану 3D-модель самої цілі (у режимі від 1-ї особи — чистий огляд ГСН без примітивного трикутника!)
+  povPropAngle += dt * (isWaiting ? 8 : 28);
+  if (povCamMode === 'chase') {
+    draw3DTargetModelChase(ctx, W / 2, H / 2, spec, t, povRollSmooth, povPitchOffset, povPropAngle);
+  }
 
-  // 5. Малюємо 3D-модель цілі (від 3-ї особи або носовий обтічник від 1-ї особи)
-  draw3DTargetAirframe(ctx, W / 2, H / 2, spec, t, povRollSmooth, povPitchOffset, povPropAngle, povCamMode === 'chase');
-
-  // 6. АВІАЦІЙНИЙ HUD: шкала компаса, авіагоризонт, висотомір, швидкість та телеметрія
-  drawAvionicsHUD(ctx, W, H, t, a, spec, curLat, curLon, viewHdg, altMeters, isWaiting);
+  // 6. РЕАЛІСТИЧНИЙ АВІАЦІЙНИЙ / ОПТИЧНИЙ HUD ПОЛЬОТУ
+  drawRealisticFlightHUD(ctx, W, H, t, a, spec, curLat, curLon, viewHdg, altMeters, isWaiting);
 }
 
-function drawAvionicsHUD(ctx, W, H, t, a, spec, curLat, curLon, viewHdg, altMeters, isWaiting) {
+function drawRealisticFlightHUD(ctx, W, H, t, a, spec, curLat, curLon, viewHdg, altMeters, isWaiting) {
   const hudCol = povVisStyle === 'flir' ? '#4ade80' : '#38bdf8';
+  const hudMuted = povVisStyle === 'flir' ? 'rgba(74, 222, 128, 0.52)' : 'rgba(56, 189, 248, 0.52)';
   ctx.save();
 
-  // Верхня стрічка компаса (0..360°)
-  const compW = Math.min(380, W * 0.62);
-  const compX = (W - compW) / 2;
-  const compY = 64;
-  ctx.fillStyle = 'rgba(5, 10, 18, 0.78)';
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-  ctx.lineWidth = 1.2;
-  ctx.fillRect(compX, compY, compW, 26);
-  ctx.strokeRect(compX, compY, compW, 26);
-
+  // Тонкі кутові рамки оптичного візира ГСН
+  const m = 22;
+  const brk = 28;
+  ctx.strokeStyle = hudMuted;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.rect(compX, compY, compW, 26);
+  // Верхній лівий
+  ctx.moveTo(m, 58 + brk); ctx.lineTo(m, 58); ctx.lineTo(m + brk, 58);
+  // Верхній правий
+  ctx.moveTo(W - m - brk, 58); ctx.lineTo(W - m, 58); ctx.lineTo(W - m, 58 + brk);
+  // Нижній правий
+  ctx.moveTo(W - m, H - 64 - brk); ctx.lineTo(W - m, H - 64); ctx.lineTo(W - m - brk, H - 64);
+  ctx.stroke();
+
+  // 1. ВЕРХНЯ ШКАЛА КОМПАСА ТА ТЕЛЕМЕТРІЇ
+  const compW = Math.min(420, W * 0.66);
+  const compX = (W - compW) / 2;
+  const compY = 58;
+  ctx.fillStyle = 'rgba(4, 9, 18, 0.82)';
+  ctx.strokeStyle = hudMuted;
+  ctx.lineWidth = 1.2;
+  ctx.fillRect(compX, compY, compW, 28);
+  ctx.strokeRect(compX, compY, compW, 28);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(compX, compY, compW, 28);
   ctx.clip();
 
   const cardNames = { 0: 'ПН', 45: 'ПН-СХ', 90: 'СХ', 135: 'ПД-СХ', 180: 'ПД', 225: 'ПД-ЗХ', 270: 'ЗХ', 315: 'ПН-ЗХ' };
-  for (let d = -60; d <= 60; d++) {
+  for (let d = -65; d <= 65; d++) {
     const deg = (Math.round(viewHdg) + d + 360) % 360;
     if (deg % 5 !== 0) continue;
-    const px = W / 2 + d * 3.2;
+    const px = W / 2 + d * 3.3;
     ctx.strokeStyle = hudCol;
     ctx.lineWidth = deg % 15 === 0 ? 1.6 : 1;
     ctx.beginPath();
-    ctx.moveTo(px, compY + 26);
-    ctx.lineTo(px, compY + (deg % 15 === 0 ? 16 : 20));
+    ctx.moveTo(px, compY + 28);
+    ctx.lineTo(px, compY + (deg % 15 === 0 ? 17 : 21));
     ctx.stroke();
     if (deg % 15 === 0) {
-      ctx.fillStyle = '#e2e8f0';
+      ctx.fillStyle = '#f1f5f9';
       ctx.font = '800 9.5px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(cardNames[deg] || `${deg}°`, px, compY + 12);
+      ctx.fillText(cardNames[deg] || `${deg}°`, px, compY + 12.5);
     }
   }
   ctx.restore();
 
-  // Центральне перехрестя ГСН та шкала тангажу
-  ctx.save();
-  ctx.translate(W / 2, H / 2);
-  ctx.strokeStyle = hudCol;
-  ctx.lineWidth = 1.4;
+  // Вказівник поточного курсу під компасом
+  ctx.fillStyle = hudCol;
   ctx.beginPath();
-  ctx.arc(0, 0, 18, 0, Math.PI * 2);
-  ctx.moveTo(-34, 0); ctx.lineTo(-10, 0);
-  ctx.moveTo(10, 0);  ctx.lineTo(34, 0);
-  ctx.moveTo(0, -34); ctx.lineTo(0, -10);
-  ctx.moveTo(0, 10);  ctx.lineTo(0, 34);
-  ctx.stroke();
+  ctx.moveTo(W / 2, compY + 28);
+  ctx.lineTo(W / 2 - 5, compY + 35);
+  ctx.lineTo(W / 2 + 5, compY + 35);
+  ctx.closePath();
+  ctx.fill();
 
-  // Бічні планки швидкості (зліва) та висоти (справа)
-  const spdVal = isWaiting ? 0 : (t.v || 185);
-  ctx.fillStyle = 'rgba(5, 10, 18, 0.82)';
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
-  ctx.fillRect(-Math.min(240, W * 0.42), -24, 96, 48);
-  ctx.strokeRect(-Math.min(240, W * 0.42), -24, 96, 48);
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '700 9px Inter, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('ШВИДКІСТЬ', -Math.min(240, W * 0.42) + 8, -8);
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = '900 15px Inter, sans-serif';
-  ctx.fillText(`${spdVal} км/г`, -Math.min(240, W * 0.42) + 8, 14);
-
-  const rxBox = Math.min(240, W * 0.42) - 96;
-  ctx.fillStyle = 'rgba(5, 10, 18, 0.82)';
-  ctx.fillRect(rxBox, -24, 96, 48);
-  ctx.strokeRect(rxBox, -24, 96, 48);
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '700 9px Inter, sans-serif';
-  ctx.fillText('ВИСОТА ЦІЛІ', rxBox + 8, -8);
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = '900 15px Inter, sans-serif';
-  ctx.fillText(`${altMeters} м`, rxBox + 8, 14);
-
-  // Інформаційна плашка часу та відстані (або очікування курсу для КАБ)
+  // Верхня інфо-панель цілі (час, дистанція, GPS-координати)
   const distKm = (!isWaiting && a && a.goal)
     ? hav(curLat, curLon, a.goal[0], a.goal[1])
     : hav(curLat, curLon, home[1], home[2]);
@@ -3018,16 +3195,162 @@ function drawAvionicsHUD(ctx, W, H, t, a, spec, curLat, curLon, viewHdg, altMete
     ? `${t.name.toUpperCase()} · ОЧІКУЄ КУРС · ${distKm.toFixed(1)} КМ`
     : `${t.name.toUpperCase()} · ${fmtEta(etaSec)} · ${distKm.toFixed(1)} КМ`;
 
-  ctx.font = '900 13px Inter, sans-serif';
-  const bw = ctx.measureText(hudTitle).width + 28;
-  ctx.fillStyle = isWaiting ? 'rgba(146, 64, 14, 0.88)' : 'rgba(6, 11, 20, 0.88)';
+  ctx.font = '900 12.5px Inter, sans-serif';
+  const bw = ctx.measureText(hudTitle).width + 26;
+  ctx.fillStyle = isWaiting ? 'rgba(120, 53, 15, 0.88)' : 'rgba(5, 11, 22, 0.88)';
   ctx.strokeStyle = isWaiting ? '#fbbf24' : spec.col;
-  ctx.lineWidth = 1.8;
-  ctx.fillRect(-bw / 2, -H / 2 + 98, bw, 30);
-  ctx.strokeRect(-bw / 2, -H / 2 + 98, bw, 30);
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(W / 2 - bw / 2, compY + 39, bw, 26);
+  ctx.strokeRect(W / 2 - bw / 2, compY + 39, bw, 26);
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.fillText(hudTitle, 0, -H / 2 + 118);
+  ctx.fillText(hudTitle, W / 2, compY + 56.5);
+
+  // 2. ЦЕНТРАЛЬНА АВІАЦІЙНА ШКАЛА ТАНГАЖУ (PITCH LADDER) ТА ПРИЦІЛЬНИЙ ВІЗИР ГСН
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate((povRollSmooth * Math.PI) / 180);
+
+  ctx.strokeStyle = hudMuted;
+  ctx.fillStyle = hudCol;
+  ctx.lineWidth = 1.3;
+  ctx.font = '700 9px Inter, sans-serif';
+  [-15, -10, -5, 5, 10, 15].forEach(deg => {
+    const py = (-deg + povPitchOffset) * 7.5;
+    if (Math.abs(py) > 135) return;
+    const wBar = 28;
+    const gap = 18;
+    ctx.beginPath();
+    // Ліва риска
+    ctx.moveTo(-gap - wBar, py);
+    ctx.lineTo(-gap, py);
+    ctx.lineTo(-gap, py + (deg > 0 ? 5 : -5));
+    // Права риска
+    ctx.moveTo(gap + wBar, py);
+    ctx.lineTo(gap, py);
+    ctx.lineTo(gap, py + (deg > 0 ? 5 : -5));
+    ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.fillText(`${deg > 0 ? '+' : ''}${deg}`, -gap - wBar - 4, py + 3);
+  });
+
+  // Центральний символ вектора польоту (Flight Path Vector)
+  ctx.strokeStyle = hudCol;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  ctx.moveTo(-22, 0); ctx.lineTo(-8, 0);
+  ctx.moveTo(8, 0);   ctx.lineTo(22, 0);
+  ctx.moveTo(0, -18); ctx.lineTo(0, -8);
+  ctx.stroke();
+  ctx.restore();
+
+  // 3. ЛІВА ВЕРТИКАЛЬНА СТРІЧКА ШВИДКОСТІ (IAS КМ/ГОД)
+  const tapeH = Math.min(220, H * 0.34);
+  const tapeY = (H - tapeH) / 2;
+  const leftX = Math.max(18, W * 0.08);
+  const spdVal = isWaiting ? 0 : (t.v || 185);
+
+  ctx.fillStyle = 'rgba(4, 10, 19, 0.76)';
+  ctx.strokeStyle = hudMuted;
+  ctx.lineWidth = 1.2;
+  ctx.fillRect(leftX, tapeY, 68, tapeH);
+  ctx.strokeRect(leftX, tapeY, 68, tapeH);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(leftX, tapeY, 68, tapeH);
+  ctx.clip();
+  const spdStep = spdVal > 1000 ? 100 : 20;
+  const baseSpd = Math.floor(spdVal / spdStep) * spdStep;
+  for (let s = baseSpd - spdStep * 5; s <= baseSpd + spdStep * 5; s += spdStep) {
+    if (s < 0) continue;
+    const dy = ((spdVal - s) / spdStep) * 24;
+    const py = H / 2 + dy;
+    ctx.strokeStyle = hudCol;
+    ctx.beginPath();
+    ctx.moveTo(leftX + 52, py);
+    ctx.lineTo(leftX + 68, py);
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '700 9.5px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(s), leftX + 48, py + 3);
+  }
+  ctx.restore();
+
+  // Цифрове вікно поточної швидкості
+  ctx.fillStyle = 'rgba(7, 15, 28, 0.96)';
+  ctx.strokeStyle = hudCol;
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(leftX - 4, H / 2 - 14, 78, 28);
+  ctx.strokeRect(leftX - 4, H / 2 - 14, 78, 28);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 12.5px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${spdVal} км/г`, leftX + 35, H / 2 + 4.5);
+  ctx.fillStyle = hudCol;
+  ctx.font = '800 9px Inter, sans-serif';
+  ctx.fillText('ШВИДКІСТЬ', leftX + 34, tapeY - 6);
+
+  // 4. ПРАВА ВЕРТИКАЛЬНА СТРІЧКА ВИСОТИ (ALT М)
+  const rightX = W - Math.max(18, W * 0.08) - 68;
+  ctx.fillStyle = 'rgba(4, 10, 19, 0.76)';
+  ctx.strokeStyle = hudMuted;
+  ctx.lineWidth = 1.2;
+  ctx.fillRect(rightX, tapeY, 68, tapeH);
+  ctx.strokeRect(rightX, tapeY, 68, tapeH);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(rightX, tapeY, 68, tapeH);
+  ctx.clip();
+  const altStep = altMeters > 2000 ? 250 : 50;
+  const baseAlt = Math.floor(altMeters / altStep) * altStep;
+  for (let al = baseAlt - altStep * 5; al <= baseAlt + altStep * 5; al += altStep) {
+    if (al < 0) continue;
+    const dy = ((altMeters - al) / altStep) * 24;
+    const py = H / 2 + dy;
+    ctx.strokeStyle = hudCol;
+    ctx.beginPath();
+    ctx.moveTo(rightX, py);
+    ctx.lineTo(rightX + 16, py);
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '700 9.5px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(String(al), rightX + 20, py + 3);
+  }
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(7, 15, 28, 0.96)';
+  ctx.strokeStyle = hudCol;
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(rightX - 6, H / 2 - 14, 78, 28);
+  ctx.strokeRect(rightX - 6, H / 2 - 14, 78, 28);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 12.5px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${altMeters} м`, rightX + 33, H / 2 + 4.5);
+  ctx.fillStyle = hudCol;
+  ctx.font = '800 9px Inter, sans-serif';
+  ctx.fillText('ВИСОТА ASL', rightX + 34, tapeY - 6);
+
+  // Нижній правий блок телеметрії координат і дальності прогрузу
+  ctx.fillStyle = 'rgba(5, 10, 18, 0.84)';
+  ctx.strokeStyle = hudMuted;
+  ctx.lineWidth = 1;
+  const teleW = 215;
+  const teleX = W - teleW - 16;
+  const teleY = H - 118;
+  ctx.fillRect(teleX, teleY, teleW, 44);
+  ctx.strokeRect(teleX, teleY, teleW, 44);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '700 9.5px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`GPS: ${curLat.toFixed(4)}°N  ${curLon.toFixed(4)}°E`, teleX + 9, teleY + 16);
+  ctx.fillStyle = hudCol;
+  ctx.fillText(`ОГЛЯД РЕЛЬЄФУ: 100+ КМ · АЗИМУТ ${Math.round(viewHdg)}°`, teleX + 9, teleY + 34);
 
   ctx.restore();
 
