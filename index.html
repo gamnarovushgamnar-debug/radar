@@ -989,7 +989,7 @@ function getTargetLabelText(t) {
 function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
   const spec = getTargetVisualSpec(t);
   const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 330);
-  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.holding || t.loiter) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
+  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.loiter) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
     <div class="t-lock-ring"></div>
@@ -1000,7 +1000,8 @@ function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
 
 const ADMIN_TOKEN_KEY = 'zp_radar_admin_token_v11';
 const EXPECTED_CODE = 'KDLEPL1@D';
-let isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === EXPECTED_CODE;
+let isAdmin = false;
+try { isAdmin = localStorage.getItem(ADMIN_TOKEN_KEY) === EXPECTED_CODE; } catch (_) {}
 let selectedTrackId = null;
 let pickVectorMode = false;
 let clickSpawnSub = null;
@@ -1062,7 +1063,7 @@ document.getElementById('admin-login-btn').addEventListener('click', () => {
   const val = document.getElementById('admin-code-inp').value.trim();
   if (val === EXPECTED_CODE) {
     isAdmin = true;
-    localStorage.setItem(ADMIN_TOKEN_KEY, EXPECTED_CODE);
+    try { localStorage.setItem(ADMIN_TOKEN_KEY, EXPECTED_CODE); } catch (_) {}
     document.getElementById('admin-auth-err').style.display = 'none';
     syncAdminUI();
   } else {
@@ -1074,7 +1075,7 @@ document.getElementById('admin-code-inp').addEventListener('keydown', e => {
 });
 document.getElementById('admin-logout-btn').addEventListener('click', () => {
   isAdmin = false;
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch (_) {}
   syncAdminUI();
 });
 
@@ -1149,8 +1150,14 @@ function syncTrackVectorLayers(forceRebuild = false) {
 
   Object.values(serverTracks).forEach(t => {
     const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg, goal: t.goal, holding: t.holding };
-    const goalPt = (a && !a.holding && a.goal) ? a.goal : (!t.holding ? t.goal : null);
-    if (hiddenKinds.has(t.kind) || t.ended || t.holding || t.loiter || !goalPt || a.hdg == null) {
+    const isShortTactical = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon' || t.sub === 'orlan');
+    const minVecKm = t.sub === 'fpv' ? 2.2 : (isShortTactical ? 3.5 : (t.kind === 'kab' ? 12.0 : 5.5));
+    let goalPt = (!t.loiter && a && a.goal) ? a.goal : (!t.loiter && t.goal ? t.goal : null);
+    if (!goalPt && !t.ended && !t.loiter && a.hdg != null) {
+      goalPt = fwd(a.lat, a.lon, a.hdg, minVecKm);
+      a.goal = goalPt;
+    }
+    if (hiddenKinds.has(t.kind) || t.ended || t.loiter || !goalPt || a.hdg == null) {
       removeTrackVectorLayers(t.id);
       return;
     }
@@ -1225,7 +1232,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
   });
 }
 
-// ── СУВОРО ПРЯМОЛІНІЙНИЙ РУШІЙ ПОЛЬОТУ (БЕЗ ВИГАДУВАННЯ КУРСІВ ТА БЕЗ ДОВІЛЬНИХ ПОВОРОТІВ!) ──
+// ── БЕЗПЕРЕРВНИЙ ПРЯМОЛІНІЙНИЙ РУШІЙ ПОЛЬОТУ (КУРС ТА ВЕКТОР НІКОЛИ НЕ ПРОПАДАЮТЬ!) ──
 let lastAnimTs = performance.now();
 function stepClientKinematics() {
   const nowMs = performance.now();
@@ -1242,9 +1249,7 @@ function stepClientKinematics() {
     if (!a || !m || m._isDragging) return;
     const v = t.v || 180;
     if (!t.ended && v > 0) {
-      // Якщо ціль стоїть над вказаним районом без курсу або вже долетіла до своєї точки призначення —
-      // вона НЕ вигадує собі курс і стоїть рівно над районом до наступного зведення!
-      if (t.holding || t.loiter || a.holding || a.hdg == null) {
+      if (t.loiter || a.hdg == null) {
         m.setLatLng([a.lat, a.lon]);
         removeTrackVectorLayers(t.id);
         return;
@@ -1252,34 +1257,28 @@ function stepClientKinematics() {
 
       const stepKm = (v * dt) / 3600;
       const isShortTactical = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon' || t.sub === 'orlan');
-      const minVecKm = t.sub === 'fpv' ? 1.8 : (isShortTactical ? 2.5 : (t.kind === 'kab' ? 8.0 : 4.5));
+      const minVecKm = t.sub === 'fpv' ? 2.2 : (isShortTactical ? 3.5 : (t.kind === 'kab' ? 12.0 : 5.5));
 
       if (a.goal) {
         const remKm = hav(a.lat, a.lon, a.goal[0], a.goal[1]);
-        if (remKm > stepKm && remKm > 0.12) {
-          // Суворо прямолінійний політ до цілі за незмінним курсом a.hdg!
+        if (remKm > stepKm && remKm > 0.15) {
           const np = fwd(a.lat, a.lon, a.hdg, stepKm);
           a.lat = np[0];
           a.lon = np[1];
         } else {
-          // Ціль долетіла до точки призначення!
+          // Коли ціль проходить контрольну точку — плавно продовжуємо її вектор за поточним курсом a.hdg,
+          // щоб лінія курсу та сектор загрози НІКОЛИ не зникали!
           a.lat = a.goal[0];
           a.lon = a.goal[1];
-          if (t.to && String(t.to).startsWith('курс')) {
-            // Якщо був заданий відкритий азимут («курс північно-західний»), продовжує летіти тупо прямо
-            a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
-          } else {
-            // Якщо летів на конкретний район/село і долетів, а нових даних немає — зупиняється над ціллю!
-            a.holding = true;
-            t.holding = true;
-            a.goal = null;
-            removeTrackVectorLayers(t.id);
-          }
+          a.holding = false;
+          t.holding = false;
+          a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
         }
       } else {
         const np = fwd(a.lat, a.lon, a.hdg, stepKm);
         a.lat = np[0];
         a.lon = np[1];
+        a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
       }
 
       m.setLatLng([a.lat, a.lon]);
@@ -1297,7 +1296,7 @@ function stepClientKinematics() {
       }
 
       const goalPt = a.goal;
-      if (goalPt && !a.holding) {
+      if (goalPt && !t.loiter) {
         if (vectorPolyById[t.id]) {
           vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
         }
@@ -1356,14 +1355,14 @@ function applyServerState(st) {
       else if (t.kind === 'impact') counts.strike++;
     }
 
-    const initH = t.hdg != null ? t.hdg : null;
+    const initH = t.hdg != null ? t.hdg : 335;
     const srvFixSeq = t.fix_seq || 1;
     if (!animState[t.id]) {
       animState[t.id] = {
         lat: t.lat, lon: t.lon,
         hdg: initH,
-        holding: Boolean(t.holding || t.loiter || !t.goal),
-        goal: t.goal ? [t.goal[0], t.goal[1]] : null,
+        holding: Boolean(t.loiter),
+        goal: t.goal ? [t.goal[0], t.goal[1]] : (!t.loiter ? fwd(t.lat, t.lon, initH, 5.5) : null),
         fixSeq: srvFixSeq
       };
     } else {
@@ -1375,15 +1374,16 @@ function applyServerState(st) {
           a.lat = t.lat;
           a.lon = t.lon;
           a.hdg = initH;
-          a.holding = Boolean(t.holding || t.loiter || !t.goal);
-          a.goal = t.goal ? [t.goal[0], t.goal[1]] : null;
-        } else if (t.holding || t.loiter || !t.goal) {
+          a.holding = Boolean(t.loiter);
+          a.goal = t.goal ? [t.goal[0], t.goal[1]] : (!t.loiter ? fwd(t.lat, t.lon, initH, 5.5) : null);
+        } else if (t.loiter) {
           a.holding = true;
           a.goal = null;
-        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 2.0) {
+        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 2.2) {
           a.lat = t.lat;
           a.lon = t.lon;
-          a.goal = [t.goal[0], t.goal[1]];
+          a.hdg = initH;
+          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
         }
       }
     }
@@ -1490,13 +1490,16 @@ function renderTargetsList() {
     const route = (t.to && t.to !== t.frm) ? `${t.frm} &rarr; <b>${t.to}</b>` : `Район: <b>${t.frm}</b>`;
     const etaBadge = (!t.ended && t.eta != null) ? `<span class="eta-pill">~${fmtEta(t.eta)}</span>` : (t.status ? `<span class="eta-pill">${t.status}</span>` : '');
     const cntBadge = t.cnt ? `<span class="cnt-pill">${t.cnt}x</span>` : '';
+    const kindTag = t.kind === 'kab'
+      ? `<span style="background:rgba(239,68,68,0.22);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:0 5px;border-radius:3px;font-size:9px;font-weight:800">АВІАБОМБА</span>`
+      : (t.kind === 'drone' ? `<span style="background:rgba(245,158,11,0.18);border:1px solid rgba(245,158,11,0.42);color:#fde68a;padding:0 5px;border-radius:3px;font-size:9px;font-weight:800">БпЛА</span>` : '');
     const threatsHtml = (t.threats && t.threats.length && !t.ended)
       ? `<div class="threat-box">Загроза по курсу: <b>${t.threats.join(', ')}</b></div>` : '';
     return `<div class="card ${t.ended ? 'ended' : ''} ${t.id === selectedTrackId ? 'selected' : ''}" style="--c:${spec.col}" data-id="${t.id}">
       <div class="card-top">
         <div class="card-title">
           ${renderSilhouetteSVG(spec.type, spec.col, 45)}
-          <span>${t.name}</span> ${cntBadge}
+          <span>${t.name}</span> ${kindTag} ${cntBadge}
         </div>
         ${etaBadge}
       </div>
@@ -1556,7 +1559,7 @@ document.querySelectorAll('.fchip').forEach(ch => {
     const k = ch.dataset.k;
     if (hiddenKinds.has(k)) { hiddenKinds.delete(k); ch.classList.remove('off'); }
     else { hiddenKinds.add(k); ch.classList.add('off'); }
-    fetch('/state').then(r => r.json()).then(applyServerState);
+    fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
   });
 });
 
