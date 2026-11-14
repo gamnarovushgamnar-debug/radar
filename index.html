@@ -35,9 +35,15 @@ html, body, #map {
 }
 
 #map.theme-tactical .leaflet-tile-pane { filter: contrast(1.05) saturate(0.88) brightness(0.95); }
-#map.theme-dark .leaflet-tile-pane { filter: brightness(0.82) contrast(1.22) saturate(0.75); }
+#map.theme-dark .leaflet-tile-pane,
+#map.theme-esri_dark .leaflet-tile-pane { filter: brightness(0.86) contrast(1.20) saturate(0.78); }
 #map.theme-sat .leaflet-tile-pane { filter: contrast(1.12) brightness(0.90) saturate(1.05); }
-#map.theme-light .leaflet-tile-pane { filter: contrast(1.02) saturate(0.95); }
+#map.theme-light .leaflet-tile-pane,
+#map.theme-esri_street .leaflet-tile-pane { filter: contrast(1.02) saturate(0.95); }
+#map.theme-topo .leaflet-tile-pane,
+#map.theme-esri_topo .leaflet-tile-pane,
+#map.theme-cyclosm .leaflet-tile-pane { filter: contrast(1.04) brightness(0.92) saturate(0.90); }
+#map.theme-osm_hot .leaflet-tile-pane { filter: contrast(1.06) brightness(0.93) saturate(0.88); }
 
 #hud-grid-overlay {
   position: fixed; inset: 0; pointer-events: none; z-index: 390;
@@ -155,7 +161,7 @@ html, body, #map {
   box-shadow: 0 3px 10px rgba(0,0,0,0.35);
   white-space: nowrap; flex-shrink: 0;
 }
-.fchip svg { width: 13px; height: 13px; flex-shrink: 0; }
+.fchip svg { width: 15px; height: 15px; flex-shrink: 0; }
 .fchip:hover { border-color: rgba(56, 189, 248, 0.45); color: #fff; }
 .fchip.off { opacity: 0.38; filter: grayscale(0.8); }
 .fchip .cnt-badge {
@@ -185,7 +191,7 @@ html, body, #map {
 
 #dock {
   position: fixed;
-  top: 8px; right: 48px; width: 328px;
+  top: 8px; right: 48px; width: 334px;
   max-height: calc(100vh - 16px);
   z-index: 1000;
   background: var(--bg-hud);
@@ -260,7 +266,7 @@ html, body, #map {
 .card.ended { opacity: 0.48; filter: grayscale(0.5); }
 .card-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .card-title { font-weight: 700; font-size: 11.5px; color: #f8fafc; display: flex; align-items: center; gap: 6px; }
-.card-title svg { width: 15px; height: 15px; flex-shrink: 0; }
+.card-title svg { width: 20px; height: 20px; flex-shrink: 0; }
 .cnt-pill { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.45); color: #fde68a; padding: 0 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; }
 .eta-pill {
   background: rgba(239, 68, 68, 0.18); color: #fca5a5;
@@ -301,10 +307,11 @@ html, body, #map {
 .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .style-btn {
   background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-subtle);
-  border-radius: 5px; padding: 6px; color: #cbd5e1; font-size: 10.5px; font-weight: 700;
+  border-radius: 5px; padding: 6px 5px; color: #cbd5e1; font-size: 10px; font-weight: 700;
   cursor: pointer; text-align: center; transition: all 0.15s;
 }
-.style-btn.active { border-color: var(--accent-cyan); background: rgba(14, 116, 144, 0.32); color: #fff; }
+.style-btn:hover { border-color: rgba(56, 189, 248, 0.45); color: #fff; }
+.style-btn.active { border-color: var(--accent-cyan); background: rgba(14, 116, 144, 0.34); color: #fff; box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.18); }
 
 .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; color: #cbd5e1; }
 .ctrl-input {
@@ -334,7 +341,7 @@ html, body, #map {
   cursor: pointer; display: flex; align-items: center; gap: 6px;
   transition: all 0.15s ease; text-align: left;
 }
-.uav-spawn-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.uav-spawn-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
 .uav-spawn-btn:hover {
   border-color: var(--accent-cyan);
   background: rgba(14, 116, 144, 0.28);
@@ -359,25 +366,25 @@ html, body, #map {
 
 .t-icon-wrap { background: none !important; border: none !important; }
 .t-marker-root {
-  position: relative; width: 32px; height: 32px;
+  position: relative; width: 42px; height: 42px;
   display: flex; align-items: center; justify-content: center;
 }
 .t-marker-root.admin-draggable { cursor: grab; }
 .t-marker-root.admin-draggable:active { cursor: grabbing; }
 
 .t-lock-ring {
-  position: absolute; inset: 1px; border-radius: 50%;
+  position: absolute; inset: 2px; border-radius: 50%;
   border: 1.2px dashed var(--tc, #f59e0b);
-  opacity: 0.55; pointer-events: none;
-  animation: lockRotate 6s linear infinite;
+  opacity: 0.48; pointer-events: none;
+  animation: lockRotate 7s linear infinite;
 }
 .t-marker-root.selected .t-lock-ring {
-  inset: -2px; opacity: 0.95;
-  border: 1.6px dashed #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
+  inset: -1px; opacity: 0.95;
+  border: 1.8px dashed #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.70);
 }
 .t-pulse-wave {
-  position: absolute; inset: 2px; border-radius: 50%;
+  position: absolute; inset: 3px; border-radius: 50%;
   border: 1.5px solid var(--tc, #ef4444);
   opacity: 0; pointer-events: none;
   animation: radarWave 2.0s cubic-bezier(0.16, 1, 0.3, 1) infinite;
@@ -396,20 +403,20 @@ html, body, #map {
 }
 @keyframes jetFlame {
   0%, 100% { opacity: 0.95; transform: scaleY(1); }
-  50% { opacity: 0.65; transform: scaleY(1.22); }
+  50% { opacity: 0.65; transform: scaleY(1.26); }
 }
-.rotor-anim { transform-box: fill-box; transform-origin: center; animation: rotorSpin 0.22s linear infinite; }
-.flame-anim { transform-box: fill-box; transform-origin: top center; animation: jetFlame 0.18s ease-in-out infinite; }
+.rotor-anim { transform-box: fill-box; transform-origin: center; animation: rotorSpin 0.18s linear infinite; }
+.flame-anim { transform-box: fill-box; transform-origin: top center; animation: jetFlame 0.16s ease-in-out infinite; }
 
 .t-svg-box {
-  width: 28px; height: 28px;
+  width: 38px; height: 38px;
   display: flex; align-items: center; justify-content: center;
-  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85));
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.92));
   will-change: transform;
 }
 
 .t-lbl-tag {
-  position: absolute; top: 29px; left: 50%;
+  position: absolute; top: 37px; left: 50%;
   transform: translateX(-50%);
   background: rgba(7, 11, 18, 0.92);
   color: #f8fafc;
@@ -420,6 +427,19 @@ html, body, #map {
   box-shadow: 0 2px 6px rgba(0,0,0,0.7);
   pointer-events: none;
   letter-spacing: 0.2px;
+}
+
+.landmark-lbl {
+  background: rgba(8, 13, 21, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #bae6fd;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 
 .reticle-handle {
@@ -484,15 +504,15 @@ html, body, #map {
   <div id="banner"></div>
   <div id="filterbar">
     <div class="fchip" data-k="drone">
-      <svg viewBox="0 0 24 24"><path fill="#f59e0b" d="M12 2L4 19l6-2.5V21h4v-4.5L20 19 12 2z"/></svg>
+      <svg viewBox="0 0 40 40"><path fill="#f59e0b" stroke="#080d15" stroke-width="1.4" d="M20 2 C21.2 2 22 4.5 22 8 L22 11 L36 28 L36 32 L34 32 L34 29.5 L22.5 26.5 L22 33 L18 33 L17.5 26.5 L6 29.5 L6 32 L4 32 L4 28 L18 11 L18 8 C18 4.5 18.8 2 20 2 Z"/></svg>
       БпЛА <span class="cnt-badge" id="fc-drone">0</span>
     </div>
     <div class="fchip" data-k="kab">
-      <svg viewBox="0 0 24 24"><path fill="#ef4444" d="M12 2c1.4 0 2.5 1.8 2.5 4v3l6.5 3.5v2L14.5 13v5l2 2v2l-4.5-1.5L7.5 22v-2l2-2v-5L3 14.5v-2L9.5 9V6c0-2.2 1.1-4 2.5-4z"/></svg>
+      <svg viewBox="0 0 40 40"><path fill="#ef4444" stroke="#080d15" stroke-width="1.4" d="M20 2 C22.5 2 24 5.5 24 9.5 L24 13 L37 18.5 L37 22 L24 19.5 L23.5 29 L28 33 L28 36 L20 33.5 L12 36 L12 33 L16.5 29 L16 19.5 L3 22 L3 18.5 L16 13 L16 9.5 C16 5.5 17.5 2 20 2 Z"/></svg>
       КАБ <span class="cnt-badge" id="fc-kab">0</span>
     </div>
     <div class="fchip" data-k="missile">
-      <svg viewBox="0 0 24 24"><path fill="#f97316" d="M12 1L8 9v7l-3 3v2l7-2 7 2v-2l-3-3V9l-4-8z"/></svg>
+      <svg viewBox="0 0 40 40"><path fill="#f97316" stroke="#080d15" stroke-width="1.4" d="M20 1 C22 1 23 5 23 9.5 L23 16 L36 21 L36 24 L23 21.5 L22.8 30 L27 33.5 L27 36 L20 34 L13 36 L13 33.5 L17.2 30 L17 21.5 L4 24 L4 21 L17 16 L17 9.5 C17 5 18 1 20 1 Z"/></svg>
       Ракети <span class="cnt-badge" id="fc-missile">0</span>
     </div>
     <div class="fchip" data-k="strike">
@@ -555,11 +575,17 @@ html, body, #map {
 
   <div id="pane-layers" class="pane">
     <div class="sec-box">
-      <div class="sec-title">Режим картографічної підкладки</div>
+      <div class="sec-title">Робочі картографічні підкладки (10 без API)</div>
       <div class="style-grid">
         <div class="style-btn active" data-style="tactical">Тактична ОСІНТ</div>
-        <div class="style-btn" data-style="dark">Нічний ППО</div>
-        <div class="style-btn" data-style="sat">Супутник Esri</div>
+        <div class="style-btn" data-style="dark">Нічний ППО (CARTO)</div>
+        <div class="style-btn" data-style="sat">Супутник Esri HD</div>
+        <div class="style-btn" data-style="topo">Топографічна (Висоти)</div>
+        <div class="style-btn" data-style="esri_topo">Рельєф Генштаб</div>
+        <div class="style-btn" data-style="esri_dark">Радар ППО (Esri Dark)</div>
+        <div class="style-btn" data-style="esri_street">Дорожня (Esri Street)</div>
+        <div class="style-btn" data-style="osm_hot">Інфраструктура HOT</div>
+        <div class="style-btn" data-style="cyclosm">Лісосмуги / Рельєф</div>
         <div class="style-btn" data-style="light">Штабна світла</div>
       </div>
     </div>
@@ -577,6 +603,14 @@ html, body, #map {
       <label class="ctrl-row">
         <span>Кільця дальності ППО (20 / 45 / 70 км)</span>
         <input type="checkbox" id="chk-rings" checked>
+      </label>
+      <label class="ctrl-row">
+        <span>Орієнтири та мікрорайони Запоріжжя</span>
+        <input type="checkbox" id="chk-landmarks" checked>
+      </label>
+      <label class="ctrl-row">
+        <span>Траєкторії польоту (хвости цілей)</span>
+        <input type="checkbox" id="chk-trails" checked>
       </label>
     </div>
   </div>
@@ -624,45 +658,45 @@ html, body, #map {
         <div style="font-size:10px;color:#94a3b8;line-height:1.25" id="spawn-hint-txt">
           Натисніть на тип цілі для миттєвого спавну або увімкніть «Спавн кліком по карті», щоб ставити БпЛА в будь-яку точку. Перетягуйте цілі мишкою або пальцем.
         </div>
-        <div class="uav-spawn-grid">
+        <div class="uav-spawn-grid" id="uav-spawn-grid-box">
           <button class="uav-spawn-btn" data-sub="geran2">
-            <svg viewBox="0 0 32 32"><path fill="#f59e0b" stroke="#080d15" stroke-width="1.2" d="M16 3L5 25l8-3v4h6v-4l8 3L16 3z"/></svg>
-            <div class="uav-meta"><span>Шахед-136</span><span class="uav-speed">180 км/год · Ударний</span></div>
+            <span class="spawn-ico" data-type="shahed" data-col="#f59e0b"></span>
+            <div class="uav-meta"><span>Шахед-136</span><span class="uav-speed">185 км/год · Герань-2</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="geran3">
-            <svg viewBox="0 0 32 32"><path fill="#ef4444" stroke="#080d15" stroke-width="1.2" d="M16 2L6 24l7-2.5L14.5 28h3L19 21.5 26 24 16 2z"/></svg>
+            <span class="spawn-ico" data-type="jet_drone" data-col="#ef4444"></span>
             <div class="uav-meta"><span>Реактивний</span><span class="uav-speed">310 км/год · Герань-3</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="molniya">
-            <svg viewBox="0 0 32 32"><path fill="#38bdf8" stroke="#080d15" stroke-width="1.2" d="M16 3l-2 7H3l2 4h9l-1 10-4 2v2l7-1 7 1v-2l-4-2-1-10h9l2-4H18l-2-7z"/></svg>
+            <span class="spawn-ico" data-type="molniya" data-col="#38bdf8"></span>
             <div class="uav-meta"><span>БпЛА Молнія</span><span class="uav-speed">130 км/год · Крило</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="fpv">
-            <svg viewBox="0 0 32 32"><path stroke="#eab308" stroke-width="2.2" d="M8 8l16 16M24 8L8 24"/><circle cx="16" cy="16" r="3.5" fill="#eab308"/><circle cx="7" cy="7" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="25" cy="7" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="7" cy="25" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/><circle cx="25" cy="25" r="4" stroke="#eab308" stroke-width="1.4" fill="none"/></svg>
+            <span class="spawn-ico" data-type="fpv" data-col="#eab308"></span>
             <div class="uav-meta"><span>FPV-дрон</span><span class="uav-speed">95 км/год · Камікадзе</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="lancet">
-            <svg viewBox="0 0 32 32"><path fill="#2dd4bf" stroke="#080d15" stroke-width="1.1" d="M16 2l2 6 8-3-6 7v5l7 5-8-2-1 8h-4l-1-8-8 2 7-5v-5L6 5l8 3 2-6z"/></svg>
+            <span class="spawn-ico" data-type="lancet" data-col="#2dd4bf"></span>
             <div class="uav-meta"><span>БпЛА Ланцет</span><span class="uav-speed">145 км/год · Х-крило</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="recon">
-            <svg viewBox="0 0 32 32"><path fill="#94a3b8" stroke="#080d15" stroke-width="1.2" d="M16 4l-1.8 7L2 14v2.5l12.2-1L15 26l-3 2v1.5l4-1 4 1V28l-3-2 .8-10.5 12.2 1V14L17.8 11 16 4z"/></svg>
+            <span class="spawn-ico" data-type="recon" data-col="#94a3b8"></span>
             <div class="uav-meta"><span>РозвідБпЛА</span><span class="uav-speed">115 км/год · ZALA/Орлан</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="gerbera">
-            <svg viewBox="0 0 32 32"><path fill="#a3e635" stroke="#080d15" stroke-width="1.2" d="M16 4L6 24l7.5-2v4h5v-4L26 24 16 4z"/></svg>
+            <span class="spawn-ico" data-type="gerbera" data-col="#a3e635"></span>
             <div class="uav-meta"><span>БпЛА Гербера</span><span class="uav-speed">165 км/год · Імітатор</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="kab">
-            <svg viewBox="0 0 32 32"><path fill="#ef4444" stroke="#080d15" stroke-width="1.2" d="M16 2c2 0 3 2.5 3 5v4l10 4.5v2.5l-10-2v6l3 2.5V29l-6-2-6 2v-2.5l3-2.5v-6L3 18v-2.5L13 11V7c0-2.5 1-5 3-5z"/></svg>
+            <span class="spawn-ico" data-type="kab" data-col="#ef4444"></span>
             <div class="uav-meta"><span>КАБ / УМПК</span><span class="uav-speed">680 км/год · Авіабомба</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="kh101">
-            <svg viewBox="0 0 32 32"><path fill="#f97316" stroke="#080d15" stroke-width="1.2" d="M16 2c1.8 0 2.6 3 2.6 6v5l10.4 4v2.2l-10.4-1.8v6.6l3.4 2.5V29l-6-1.8-6 1.8v-2.5l3.4-2.5v-6.6L3 19.2V17l10.4-4V8c0-3 .8-6 2.6-6z"/></svg>
+            <span class="spawn-ico" data-type="cruise" data-col="#f97316"></span>
             <div class="uav-meta"><span>Крилата Х-101</span><span class="uav-speed">820 км/год · Ракета</span></div>
           </button>
           <button class="uav-spawn-btn" data-sub="ballistic">
-            <svg viewBox="0 0 32 32"><path fill="#f43f5e" stroke="#080d15" stroke-width="1.2" d="M16 1L11 12v10l-4 4v3l9-2.5 9 2.5v-3l-4-4V12L16 1z"/></svg>
+            <span class="spawn-ico" data-type="ballistic" data-col="#f43f5e"></span>
             <div class="uav-meta"><span>Балістика</span><span class="uav-speed">3600 км/год · Іскандер</span></div>
           </button>
         </div>
@@ -719,7 +753,6 @@ html, body, #map {
 </div>
 
 <script>
-// ── ГАРАНТОВАНО ВИМИКАЄМО СТАРИЙ SERVICE WORKER, ЯКИЙ КЕШУВАВ СТАРИЙ ІНТЕРФЕЙС ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
     for (const reg of regs) reg.unregister();
@@ -739,31 +772,43 @@ const map = L.map('map', {
   markerZoomAnimation: false
 }).setView([47.74, 35.35], 9);
 
+// ── 10 РОБОЧИХ ШАРІВ КАРТИ БЕЗ API-КЛЮЧІВ ──
 const BASEMAPS = {
-  tactical: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OSM · Оперативний Радар ZP' }),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' }),
-  sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri · Оперативний Радар ZP' }),
-  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' })
+  tactical:    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM · Оперативний Радар ZP' }),
+  dark:        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' }),
+  sat:         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri · Оперативний Радар ZP' }),
+  topo:        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap · Оперативний Радар ZP' }),
+  esri_topo:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri Topo · Оперативний Радар ZP' }),
+  esri_dark:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri Dark · Оперативний Радар ZP' }),
+  esri_street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: '© Esri Street · Оперативний Радар ZP' }),
+  osm_hot:     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM HOT · Оперативний Радар ZP' }),
+  cyclosm:     L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© CyclOSM · Оперативний Радар ZP' }),
+  light:       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO · Оперативний Радар ZP' })
 };
 let currentBasemap = BASEMAPS.tactical.addTo(map);
 let satLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19, pane: 'overlayPane' });
+let esriDarkRefLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, pane: 'overlayPane' });
 
 function setMapStyle(styleKey) {
   const mapEl = document.getElementById('map');
   mapEl.className = 'theme-' + styleKey;
   if (currentBasemap) map.removeLayer(currentBasemap);
   if (map.hasLayer(satLabelsLayer)) map.removeLayer(satLabelsLayer);
+  if (map.hasLayer(esriDarkRefLayer)) map.removeLayer(esriDarkRefLayer);
   currentBasemap = BASEMAPS[styleKey] || BASEMAPS.tactical;
   currentBasemap.addTo(map);
   if (styleKey === 'sat') satLabelsLayer.addTo(map);
+  if (styleKey === 'esri_dark') esriDarkRefLayer.addTo(map);
   document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b.dataset.style === styleKey));
   const wm = document.getElementById('watermark-overlay');
-  wm.style.opacity = (styleKey === 'dark' || styleKey === 'sat') ? '0.13' : '0.18';
+  wm.style.opacity = (styleKey === 'dark' || styleKey === 'sat' || styleKey === 'esri_dark') ? '0.13' : '0.18';
+  updateWatermarkPattern();
 }
 document.querySelectorAll('.style-btn').forEach(b => b.addEventListener('click', () => setMapStyle(b.dataset.style)));
 
 function updateWatermarkPattern() {
-  const isDark = document.getElementById('map').classList.contains('theme-dark') || document.getElementById('map').classList.contains('theme-sat');
+  const cl = document.getElementById('map').classList;
+  const isDark = cl.contains('theme-dark') || cl.contains('theme-sat') || cl.contains('theme-esri_dark');
   const strokeCol = isDark ? 'rgba(226,232,240,0.48)' : 'rgba(15,23,42,0.52)';
   const subCol = isDark ? 'rgba(148,163,184,0.38)' : 'rgba(30,41,59,0.42)';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="145" viewBox="0 0 320 145">
@@ -806,16 +851,37 @@ const KHARKIV_NORTH_POLY = [
   [50.45, 37.08], [50.45, 36.32], [50.23, 36.32]
 ];
 
-let showCones = true, showFrontline = true, showRings = true;
+const ZP_KEY_LANDMARKS = [
+  ["Шевчик", 47.828, 35.238],
+  ["Зелений Яр", 47.849, 35.208],
+  ["Космос", 47.785, 35.185],
+  ["Піски", 47.768, 35.192],
+  ["Бабурка", 47.816, 35.025],
+  ["о. Хортиця", 47.822, 35.075],
+  ["Кічкас", 47.888, 35.158],
+  ["Бородок", 47.882, 35.075],
+  ["Осипок", 47.868, 35.042],
+  ["Балабине", 47.745, 35.220],
+  ["Кушугум (Шугум)", 47.712, 35.208],
+  ["Малокатеринівка", 47.659, 35.260],
+  ["Степногірськ", 47.587, 35.361],
+  ["Комишуваха", 47.717, 35.529],
+  ["Оріхів", 47.567, 35.784],
+  ["Вільнянськ", 47.945, 35.433]
+];
+
+let showCones = true, showFrontline = true, showRings = true, showLandmarks = true, showTrails = true;
 const staticLayerGroup = L.layerGroup().addTo(map);
 const ringsLayerGroup = L.layerGroup().addTo(map);
 const flLayerGroup = L.layerGroup().addTo(map);
+const landmarksLayerGroup = L.layerGroup().addTo(map);
 const tracksVectorGroup = L.layerGroup().addTo(map);
 
 function drawStaticLayers() {
   staticLayerGroup.clearLayers();
   ringsLayerGroup.clearLayers();
   flLayerGroup.clearLayers();
+  landmarksLayerGroup.clearLayers();
 
   L.circleMarker([home[1], home[2]], {
     radius: 4.5, color: '#38bdf8', weight: 2, fillColor: '#0284c7', fillOpacity: 0.9, renderer: canvasRenderer
@@ -826,6 +892,14 @@ function drawStaticLayers() {
       L.circle([home[1], home[2]], {
         radius: rKm * 1000, color: col, weight: 1, opacity: 0.32, fill: false, dashArray: '5,6', interactive: false, renderer: canvasRenderer
       }).addTo(ringsLayerGroup);
+    });
+  }
+
+  if (showLandmarks && map.getZoom() >= 9) {
+    ZP_KEY_LANDMARKS.forEach(([name, la, lo]) => {
+      L.circleMarker([la, lo], {
+        radius: 2.5, color: '#38bdf8', weight: 1, fillColor: '#0284c7', fillOpacity: 0.7, interactive: false, renderer: canvasRenderer
+      }).bindTooltip(name, { permanent: map.getZoom() >= 11, direction: 'right', className: 'landmark-lbl', offset: [4, 0] }).addTo(landmarksLayerGroup);
     });
   }
 
@@ -863,6 +937,8 @@ map.on('zoomend', () => {
 document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; syncTrackVectorLayers(true); });
 document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
+document.getElementById('chk-landmarks').addEventListener('change', e => { showLandmarks = e.target.checked; drawStaticLayers(); });
+document.getElementById('chk-trails').addEventListener('change', e => { showTrails = e.target.checked; syncTrackVectorLayers(true); });
 
 function fwd(la, lo, h, km) {
   const r = h * Math.PI / 180;
@@ -878,9 +954,6 @@ function brg(a, b, c, d) {
   const y = Math.sin((d - b) * p) * Math.cos(c * p);
   const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-function angDiff(target, cur) {
-  return ((target - cur + 540) % 360) - 180;
 }
 function fmtEta(s) {
   if (s == null || s < 0) return '';
@@ -902,98 +975,187 @@ function getTargetVisualSpec(t) {
   return { col: '#f59e0b', type: 'shahed' };
 }
 
-function renderSilhouetteSVG(type, col, rotDeg = 0) {
+// ── РЕАЛІСТИЧНІ ДЕТАЛІЗОВАНІ ТЕКСТУРИ ВСІХ ТИПІВ ЦІЛЕЙ (БЕЗ СТРІЛОЧОК!) ──
+function renderSilhouetteSVG(type, col, rotDeg = 0, sz = 36) {
   if (type === 'shahed') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 3 L6 27 L14.5 23.5 L16 29 L20 29 L21.5 23.5 L30 27 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M18 6 L18 26 M12 20 L18 13 L24 20" stroke="rgba(6,10,18,0.55)" stroke-width="1.1" fill="none"/>
-      <path d="M5.5 24 L5.5 28.5 M30.5 24 L30.5 28.5" stroke="#fde68a" stroke-width="1.5" stroke-linecap="round"/>
-      <circle cx="18" cy="28.5" r="2" fill="#fef08a" class="flame-anim"/>
+    // Реалістичний силует Shahed-136 / Герань-2: циліндричний ніс з БЧ, ламане дельта-крило, кінцеві шайби-стабілізатори на законцовках, моторний відсік і штовхаючий гвинт ззаду
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <!-- Кінцеві вертикальні стабілізатори (шайби) на краях крила -->
+      <rect x="4.5" y="25.5" width="2.4" height="9.5" rx="1" fill="#b45309" stroke="#05080f" stroke-width="1"/>
+      <rect x="37.1" y="25.5" width="2.4" height="9.5" rx="1" fill="#b45309" stroke="#05080f" stroke-width="1"/>
+      <!-- Дельта-крило з напливом -->
+      <path d="M22 3 C23.5 3 24.3 6 24.4 10.5 L25.6 15.5 L38.2 28 L38.2 32.5 L25.2 30.8 L24.2 35.5 L19.8 35.5 L18.8 30.8 L5.8 32.5 L5.8 28 L18.4 15.5 L19.6 10.5 C19.7 6 20.5 3 22 3 Z" fill="${col}" stroke="#05080f" stroke-width="1.5" stroke-linejoin="round"/>
+      <!-- Центральний фюзеляж та обтічник БЧ -->
+      <path d="M22 3.8 C23.1 3.8 23.6 7 23.6 11 L23.8 34.5 L20.2 34.5 L20.4 11 C20.4 7 20.9 3.8 22 3.8 Z" fill="#fbbf24" stroke="#05080f" stroke-width="0.9"/>
+      <!-- Бойова частина (контрастний носовий конус) -->
+      <path d="M20.6 7.5 Q22 2.8 23.4 7.5 Z" fill="#fef08a"/>
+      <!-- Розшивка нервюр крила -->
+      <line x1="19.5" y1="19" x2="9.5" y2="29.5" stroke="rgba(5,8,15,0.55)" stroke-width="1.1"/>
+      <line x1="24.5" y1="19" x2="34.5" y2="29.5" stroke="rgba(5,8,15,0.55)" stroke-width="1.1"/>
+      <line x1="15" y1="24" x2="15" y2="31" stroke="rgba(5,8,15,0.45)" stroke-width="1"/>
+      <line x1="29" y1="24" x2="29" y2="31" stroke="rgba(5,8,15,0.45)" stroke-width="1"/>
+      <!-- Задній поршневий двигун MD-550 та штовхаючий пропелер -->
+      <rect x="20.3" y="34.5" width="3.4" height="3" rx="0.8" fill="#1e293b" stroke="#05080f" stroke-width="0.9"/>
+      <g class="rotor-anim">
+        <ellipse cx="22" cy="38.2" rx="5.2" ry="1.2" fill="#fde68a" opacity="0.9"/>
+      </g>
     </svg>`;
   }
   if (type === 'jet_drone') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 2 L7 25 L15 22 L16.2 28 L19.8 28 L21 22 L29 25 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M15 14 L18 7 L21 14" stroke="#fecaca" stroke-width="1.2" fill="none"/>
-      <polygon points="16.2,28 18,35 19.8,28" fill="#fde047" class="flame-anim"/>
+    // Реактивний Shahed-238 / Герань-3: темний стрілоподібний фюзеляж, верхній повітрозабірник турбореактивного двигуна, сопло з полум'ям форсажу
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <rect x="5.5" y="25" width="2.2" height="9" rx="0.8" fill="#991b1b" stroke="#05080f" stroke-width="1"/>
+      <rect x="36.3" y="25" width="2.2" height="9" rx="0.8" fill="#991b1b" stroke="#05080f" stroke-width="1"/>
+      <path d="M22 2 C23.4 2 24.2 5.5 24.4 10 L26 15.5 L37.5 27.5 L37.5 31.8 L25 29.8 L24 34.5 L20 34.5 L19 29.8 L6.5 31.8 L6.5 27.5 L18 15.5 L19.6 10 C19.8 5.5 20.6 2 22 2 Z" fill="${col}" stroke="#05080f" stroke-width="1.5" stroke-linejoin="round"/>
+      <!-- Повітрозабірник ТРД на спині фюзеляжу -->
+      <path d="M20.2 17 L23.8 17 L24.4 28 L19.6 28 Z" fill="#450a0a" stroke="#fca5a5" stroke-width="0.9"/>
+      <ellipse cx="22" cy="17.5" rx="1.8" ry="1" fill="#090d16"/>
+      <!-- Реактивний факел -->
+      <polygon points="19.8,34.5 22,42.5 24.2,34.5" fill="#fb923c" class="flame-anim"/>
+      <polygon points="20.8,34.5 22,39.5 23.2,34.5" fill="#fef08a" class="flame-anim"/>
     </svg>`;
   }
   if (type === 'molniya') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 3 L16 11 L3 12.5 L4.5 16.5 L16 15.5 L15.2 25 L11 27 L11 29.5 L18 28 L25 29.5 L25 27 L20.8 25 L20 15.5 L31.5 16.5 L33 12.5 L20 11 Z" fill="${col}" stroke="#060a12" stroke-width="1.35" stroke-linejoin="round"/>
-      <path d="M14 4.5 Q18 2 22 4.5" stroke="#e0f2fe" stroke-width="1.5" fill="none"/>
-      <circle cx="18" cy="13.5" r="1.8" fill="#e0f2fe"/>
+    // БпЛА «Молнія-2»: високоплан із прямим прямокутним крилом великого видовження, двома мотогондолами на крилі та балковим хвостом
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <!-- Вузький трубчастий фюзеляж -->
+      <rect x="20.2" y="4.5" width="3.6" height="31" rx="1.8" fill="#0284c7" stroke="#05080f" stroke-width="1.3"/>
+      <!-- Пряме прямокутне крило («дошка») -->
+      <rect x="3.5" y="13.5" width="37" height="6.2" rx="1.5" fill="${col}" stroke="#05080f" stroke-width="1.4"/>
+      <!-- H-подібне хвостове оперення -->
+      <rect x="13" y="32" width="18" height="3.6" rx="1.2" fill="${col}" stroke="#05080f" stroke-width="1.2"/>
+      <!-- Мотогондоли та пропелери -->
+      <rect x="13.2" y="10.8" width="2.6" height="5" rx="1" fill="#e0f2fe" stroke="#05080f" stroke-width="0.9"/>
+      <rect x="28.2" y="10.8" width="2.6" height="5" rx="1" fill="#e0f2fe" stroke="#05080f" stroke-width="0.9"/>
+      <g class="rotor-anim"><ellipse cx="14.5" cy="10.2" rx="3.8" ry="0.9" fill="#fef08a"/></g>
+      <g class="rotor-anim"><ellipse cx="29.5" cy="10.2" rx="3.8" ry="0.9" fill="#fef08a"/></g>
+      <!-- Носова FPV-камера та БЧ -->
+      <circle cx="22" cy="6.2" r="1.6" fill="#fef08a"/>
     </svg>`;
   }
   if (type === 'fpv') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <line x1="9" y1="9" x2="27" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
-      <line x1="27" y1="9" x2="9" y2="27" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>
-      <rect x="14.5" y="13" width="7" height="10" rx="2" fill="${col}" stroke="#060a12" stroke-width="1.2"/>
-      <polygon points="18,6 15.5,11 20.5,11" fill="#fef08a"/>
-      <g class="rotor-anim"><circle cx="9" cy="9" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
-      <g class="rotor-anim"><circle cx="27" cy="9" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
-      <g class="rotor-anim"><circle cx="9" cy="27" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
-      <g class="rotor-anim"><circle cx="27" cy="27" r="5" stroke="#fef08a" stroke-width="1.3" stroke-dasharray="4,3" fill="rgba(234,179,8,0.18)"/></g>
+    // FPV-дрон камікадзе: карбонова Х-рама, акумулятор зверху, примотана кумулятивна БЧ ПГ-7В спереду та 4 трилопатеві ротори
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <!-- Х-рама з карбону -->
+      <line x1="9.5" y1="10.5" x2="34.5" y2="33.5" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+      <line x1="34.5" y1="10.5" x2="9.5" y2="33.5" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+      <line x1="9.5" y1="10.5" x2="34.5" y2="33.5" stroke="${col}" stroke-width="2" stroke-linecap="round"/>
+      <line x1="34.5" y1="10.5" x2="9.5" y2="33.5" stroke="${col}" stroke-width="2" stroke-linecap="round"/>
+      <!-- Кумулятивний постріл ПГ-7В спереду -->
+      <path d="M22 2.5 L25 9.5 L23.5 16 L20.5 16 L19 9.5 Z" fill="#65a30d" stroke="#05080f" stroke-width="1.2"/>
+      <line x1="22" y1="1" x2="22" y2="4" stroke="#fef08a" stroke-width="1.6"/>
+      <!-- Центральний корпус + АКБ -->
+      <rect x="17.5" y="14.5" width="9" height="14" rx="2.5" fill="#0f172a" stroke="${col}" stroke-width="1.3"/>
+      <rect x="19" y="17" width="6" height="9" rx="1" fill="#38bdf8" opacity="0.85"/>
+      <!-- 4 мотори та обертові гвинти -->
+      <g class="rotor-anim">
+        <circle cx="9.5" cy="10.5" r="6.8" stroke="#fef08a" stroke-width="1.4" stroke-dasharray="5,3" fill="rgba(234,179,8,0.20)"/>
+        <line x1="4" y1="10.5" x2="15" y2="10.5" stroke="#fef08a" stroke-width="1.6"/>
+      </g>
+      <g class="rotor-anim">
+        <circle cx="34.5" cy="10.5" r="6.8" stroke="#fef08a" stroke-width="1.4" stroke-dasharray="5,3" fill="rgba(234,179,8,0.20)"/>
+        <line x1="29" y1="10.5" x2="40" y2="10.5" stroke="#fef08a" stroke-width="1.6"/>
+      </g>
+      <g class="rotor-anim">
+        <circle cx="9.5" cy="33.5" r="6.8" stroke="#fef08a" stroke-width="1.4" stroke-dasharray="5,3" fill="rgba(234,179,8,0.20)"/>
+        <line x1="4" y1="33.5" x2="15" y2="33.5" stroke="#fef08a" stroke-width="1.6"/>
+      </g>
+      <g class="rotor-anim">
+        <circle cx="34.5" cy="33.5" r="6.8" stroke="#fef08a" stroke-width="1.4" stroke-dasharray="5,3" fill="rgba(234,179,8,0.20)"/>
+        <line x1="29" y1="33.5" x2="40" y2="33.5" stroke="#fef08a" stroke-width="1.6"/>
+      </g>
     </svg>`;
   }
   if (type === 'lancet') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 3 L20 10 L29 6 L21 14 L20.5 21 L28 26 L20 24.5 L19.5 31 L16.5 31 L16 24.5 L8 26 L15.5 21 L15 14 L7 6 L16 10 Z" fill="${col}" stroke="#060a12" stroke-width="1.3" stroke-linejoin="round"/>
-      <circle cx="18" cy="16" r="1.8" fill="#ccfbf1"/>
+    // БпЛА «Ланцет» (Виріб-52): подвійне Х-подібне тандемне крило спереду та ззаду
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <!-- Передня та задня пари Х-крил -->
+      <path d="M6 12 L19.5 16.5 L19.5 20 L6 16.5 Z M38 12 L24.5 16.5 L24.5 20 L38 16.5 Z" fill="${col}" stroke="#05080f" stroke-width="1.3"/>
+      <path d="M7.5 26.5 L19.5 28 L19.5 31.5 L7.5 30.5 Z M36.5 26.5 L24.5 28 L24.5 31.5 L36.5 30.5 Z" fill="#14b8a6" stroke="#05080f" stroke-width="1.3"/>
+      <!-- Веретеноподібний фюзеляж -->
+      <path d="M22 3 C23.8 3 24.6 7 24.6 13 L24.2 35.5 L19.8 35.5 L19.4 13 C19.4 7 20.2 3 22 3 Z" fill="#ccfbf1" stroke="#05080f" stroke-width="1.4"/>
+      <circle cx="22" cy="5.5" r="1.8" fill="#0f172a"/>
+      <g class="rotor-anim"><ellipse cx="22" cy="37.5" rx="4.5" ry="1.1" fill="#fef08a"/></g>
     </svg>`;
   }
   if (type === 'recon') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 4 L16.2 12 L2 15 L3 18 L16.3 16.5 L16.8 26 L13 28.5 L13 30.5 L18 29 L23 30.5 L23 28.5 L19.2 26 L19.7 16.5 L33 18 L34 15 L19.8 12 Z" fill="${col}" stroke="#060a12" stroke-width="1.3"/>
-      <circle cx="18" cy="14" r="2" fill="#38bdf8"/>
+    // РозвідБпЛА Орлан-10 / ZALA: високоплан з довгим розмахом крила, гіростабілізованою камерою та тягнучим гвинтом
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <path d="M2 15.5 L19.5 13.5 L24.5 13.5 L42 15.5 L41 19.5 L24.2 18.8 L19.8 18.8 L3 19.5 Z" fill="${col}" stroke="#05080f" stroke-width="1.4"/>
+      <path d="M22 4.5 C23.6 4.5 24.2 8 24.2 12 L23.5 34 L20.5 34 L19.8 12 C19.8 8 20.4 4.5 22 4.5 Z" fill="#e2e8f0" stroke="#05080f" stroke-width="1.3"/>
+      <path d="M14 33 L22 31.5 L30 33 L29 36 L22 35 L15 36 Z" fill="${col}" stroke="#05080f" stroke-width="1.2"/>
+      <circle cx="22" cy="16" r="2.3" fill="#0284c7" stroke="#05080f" stroke-width="0.9"/>
+      <g class="rotor-anim"><ellipse cx="22" cy="3.6" rx="4.4" ry="1.0" fill="#38bdf8"/></g>
     </svg>`;
   }
   if (type === 'gerbera') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 4 L7 26 L15.5 23.5 L16 28 L20 28 L20.5 23.5 L29 26 Z" fill="${col}" fill-opacity="0.82" stroke="#060a12" stroke-width="1.3" stroke-dasharray="3,1.5"/>
+    // БпЛА «Гербера»: пінопластовий дрон-імітатор зі ступінчастим крилом та штовхаючим гвинтом
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <path d="M22 4 C23.4 4 24 7 24 11 L36.5 25.5 L36.5 30.5 L24.2 29 L23.8 34.5 L20.2 34.5 L19.8 29 L7.5 30.5 L7.5 25.5 L20 11 C20 7 20.6 4 22 4 Z" fill="${col}" stroke="#05080f" stroke-width="1.4" stroke-linejoin="round"/>
+      <rect x="20.4" y="7" width="3.2" height="26" rx="1" fill="#ecfccb" opacity="0.75"/>
+      <g class="rotor-anim"><ellipse cx="22" cy="36.5" rx="4.6" ry="1.1" fill="#fef08a"/></g>
     </svg>`;
   }
   if (type === 'kab') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 2 C20.4 2 21.5 5 21.5 8.5 L21.5 12 L33 17 L33 19.8 L21.5 17.5 L21.2 24.5 L25 27.5 L25 30 L18 28 L11 30 L11 27.5 L14.8 24.5 L14.5 17.5 L3 19.8 L3 17 L14.5 12 L14.5 8.5 C14.5 5 15.6 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.4" stroke-linejoin="round"/>
-      <line x1="18" y1="5" x2="18" y2="25" stroke="#fecaca" stroke-width="1.2"/>
+    // КАБ / ФАБ-500 з модулем планування і корекції (УМПК): чавунний корпус авіабомби, розкриті довгі крила УМПК зверху та стабілізатори в хвості
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <!-- Розкриті крила модуля УМПК -->
+      <path d="M19 13.5 L3 20.5 L3.8 24.2 L19 20.2 Z M25 13.5 L41 20.5 L40.2 24.2 L25 20.2 Z" fill="#dc2626" stroke="#05080f" stroke-width="1.4" stroke-linejoin="round"/>
+      <!-- Хвостове оперення авіабомби -->
+      <path d="M18.5 30 L11.5 35.5 L12.5 38.5 L19.5 36 Z M25.5 30 L32.5 35.5 L31.5 38.5 L24.5 36 Z" fill="#991b1b" stroke="#05080f" stroke-width="1.3"/>
+      <!-- Масивний корпус авіабомби ФАБ -->
+      <path d="M22 2.5 C25.2 2.5 26.8 7 26.8 13.5 L26.2 29.5 C26.2 33.5 24.5 37 22 37 C19.5 37 17.8 33.5 17.8 29.5 L17.2 13.5 C17.2 7 18.8 2.5 22 2.5 Z" fill="#475569" stroke="#05080f" stroke-width="1.5"/>
+      <!-- Червона бойова смуга та підривник БЧ -->
+      <rect x="17.5" y="8.5" width="9" height="3.2" fill="#ef4444"/>
+      <circle cx="22" cy="4.2" r="1.5" fill="#fef08a"/>
+      <!-- Наспинна планка кріплення УМПК -->
+      <rect x="20.4" y="11.5" width="3.2" height="19" rx="1.2" fill="#fca5a5" stroke="#05080f" stroke-width="0.9"/>
     </svg>`;
   }
   if (type === 'cruise') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="28" height="28" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 2 C19.8 2 20.6 5.5 20.6 9 L20.6 14 L32 18.5 L32 21 L20.6 18.8 L20.4 26 L24 28.5 L24 30.5 L18 29 L12 30.5 L12 28.5 L15.6 26 L15.4 18.8 L4 21 L4 18.5 L15.4 14 L15.4 9 C15.4 5.5 16.2 2 18 2 Z" fill="${col}" stroke="#060a12" stroke-width="1.35"/>
-      <polygon points="16.5,29 18,35 19.5,29" fill="#fde047" class="flame-anim"/>
+    // Крилата ракета Х-101 / Калібр: довгий сигароподібний фюзеляж, стрілоподібні складні крила посередині, хрестоподібне оперення та турбореактивний факел
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <path d="M19.5 16.5 L4 22.5 L4.5 25.8 L19.5 22 Z M24.5 16.5 L40 22.5 L39.5 25.8 L24.5 22 Z" fill="${col}" stroke="#05080f" stroke-width="1.4"/>
+      <path d="M19.5 30.5 L12.5 34.5 L13 37 L19.8 35 Z M24.5 30.5 L31.5 34.5 L31 37 L24.2 35 Z" fill="#ea580c" stroke="#05080f" stroke-width="1.2"/>
+      <path d="M22 1.8 C23.8 1.8 24.8 6.5 24.8 12 L24.5 34.5 L19.5 34.5 L19.2 12 C19.2 6.5 20.2 1.8 22 1.8 Z" fill="#fdba74" stroke="#05080f" stroke-width="1.4"/>
+      <path d="M19.6 7.5 Q22 2.2 24.4 7.5 Z" fill="#ef4444"/>
+      <polygon points="20,34.5 22,42.5 24,34.5" fill="#fde047" class="flame-anim"/>
     </svg>`;
   }
   if (type === 'ballistic') {
-    return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="29" height="29" style="transform:rotate(${rotDeg}deg)">
-      <path d="M18 1 L12.5 14 L13.5 24 L9 28.5 L9 31 L18 28.5 L27 31 L27 28.5 L22.5 24 L23.5 14 Z" fill="${col}" stroke="#060a12" stroke-width="1.4"/>
-      <path d="M10 9 L18 3 L26 9" stroke="#fecdd3" stroke-width="1.3" fill="none"/>
-      <polygon points="16,28.5 18,35.5 20,28.5" fill="#fde047" class="flame-anim"/>
+    // Балістична ракета Іскандер-М / Кинджал: конічний гіперзвуковий корпус із бойовою частиною та потужним ракетним факелом
+    return `<svg class="target-rot-svg" viewBox="0 0 44 44" width="${sz}" height="${sz}" style="transform:rotate(${rotDeg}deg)">
+      <path d="M17.5 27 L10.5 33.5 L11.5 36.5 L18 34.5 Z M26.5 27 L33.5 33.5 L32.5 36.5 L26 34.5 Z" fill="#be123c" stroke="#05080f" stroke-width="1.3"/>
+      <path d="M22 1.5 L26.8 15.5 L26.2 34.5 L17.8 34.5 L17.2 15.5 Z" fill="${col}" stroke="#05080f" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M18.3 12 L25.7 12 L26.4 15 L17.6 15 Z" fill="#fecdd3"/>
+      <polygon points="18.8,34.5 22,43 25.2,34.5" fill="#fde047" class="flame-anim"/>
     </svg>`;
   }
-  return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="26" height="26">
-    <circle cx="18" cy="18" r="10" stroke="${col}" stroke-width="2" fill="rgba(192,132,252,0.18)"/>
-    <circle cx="18" cy="18" r="3" fill="${col}"/>
-    <path d="M18 3v6M18 27v6M3 18h6M27 18h6" stroke="${col}" stroke-width="2" stroke-linecap="round"/>
+  return `<svg class="target-rot-svg" viewBox="0 0 36 36" width="${sz}" height="${sz}">
+    <circle cx="18" cy="18" r="11" stroke="${col}" stroke-width="2.2" fill="rgba(192,132,252,0.22)"/>
+    <polygon points="18,6 20.5,14 29,14 22,19 24.5,27 18,22 11.5,27 14,19 7,14 15.5,14" fill="${col}" stroke="#05080f" stroke-width="1"/>
   </svg>`;
 }
 
+// Ініціалізуємо реалістичні іконки в кнопках адмін-спавну
+document.querySelectorAll('.spawn-ico').forEach(el => {
+  el.innerHTML = renderSilhouetteSVG(el.dataset.type, el.dataset.col, 0, 24);
+});
+
 function getTargetLabelText(t) {
-  const routeTxt = (t.to && t.to !== t.frm) ? `${t.name} → ${t.to}` : `${t.name} · ${t.frm}`;
-  const etaStr = (!t.ended && t.eta != null) ? ` · ${fmtEta(t.eta)}` : (t.status ? ` · ${t.status}` : '');
+  const routeTxt = (t.to && t.to !== t.frm && !t.holding) ? `${t.name} → ${t.to}` : `${t.name} · ${t.frm}`;
+  const etaStr = (!t.ended && !t.holding && t.eta != null) ? ` · ${fmtEta(t.eta)}` : (t.status ? ` · ${t.status}` : '');
   return routeTxt + etaStr;
 }
 
 function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg) {
   const spec = getTargetVisualSpec(t);
-  const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 330);
-  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.loiter) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
+  const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 0);
+  const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.loiter || t.holding) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
     <div class="t-lock-ring"></div>
-    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg)}</div>
+    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg, 36)}</div>
     <div class="t-lbl-tag" style="--tc:${spec.col}">${getTargetLabelText(t)}</div>
   </div>`;
 }
@@ -1010,6 +1172,7 @@ let animState = {};
 let markerLayerById = {};
 let vectorPolyById = {};
 let originPolyById = {};
+let trailPolyById = {};
 let conePolyById = {};
 let goalDotById = {};
 let reticleMarkerById = {};
@@ -1131,6 +1294,7 @@ function selectTrack(id) {
 function removeTrackVectorLayers(id) {
   if (vectorPolyById[id]) { tracksVectorGroup.removeLayer(vectorPolyById[id]); delete vectorPolyById[id]; }
   if (originPolyById[id]) { tracksVectorGroup.removeLayer(originPolyById[id]); delete originPolyById[id]; }
+  if (trailPolyById[id]) { tracksVectorGroup.removeLayer(trailPolyById[id]); delete trailPolyById[id]; }
   if (conePolyById[id]) { tracksVectorGroup.removeLayer(conePolyById[id]); delete conePolyById[id]; }
   if (goalDotById[id]) { tracksVectorGroup.removeLayer(goalDotById[id]); delete goalDotById[id]; }
   if (reticleMarkerById[id]) { map.removeLayer(reticleMarkerById[id]); delete reticleMarkerById[id]; }
@@ -1142,6 +1306,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     tracksVectorGroup.clearLayers();
     vectorPolyById = {};
     originPolyById = {};
+    trailPolyById = {};
     conePolyById = {};
     goalDotById = {};
     Object.values(reticleMarkerById).forEach(rm => map.removeLayer(rm));
@@ -1149,19 +1314,33 @@ function syncTrackVectorLayers(forceRebuild = false) {
   }
 
   Object.values(serverTracks).forEach(t => {
-    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg, goal: t.goal, holding: t.holding };
-    const isShortTactical = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon' || t.sub === 'orlan');
-    const minVecKm = t.sub === 'fpv' ? 2.2 : (isShortTactical ? 3.5 : (t.kind === 'kab' ? 12.0 : 5.5));
-    let goalPt = (!t.loiter && a && a.goal) ? a.goal : (!t.loiter && t.goal ? t.goal : null);
-    if (!goalPt && !t.ended && !t.loiter && a.hdg != null) {
-      goalPt = fwd(a.lat, a.lon, a.hdg, minVecKm);
-      a.goal = goalPt;
+    const a = animState[t.id] || { lat: t.lat, lon: t.lon, hdg: t.hdg, goal: t.goal, holding: t.holding, trail: [] };
+    const col = getTargetVisualSpec(t).col;
+
+    if (showTrails && a.trail && a.trail.length >= 2 && !hiddenKinds.has(t.kind) && !t.ended) {
+      if (!trailPolyById[t.id]) {
+        trailPolyById[t.id] = L.polyline(a.trail, {
+          color: col, weight: 1.6, opacity: 0.36, interactive: false, renderer: canvasRenderer
+        }).addTo(tracksVectorGroup);
+      } else {
+        trailPolyById[t.id].setLatLngs(a.trail);
+      }
+    } else if (trailPolyById[t.id]) {
+      tracksVectorGroup.removeLayer(trailPolyById[t.id]);
+      delete trailPolyById[t.id];
     }
-    if (hiddenKinds.has(t.kind) || t.ended || t.loiter || !goalPt || a.hdg == null) {
-      removeTrackVectorLayers(t.id);
+
+    // Якщо ціль стоїть над районом без курсу (holding / loiter / !goal) — НЕ малюємо вигаданий вектор курсу!
+    const goalPt = (!t.holding && !t.loiter && !a.holding && a.goal) ? a.goal : null;
+    if (hiddenKinds.has(t.kind) || t.ended || t.holding || t.loiter || a.holding || !goalPt || a.hdg == null) {
+      if (vectorPolyById[t.id]) { tracksVectorGroup.removeLayer(vectorPolyById[t.id]); delete vectorPolyById[t.id]; }
+      if (originPolyById[t.id]) { tracksVectorGroup.removeLayer(originPolyById[t.id]); delete originPolyById[t.id]; }
+      if (conePolyById[t.id]) { tracksVectorGroup.removeLayer(conePolyById[t.id]); delete conePolyById[t.id]; }
+      if (goalDotById[t.id]) { tracksVectorGroup.removeLayer(goalDotById[t.id]); delete goalDotById[t.id]; }
+      if (reticleMarkerById[t.id]) { map.removeLayer(reticleMarkerById[t.id]); delete reticleMarkerById[t.id]; }
       return;
     }
-    const col = getTargetVisualSpec(t).col;
+
     const distKm = hav(a.lat, a.lon, goalPt[0], goalPt[1]);
     const maxCone = t.sub === 'fpv' ? 2.0 : ((t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon') ? 3.2 : (t.kind === 'kab' ? 18 : 6.5));
     const coneLen = Math.min(distKm, maxCone);
@@ -1232,7 +1411,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
   });
 }
 
-// ── БЕЗПЕРЕРВНИЙ ПРЯМОЛІНІЙНИЙ РУШІЙ ПОЛЬОТУ (КУРС ТА ВЕКТОР НІКОЛИ НЕ ПРОПАДАЮТЬ!) ──
+// ── ТОЧНИЙ КІНЕМАТИЧНИЙ РУШІЙ: БЕЗ ТЕЛЕПОРТАЦІЙ НАЗАД І БЕЗ ВИГАДУВАННЯ КУРСІВ ──
 let lastAnimTs = performance.now();
 function stepClientKinematics() {
   const nowMs = performance.now();
@@ -1247,14 +1426,8 @@ function stepClientKinematics() {
     const a = animState[t.id];
     const m = markerLayerById[t.id];
     if (!a || !m || m._isDragging) return;
-    const v = t.v || 180;
-    if (!t.ended && v > 0) {
-      if (t.loiter || a.hdg == null) {
-        m.setLatLng([a.lat, a.lon]);
-        removeTrackVectorLayers(t.id);
-        return;
-      }
-
+    const v = t.v || 0;
+    if (!t.ended && v > 0 && !t.holding && !t.loiter && !a.holding && a.hdg != null) {
       const stepKm = (v * dt) / 3600;
       const isShortTactical = (t.sub === 'fpv' || t.sub === 'molniya' || t.sub === 'lancet' || t.sub === 'recon' || t.sub === 'orlan');
       const minVecKm = t.sub === 'fpv' ? 2.2 : (isShortTactical ? 3.5 : (t.kind === 'kab' ? 12.0 : 5.5));
@@ -1266,19 +1439,23 @@ function stepClientKinematics() {
           a.lat = np[0];
           a.lon = np[1];
         } else {
-          // Коли ціль проходить контрольну точку — плавно продовжуємо її вектор за поточним курсом a.hdg,
-          // щоб лінія курсу та сектор загрози НІКОЛИ не зникали!
+          // Ціль долетіла до точки призначення:
           a.lat = a.goal[0];
           a.lon = a.goal[1];
-          a.holding = false;
-          t.holding = false;
-          a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+          if (t.to && String(t.to).startsWith('курс')) {
+            a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+          } else {
+            // Долетів до конкретного району/міста — залишається над ним (не пропадає і не вигадує новий курс!)
+            a.holding = true;
+            a.goal = null;
+          }
         }
-      } else {
-        const np = fwd(a.lat, a.lon, a.hdg, stepKm);
-        a.lat = np[0];
-        a.lon = np[1];
-        a.goal = fwd(a.lat, a.lon, a.hdg, minVecKm);
+      }
+
+      if (!a.trail || !a.trail.length || hav(a.trail[a.trail.length - 1][0], a.trail[a.trail.length - 1][1], a.lat, a.lon) > 0.25) {
+        if (!a.trail) a.trail = [];
+        a.trail.push([a.lat, a.lon]);
+        if (a.trail.length > 40) a.trail.shift();
       }
 
       m.setLatLng([a.lat, a.lon]);
@@ -1296,7 +1473,7 @@ function stepClientKinematics() {
       }
 
       const goalPt = a.goal;
-      if (goalPt && !t.loiter) {
+      if (goalPt && !a.holding) {
         if (vectorPolyById[t.id]) {
           vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
         }
@@ -1319,6 +1496,9 @@ function stepClientKinematics() {
       if (originPolyById[t.id] && t.fx && t.fx.length >= 2) {
         originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
       }
+      if (trailPolyById[t.id] && a.trail && a.trail.length >= 2) {
+        trailPolyById[t.id].setLatLngs(a.trail);
+      }
     }
   });
 }
@@ -1332,7 +1512,7 @@ setInterval(() => {
   try { stepClientKinematics(); } catch (_) {}
 }, 50);
 
-// ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ ──
+// ── СИНХРОНІЗАЦІЯ СТАНУ З СЕРВЕРОМ (БЕЗ ВІДКИДАННЯ КАБІВ НАЗАД!) ──
 function applyServerState(st) {
   if (!st) return;
   if (st.home) home = st.home;
@@ -1355,35 +1535,35 @@ function applyServerState(st) {
       else if (t.kind === 'impact') counts.strike++;
     }
 
-    const initH = t.hdg != null ? t.hdg : 335;
+    const initH = t.hdg != null ? t.hdg : null;
     const srvFixSeq = t.fix_seq || 1;
     if (!animState[t.id]) {
       animState[t.id] = {
         lat: t.lat, lon: t.lon,
         hdg: initH,
-        holding: Boolean(t.loiter),
-        goal: t.goal ? [t.goal[0], t.goal[1]] : (!t.loiter ? fwd(t.lat, t.lon, initH, 5.5) : null),
-        fixSeq: srvFixSeq
+        holding: Boolean(t.holding || t.loiter || !t.goal),
+        goal: t.goal ? [t.goal[0], t.goal[1]] : null,
+        fixSeq: srvFixSeq,
+        trail: [[t.lat, t.lon]]
       };
     } else {
       const a = animState[t.id];
       const m = markerLayerById[t.id];
       if (!m || !m._isDragging) {
+        // Оновлюємо координати тільки коли дійсно надійшло НОВЕ повідомлення (srvFixSeq !== a.fixSeq),
+        // щоб фонові SSE-пакети із мережевою затримкою ніколи не телепортували КАБи та ракети назад!
         if (srvFixSeq !== a.fixSeq) {
           a.fixSeq = srvFixSeq;
           a.lat = t.lat;
           a.lon = t.lon;
           a.hdg = initH;
-          a.holding = Boolean(t.loiter);
-          a.goal = t.goal ? [t.goal[0], t.goal[1]] : (!t.loiter ? fwd(t.lat, t.lon, initH, 5.5) : null);
-        } else if (t.loiter) {
+          a.holding = Boolean(t.holding || t.loiter || !t.goal);
+          a.goal = t.goal ? [t.goal[0], t.goal[1]] : null;
+          if (!a.trail) a.trail = [];
+          a.trail.push([t.lat, t.lon]);
+        } else if (t.holding || t.loiter || !t.goal) {
           a.holding = true;
           a.goal = null;
-        } else if (hav(a.lat, a.lon, t.lat, t.lon) > 2.2) {
-          a.lat = t.lat;
-          a.lon = t.lon;
-          a.hdg = initH;
-          if (t.goal) a.goal = [t.goal[0], t.goal[1]];
         }
       }
     }
@@ -1404,7 +1584,7 @@ function applyServerState(st) {
         icon: L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg),
-          iconSize: [32, 32], iconAnchor: [16, 16]
+          iconSize: [42, 42], iconAnchor: [21, 21]
         })
       }).addTo(map);
       m._sig = sig;
@@ -1419,14 +1599,12 @@ function applyServerState(st) {
         const ll = ev.target.getLatLng();
         animState[t.id].lat = ll.lat;
         animState[t.id].lon = ll.lng;
-        animState[t.id].wpLat = null;
-        animState[t.id].wpLon = null;
         postSim({ move: { id: t.id, lat: ll.lat, lon: ll.lng } });
       });
       markerLayerById[t.id] = m;
     } else {
       const m = markerLayerById[t.id];
-      if (!m._isDragging) {
+      if (!m._isDragging && (animState[t.id].holding || t.ended)) {
         m.setLatLng([animState[t.id].lat, animState[t.id].lon]);
       }
       if (m._sig !== sig) {
@@ -1434,7 +1612,7 @@ function applyServerState(st) {
         m.setIcon(L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg),
-          iconSize: [32, 32], iconAnchor: [16, 16]
+          iconSize: [42, 42], iconAnchor: [21, 21]
         }));
       } else {
         updateMarkerDOMWithoutRecreating(m, t, t.id === selectedTrackId);
@@ -1487,8 +1665,8 @@ function renderTargetsList() {
   }
   pane.innerHTML = list.map(t => {
     const spec = getTargetVisualSpec(t);
-    const route = (t.to && t.to !== t.frm) ? `${t.frm} &rarr; <b>${t.to}</b>` : `Район: <b>${t.frm}</b>`;
-    const etaBadge = (!t.ended && t.eta != null) ? `<span class="eta-pill">~${fmtEta(t.eta)}</span>` : (t.status ? `<span class="eta-pill">${t.status}</span>` : '');
+    const route = (t.to && t.to !== t.frm && !t.holding) ? `${t.frm} &rarr; <b>${t.to}</b>` : `Район: <b>${t.frm}</b>`;
+    const etaBadge = (!t.ended && !t.holding && t.eta != null) ? `<span class="eta-pill">~${fmtEta(t.eta)}</span>` : (t.status ? `<span class="eta-pill">${t.status}</span>` : '');
     const cntBadge = t.cnt ? `<span class="cnt-pill">${t.cnt}x</span>` : '';
     const kindTag = t.kind === 'kab'
       ? `<span style="background:rgba(239,68,68,0.22);border:1px solid rgba(239,68,68,0.5);color:#fca5a5;padding:0 5px;border-radius:3px;font-size:9px;font-weight:800">АВІАБОМБА</span>`
@@ -1498,7 +1676,7 @@ function renderTargetsList() {
     return `<div class="card ${t.ended ? 'ended' : ''} ${t.id === selectedTrackId ? 'selected' : ''}" style="--c:${spec.col}" data-id="${t.id}">
       <div class="card-top">
         <div class="card-title">
-          ${renderSilhouetteSVG(spec.type, spec.col, 45)}
+          ${renderSilhouetteSVG(spec.type, spec.col, 45, 22)}
           <span>${t.name}</span> ${kindTag} ${cntBadge}
         </div>
         ${etaBadge}
@@ -1506,7 +1684,7 @@ function renderTargetsList() {
       <div class="card-sub">
         <span>${route}</span>
         ${t.v ? `<span>· ${t.v} км/год</span>` : ''}
-        ${t.hdg != null ? `<span>· курс ${t.hdg}°</span>` : ''}
+        ${(!t.holding && t.hdg != null) ? `<span>· курс ${t.hdg}°</span>` : ''}
         ${t.alt ? `<span>· H=${t.alt} м</span>` : ''}
       </div>
       ${threatsHtml}
