@@ -36,7 +36,10 @@ CHANNELS = [c.strip() for c in os.getenv("CHANNELS", ",".join(DEFAULT_CHANNELS))
 
 HOME = ("Запоріжжя", 47.838, 35.139)
 POLL = float(os.getenv("POLL_INTERVAL", "0.5"))
-INITIAL_LOOKBACK = int(os.getenv("LOOKBACK", "1800"))
+INITIAL_LOOKBACK = int(os.getenv("LOOKBACK", "240"))      # при старті читаємо лише останні 4 хв (було 30 хв — звідси «примарні» цілі)
+TTL_SCALE = float(os.getenv("TTL_SCALE", "0.5"))          # цілі живуть коротше без нових повідомлень
+STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "240"))  # «очікує курс»/«в районі» без нових повідомлень — зникає
+PASSED_GOAL_SEC = int(os.getenv("PASSED_GOAL_SEC", "150"))
 NTFY = os.getenv("NTFY_TOPIC")
 KAB_H0, KAB_RANGE = 9000, 95
 ALERT_ETA2 = 60
@@ -366,7 +369,7 @@ OTHER_OBLAST_RX = re.compile(
 )
 
 def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
-    return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=ttl, ico=ico, col=col, generic=generic)
+    return dict(id=id, kind=kind, name=name, rx=rx, v=v, merge=merge, ttl=max(120, int(ttl * TTL_SCALE)), ico=ico, col=col, generic=generic)
 
 SUBS = [
     S("banderol", "drone", "Бандероль", r"бандерол\w*|\bs-?8000\b", 340, 35, 900, "cruise", "#f43f5e"),
@@ -1279,7 +1282,7 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             explicit_origin=explicit_origin, provisional_goal=bool(is_provisional),
             lat=pos[1], lon=pos[2], hdg=init_hdg, thdg=init_hdg,
             loiter=bool(is_loiter), holding=bool(holding or is_loiter), anchor=(pos[1], pos[2]), orb_ang=0.0, manual=bool(manual),
-            unc=sg, goal=eff_goal, passed_goal=False, ls=now, seen=now, last_msg_ts=ts, fix_seq=1, n=1,
+            unc=sg, goal=eff_goal, passed_goal=False, ls=now, seen=(now if manual else min(now, ts)), last_msg_ts=ts, fix_seq=1, n=1,
             fx=[(te, pos[1], pos[2], sg)], text=text, cnt=cnt,
             status_msg=status_msg,
             channels={ch} if ch else set(),
@@ -1287,6 +1290,12 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             obs={}
         )
         t["obs"][ch or f"c{i}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=eff_goal, hdg=init_hdg, v=v, explicit=explicit_origin)
+        if not manual and 10 < now - ts <= 900 and t.get("hdg") is not None and not t.get("holding"):
+            cur = ts                       # повідомлення старе — дорахувати, де ціль мала б бути зараз
+            t["ls"] = ts
+            while cur < now:
+                cur = min(now, cur + 30.0)
+                step(t, cur)
         return t
 
     t = best_t
@@ -1313,7 +1322,7 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
     elif not t["v"]:
         t["v"] = sub["v"]
 
-    t["seen"] = now
+    t["seen"] = max(t.get("seen", 0), now if manual else min(now, ts))
     t["fix_seq"] = t.get("fix_seq", 1) + 1
     look_km = default_lookahead_km(t)
 
@@ -1822,7 +1831,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 tgt_pt = latest.get("goal") or ("Запоріжжя", HOME[1], HOME[2])
                 routes = [(None, tgt_pt, False)]
             else:
-                routes = [(("Запоріжжя", HOME[1], HOME[2]), None, True)]
+                note(f"{ch}: «{seg[:70]}» -> немає місця/курсу, трек НЕ створено (щоб не вигадувати)")
+                return subs
         else:
             target_kind = subs[0][0]["kind"] if subs else None
             if not target_kind:
@@ -1952,7 +1962,9 @@ async def tick(s):
                 if t.get("ended"):
                     if now - t.get("ended_at", t["seen"]) > 35:
                         tracks.pop(i, None)
-                elif now - t["seen"] > t["ttl"]:
+                elif (now - t["seen"] > t["ttl"]) or (
+                        t.get("passed_goal") and now - max(t.get("passed_at", 0), t["seen"]) > PASSED_GOAL_SEC) or (
+                        t.get("holding") and not t.get("loiter") and not t.get("manual") and now - t["seen"] > STALE_HOLD_SEC):
                     t["ended"] = True
                     t["auto_ended"] = True
                     t["ended_at"] = now - 15
