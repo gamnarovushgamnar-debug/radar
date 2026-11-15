@@ -61,7 +61,8 @@ RAW_PLACES = [
     ("Донецька обл.", 47.685, 36.960,
      r"(?:донецьк\w*|донецк\w*|лонцецьк\w*|лонецьк\w*|лонецк\w*|донец\w*)\s*(?:обл\w*|напрям\w*)?|донеччин\w*|донбас\w*"),
     ("Дніпропетровська обл.", 48.165, 35.420,
-     r"(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*"),
+     r"(?:дніпропетровськ\w*|днепропетровск\w*)\s*(?:обл\w*|напрям\w*)?|дніпропетровщ\w*|днепропетровщ\w*|"
+     r"(?:(?<=\bз\s)|(?<=\bіз\s)|(?<=\bзі\s)|(?<=\bвід\s)|(?<=\bбоку\s)|(?<=\bсторони\s)|(?<=\bиз\s)|(?<=\bот\s)|(?<=\bстороны\s))(?:дніпр|днепр)(?:а|о|у|і)\b|м\.\s*дніпр\w*"),
     ("Херсонська обл.", 47.260, 34.250,
      r"(?:херсонськ\w*|херсонск\w*)\s*(?:обл\w*|напрям\w*)?|херсонщ\w*"),
 
@@ -294,6 +295,27 @@ AMBIGUOUS_PLACES = {
     "Федорівка", "Михайлівка", "Долинське", "Мар'ївка", "Максимівка", "Павлівське", "Антонівка"
 }
 BROAD_REGIONS = {"Запорізька обл.", "Дніпро", "Запорізький напрямок"}
+def _load_extra_places():
+    """Додаткові н.п. з файлу places_extra.json поряд із server.py:
+    [{"name": "Кринки", "lat": 47.1, "lon": 35.2, "rx": "кринк\\w*"}]  (rx необов'язковий)"""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "places_extra.json")
+    if not os.path.exists(p):
+        return
+    try:
+        data = json.load(open(p, encoding="utf-8"))
+        have = {n for n, *_ in RAW_PLACES}
+        for it in data:
+            n = str(it["name"]).strip()
+            if not n or n in have:
+                continue
+            base = n.lower()
+            rx = it.get("rx") or (re.escape(base[:max(4, len(base) - 2)]) + r"\w*")
+            RAW_PLACES.insert(0, (n, float(it["lat"]), float(it["lon"]), rx))
+        print(f"places_extra.json: додано {len(data)} н.п.")
+    except Exception as e:
+        print("places_extra.json error:", e)
+_load_extra_places()
+
 PLACES = [(n, la, lo, rx) for n, la, lo, rx in RAW_PLACES]
 PLACE_BY_NAME = {n: (n, la, lo) for n, la, lo, _ in RAW_PLACES}
 
@@ -768,13 +790,28 @@ def extract_routes(tl):
     if not spans:
         return []
 
+    # Ланцюжок «A → B → C», «A - B - C», «C ← B ← A»: перший = звідки, останній = куди
+    ARR_F = re.compile(r"^\s*(?:→|->|-->|=>|—>|–>|>>|»|[-–—])\s*$")
+    ARR_R = re.compile(r"^\s*(?:←|<-|<--|<=|<—|<–|<<|«)\s*$")
+    if len(spans) >= 2:
+        bets = [tl[spans[i][1]:spans[i + 1][0]] for i in range(len(spans) - 1)]
+        fwd_chain = all(ARR_F.match(b) for b in bets)
+        rev_chain = all(ARR_R.match(b) for b in bets)
+        if fwd_chain or rev_chain:
+            seq = [(sp[2], sp[3], sp[4]) for sp in spans]
+            if rev_chain:
+                seq.reverse()
+            if seq[0][0] != seq[-1][0]:
+                return [(seq[0], seq[-1], False)]
+
     if len(spans) >= 2:
         filtered = []
         for idx, sp in enumerate(spans):
             st, en, n, la, lo = sp
             pre = tl[max(0, st - 35):st]
             if n in ("Запоріжжя", "Запорізький р-н") and not TO_PRE_RX.search(pre) and not VIA_PRE_RX.search(pre) and not FROM_PRE_RX.search(pre):
-                continue
+                if not (idx > 0 and (re.match(r"^\s*[-–—]\s*$", tl[spans[idx - 1][1]:st]) or LIST_CONJ_RX.search(tl[spans[idx - 1][1]:st]))):
+                    continue
             filtered.append(sp)
         if filtered:
             spans = filtered
@@ -809,7 +846,7 @@ def extract_routes(tl):
         if n in NEIGHBOR_OBLAST_ORIGINS and not TO_PRE_RX.search(pre):
             role = "from"
         elif VIA_PRE_RX.search(pre) and not TO_PRE_RX.search(pre[-18:]):
-            role = "at"
+            role = "via" if re.search(r"(?:\bчерез|\bкрізь|\bсквозь|\bвздовж|\bвдоль)\s*(?:м\.|с\.|смт)?\s*$", pre, re.I) else "at"
         elif TO_PRE_RX.search(pre):
             role = "to"
         elif FROM_PRE_RX.search(pre):
@@ -820,6 +857,8 @@ def extract_routes(tl):
                 roles[-1] = ("from", roles[-1][1])
         elif idx > 0 and LIST_CONJ_RX.search(between) and roles[-1][0] in ("to", "from", "at"):
             role = roles[-1][0]
+        if role == "to" and idx > 0 and roles and roles[-1][0] == "unk" and ARROW_BETWEEN_RX.search(between):
+            roles[-1] = ("from", roles[-1][1])
         roles.append((role, (n, la, lo)))
 
     dedup = []
@@ -829,11 +868,21 @@ def extract_routes(tl):
 
     from_pts = [p for r, p in dedup if r == "from"]
     at_pts = [p for r, p in dedup if r == "at"]
+    via_pts = [p for r, p in dedup if r == "via"]
     to_pts = [p for r, p in dedup if r == "to"]
     unk_pts = [p for r, p in dedup if r == "unk"]
+    if via_pts and not from_pts and not at_pts:   # «через X» без «з Y» — це поточне положення
+        at_pts = via_pts
 
     has_explicit_at = bool(at_pts)
+    # «з A через B на C»: старт = A (B — лише проміжна точка); «над B» — поточне положення
     origin = at_pts[-1] if at_pts else (from_pts[-1] if from_pts else None)
+
+    if origin is None and unk_pts and to_pts:
+        first_to = next((i for i, (r, _) in enumerate(dedup) if r == "to"), None)
+        before = [p for i, (r, p) in enumerate(dedup) if r == "unk" and first_to is not None and i < first_to]
+        if before:
+            origin = before[-1]
 
     if to_pts:
         distinct_to = []
@@ -848,7 +897,14 @@ def extract_routes(tl):
             if all(hav(tp[1], tp[2], ex[1], ex[2]) > 2.5 for ex in distinct_to):
                 distinct_to.append(tp)
         if distinct_to:
-            return [(origin, tp, has_explicit_at) for tp in distinct_to[:3]]
+            origins = [origin]
+            if not at_pts and len(from_pts) >= 2:      # «з A та B на C» — два різні джерела
+                origins = []
+                for fp in from_pts:
+                    if all(hav(fp[1], fp[2], o[1], o[2]) > 2.5 for o in origins):
+                        origins.append(fp)
+                origins = origins[:3]
+            return [(o, tp, has_explicit_at) for o in origins for tp in distinct_to[:3]][:4]
 
     if origin and unk_pts:
         return [(origin, unk_pts[0], has_explicit_at)]
@@ -1675,7 +1731,37 @@ def split_mixed_kind_segment(seg):
         return [left_s, right_s]
     return [seg]
 
+_unmatched_seen = set()
+UNMATCHED_RX = re.compile(
+    r"(?:\bна|\bдо|\bз|\bіз|\bзі|\bвід|\bнад|\bбіля|\bповз|\bчерез|\bр-н|\bрайон\w*|\bнапрям\w*|\bв\s+бік|\bу\s+бік)\s+(?:м\.\s*|с\.\s*|смт\.?\s*)?"
+    r"([А-ЯІЇЄҐ][а-яіїєґ'’]{3,}(?:-[А-ЯІЇЄҐ][а-яіїєґ'’]+)?(?:\s+[А-ЯІЇЄҐ][а-яіїєґ'’]+)?)")
+def _covered_by_known_place(low, a, b):
+    for n, la, lo, rx in PLACES:
+        for m in re.finditer(rx, low):
+            if m.start() < b and m.end() > a:
+                return True
+    return False
+
+def log_unmatched(seg, ch):
+    """Записує слова, схожі на назви н.п., яких немає в базі — тоді їх легко додати в places_extra.json."""
+    try:
+        low_seg = seg.lower()
+        for m in UNMATCHED_RX.finditer(seg):
+            cand = m.group(1).strip(" -")
+            low = cand.lower()
+            if low in _unmatched_seen or SUB_WORD_RX.search(low) or _covered_by_known_place(low_seg, m.start(1), m.end(1)):
+                continue
+            _unmatched_seen.add(low)
+            note(f"{ch}: невідомий н.п. «{cand}» у «{seg[:70]}»")
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "unmatched_places.log"), "a", encoding="utf-8") as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}\t{ch}\t{cand}\t{seg[:160]}\n")
+    except Exception:
+        pass
+
+SUB_WORD_RX = re.compile(r"^(?:шахед|шахід|бпла|дрон|каб|ракет|мопед|ланцет|молні|фпв|бандерол|курс|напрям|група|група|україн|росі|ппо|тривог)\w*$", re.I)
+
 def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=None, full_post_has_zp=False):
+    log_unmatched(seg, ch)
     seg = SAFETY_REMINDER_STRIP_RX.sub("", seg).strip(" -–—•|,")
     tl = seg.lower()
     if not tl or REAL_NEWS_RX.search(tl) or PURE_EXPLOSION_SOUND_RX.match(tl):
@@ -1777,6 +1863,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 sla, slo = fwd(HOME[1], HOME[2], from_brg, 8.5)
                 routes = [(("підліт до ЗП", sla, slo), ("Запоріжжя", HOME[1], HOME[2]), False)]
             else:
+                if subs:
+                    note(f"{ch}: «{seg[:70]}» -> ціль є, але місце/курс не розпізнано (див. unmatched_places.log)")
                 return subs
 
     if intent == "impact" and not [1 for sb, _ in subs if sb["kind"] != "strike"]:
@@ -1821,7 +1909,9 @@ async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
         ingest(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx)
         await push()
     except Exception as e:
-        print("process error:", e)
+        import traceback
+        note(f"{ch}: ПОМИЛКА обробки «{text[:60]}»: {e!r}")
+        traceback.print_exc()
 
 def snap(now):
     vis = []
@@ -1951,6 +2041,7 @@ async def probe_next_embed(s, ch, next_id, headers):
 async def poll(s, ch):
     first = True
     cycle = 0
+    backoff = 0.0
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8",
@@ -1969,19 +2060,26 @@ async def poll(s, ch):
                     if seen_text.get(pid) != main_text:
                         seen_text[pid] = main_text
                         cl = clean_post(main_text).lower()
-                        post_memory[pid] = {"subs": detect(cl), "routes": extract_routes(cl), "text": main_text}
+                        try:
+                            post_memory[pid] = {"subs": detect(cl), "routes": extract_routes(cl), "text": main_text}
+                        except Exception as e_pm:
+                            note(f"{ch}: post_memory error {e_pm!r}")
+                            post_memory[pid] = {"subs": [], "routes": [], "text": main_text}
                         new.append((ts, main_text, pid, reply_ctx))
 
             if first or cycle % 2 == 0 or not new:
                 url = f"https://t.me/s/{ch}?_={int(time.time() * 1000)}"
                 async with s.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=4.5)) as r:
                     html, code = await r.text(), r.status
+                if code != 200:
+                    stats[ch] = {"http": code, "checked": time.strftime("%H:%M:%S")}
+                    raise RuntimeError(f"HTTP {code}")
                 ws = BeautifulSoup(html, "html.parser").select(".tgme_widget_message")
                 stats[ch] = {
                     "http": code, "html_len": len(html), "messages_on_page": len(ws),
                     "checked": time.strftime("%H:%M:%S")
                 }
-                for w in ws[-20:]:
+                for w in ws[-30:]:
                     pid, tm = w.select_one("a.tgme_widget_message_date"), w.select_one("time")
                     pid_val = w.get("data-post")
                     if not (pid_val and tm):
@@ -2005,7 +2103,11 @@ async def poll(s, ch):
                     if is_edit:
                         ts = time.time()
                     cl = clean_post(main_text).lower()
-                    post_memory[pid_val] = {"subs": detect(cl), "routes": extract_routes(cl), "text": main_text}
+                    try:
+                        post_memory[pid_val] = {"subs": detect(cl), "routes": extract_routes(cl), "text": main_text}
+                    except Exception as e_pm:
+                        note(f"{ch}: post_memory error {e_pm!r}")
+                        post_memory[pid_val] = {"subs": [], "routes": [], "text": main_text}
                     if len(post_memory) > 500:
                         post_memory.pop(next(iter(post_memory)))
                     if not first or time.time() - ts < INITIAL_LOOKBACK:
@@ -2013,11 +2115,13 @@ async def poll(s, ch):
                 first = False
 
             cycle += 1
+            backoff = 0.0
             for ts, text, pid, reply_ctx in sorted(new, key=lambda x: x[0]):
                 await process(s, ts, text, ch, msg_key=pid, reply_ctx=reply_ctx)
         except Exception as e:
             stats[ch] = {"error": str(e), "checked": time.strftime("%H:%M:%S")}
-        await asyncio.sleep(POLL)
+            backoff = min(20.0, max(1.0, backoff * 2))
+        await asyncio.sleep(POLL + backoff)
 
 async def sim_endpoint(req):
     try:
