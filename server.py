@@ -35,7 +35,7 @@ DEFAULT_CHANNELS = [
 CHANNELS = [c.strip() for c in os.getenv("CHANNELS", ",".join(DEFAULT_CHANNELS)).split(",") if c.strip()]
 
 HOME = ("Запоріжжя", 47.838, 35.139)
-POLL = float(os.getenv("POLL_INTERVAL", "0.5"))
+POLL = float(os.getenv("POLL_INTERVAL", "1.0"))
 INITIAL_LOOKBACK = int(os.getenv("LOOKBACK", "240"))      # при старті читаємо лише останні 4 хв (було 30 хв — звідси «примарні» цілі)
 TTL_SCALE = float(os.getenv("TTL_SCALE", "0.5"))          # цілі живуть коротше без нових повідомлень
 STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "240"))  # «очікує курс»/«в районі» без нових повідомлень — зникає
@@ -374,7 +374,7 @@ def S(id, kind, name, rx, v, merge, ttl, ico, col=None, generic=False):
 SUBS = [
     S("banderol", "drone", "Бандероль", r"бандерол\w*|\bs-?8000\b", 340, 35, 900, "cruise", "#f43f5e"),
     S("geran3", "drone", "Реактивний",
-      r"(?:реактив\w*|реактів\w*|реактв\w*)(?!\s+(?:систем|залп|артил))(?:\s+(?:шах\w*|геран\w*|бпл\w*|дрон\w*|мопед\w*|ціл\w*))?|(?:шах\w*|геран\w*|бпл\w*|дрон\w*)\s+реактив\w*|(?:шахед|шахид|герань|геран)\w*[-–\s]*(?:3|238)\b|\bjet\b",
+      r"(?:реактив\w*|реактів\w*|реактв\w*)(?!\s+(?:систем|залп|артил))(?:\s+(?:шах\w*|геран\w*|бпл\w*|дрон\w*|мопед\w*|ціл\w*))?|(?:шах\w*|геран\w*|бпл\w*|дрон\w*)\s+реактив\w*|(?:шахед|шахид|герань|геран)\w*[-–\s]*(?:3|238)\b|\bjet\w*|\bджет\w*|турбореактив\w*|реактивк\w*",
       310, 32, 720, "jet", "#ef4444"),
     S("geran2", "drone", "Шахед-136",
       r"шах[еєиі]?д\w*|шхд\w*|шхед\w*|шахд\w*|геран\w*|гєран\w*|моп[еє]д\w*|газонокосарк\w*|балалайк\w*|дирчик\w*|трикутник\w*|\bударн\w+\s+(?:бпла|дрон|бла)\w*",
@@ -505,8 +505,7 @@ IMPLICIT_FLIGHT_RX = re.compile(
 )
 IMPLICIT_KAB_RX = re.compile(
     r"(?:пуск\w*\s+каб\w*|виход\w*\s+каб\w*|выход\w*\s+каб\w*|кида\w+\s+каб\w*|скида\w+\s+каб\w*|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|"
-    r"\bкаб(?:и|ів|ах|ам|ом|у|а|ы|ов)?\b|\bфаб(?:и|ів|ах|ам|ом|у|ы|ов)?\b|\bумпк\b|"
-    r"(?:пуск\w*|виход\w*|выход\w*)\s+(?:з|із|с|из|з-?під|из-?под)\s*(?:пришиб|токмак|молочанськ|полог|михайлівк|василівк|васильевк|кінськ\w*\s+роздор))",
+    r"\bкаб(?:и|ів|ах|ам|ом|у|а|ы|ов)?\b|\bфаб(?:и|ів|ах|ам|ом|у|ы|ов)?\b|\bумпк\b)",
     re.I
 )
 
@@ -1594,26 +1593,10 @@ def infer_implicit_subs(tl, pos, tgt, ch, reply_ctx=None):
 
     if ch and ch in ch_last_sub:
         last_ts, last_sb = ch_last_sub[ch]
-        if last_sb["kind"] == "kab" and (now - last_ts <= 90) and live_kabs and not LOITER_RX.search(tl):
-            if not is_zp_micro or not live_drones:
-                return [(SUB["kab"], cnt)]
+        if last_sb["kind"] == "kab" and (now - last_ts <= 60) and live_kabs and not live_drones and not LOITER_RX.search(tl):
+            return [(SUB["kab"], cnt)]     # продовження ЯВНОГО КАБ-повідомлення з цього ж каналу
         if last_sb["kind"] == "drone" and (now - last_ts <= 240) and live_drones:
             return [(SUB[last_sb["id"]], cnt)]
-
-    if live_kabs and not live_drones and not LOITER_RX.search(tl):
-        return [(SUB["kab"], cnt)]
-
-    if live_drones and live_kabs and ref and not LOITER_RX.search(tl):
-        d_drone = min(
-            min(hav(t["lat"], t["lon"], ref[1], ref[2]), hav(t["goal"][1], t["goal"][2], ref[1], ref[2]) if t.get("goal") else 999.0)
-            for t in live_drones
-        )
-        d_kab = min(
-            (0.5 if t.get("provisional_goal") else (hav(t["goal"][1], t["goal"][2], ref[1], ref[2]) if t.get("goal") else hav(t["lat"], t["lon"], ref[1], ref[2])))
-            for t in live_kabs
-        )
-        if d_kab < d_drone and d_drone > 10.0 and not is_zp_micro:
-            return [(SUB["kab"], cnt)]
 
     if live_drones:
         if ref:
@@ -1622,7 +1605,9 @@ def infer_implicit_subs(tl, pos, tgt, ch, reply_ctx=None):
                 return [(SUB[near["sub"]], cnt)]
         latest = max(live_drones, key=lambda t: t["seen"])
         return [(SUB[latest["sub"]], cnt)]
-    return [(SUB["geran2"], cnt)]
+    if tgt:                       # відомо лише «летить на X» без типу — чесний загальний БпЛА, а не вигаданий шахед/КАБ
+        return [(SUB["drone"], cnt)]
+    return []
 
 def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, is_explicit_over=False, reply_ctx=None, is_arrived=False):
     loc = pos or tgt
@@ -1669,7 +1654,8 @@ def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, 
             is_turn = True
 
     for sb, cnt in subs:
-        ch_last_sub[ch] = (time.time(), sb)
+        if sb["kind"] != "kab" or IMPLICIT_KAB_RX.search(text.lower()):
+            ch_last_sub[ch] = (time.time(), sb)
         if sb["kind"] == "strike":
             if loc and loc[0] not in BROAD_REGIONS:
                 upsert(sb, loc, None, ts, text, ch=ch, cnt=cnt, msg_key=msg_key)
@@ -1804,6 +1790,23 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
 
     v_ovr, hdg_ovr = parse_speed_hdg(tl)
     from_brg = parse_approach_from_bearing(tl)
+    # швидкість ≥300 км/год у звичайного шахеда/БпЛА — це реактивний (Шахед-136 не розвиває більше ~200)
+    if v_ovr and v_ovr >= 300 and subs and any(sb["id"] in ("geran2", "drone") for sb, _ in subs):
+        subs = [((SUB["geran3"] if sb["id"] in ("geran2", "drone") else sb), c) for sb, c in subs]
+    # уточнення типу: «реактивний» → перемаркувати вже наявний звичайний шахед поруч
+    if subs and any(sb["id"] == "geran3" for sb, _ in subs) and not NEW_TARGET_WORDS_RX.search(tl):
+        _now = time.time()
+        _refs = [p for r in routes for p in (r[0], r[1]) if p]
+        _cand = [t for t in tracks.values()
+                 if t["kind"] == "drone" and t.get("sub") in ("geran2", "drone") and not t.get("ended") and _now - t["seen"] < 420
+                 and (not _refs or min(hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs) <= 30.0)]
+        if _cand:
+            _t = min(_cand, key=lambda t: min([hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs] or [0.0]))
+            _t["sub"] = "geran3"
+            _t["ttl"] = SUB["geran3"]["ttl"]
+            _t["v"] = v_ovr or SUB["geran3"]["v"]
+            _t["fix_seq"] = _t.get("fix_seq", 1) + 1
+            note(f"{ch}: «{seg[:60]}» -> тип уточнено: Реактивний")
     is_turn = bool(TURN_RX.search(tl) or implicit_course_update)
     is_loiter = bool(LOITER_RX.search(tl))
     force_new = bool(NEW_TARGET_WORDS_RX.search(tl))
@@ -1954,6 +1957,8 @@ async def send(payload, event=None):
 async def push():
     await send(snap(time.time()))
 
+LAST_PUSH = [0.0]
+
 async def tick(s):
     while True:
         try:
@@ -1991,7 +1996,9 @@ async def tick(s):
                             )
                         except Exception as e:
                             print("ntfy", e)
-            await push()
+            if now - LAST_PUSH[0] >= 2.0:
+                LAST_PUSH[0] = now
+                await push()
         except Exception as e:
             print("tick error:", e)
         await asyncio.sleep(1)
