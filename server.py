@@ -1505,7 +1505,14 @@ def view(t, now):
         threats=[]
     )
     if t["kind"] == "kab" and not t.get("ended"):
-        r["alt"] = round(max(400, KAB_H0 * (1 - hav(*t["o"], la, lo) / KAB_RANGE)))
+        # висота падає з прогресом до цілі: 9000 м на старті → ~150 м у цілі (раніше падала лише по пройденому шляху)
+        flown = hav(*t["o"], la, lo)
+        if g and not is_hold:
+            rem = hav(la, lo, g[1], g[2])
+            prog = rem / max(flown + rem, 1.0)
+        else:
+            prog = max(0.0, 1.0 - flown / KAB_RANGE)
+        r["alt"] = round(max(150, KAB_H0 * prog ** 1.5))
     return r
 
 log = []
@@ -2306,6 +2313,7 @@ async def main():
     f = lambda n: (lambda r: web.FileResponse(os.path.join(D, n)))
     app.add_routes([
         web.get("/", lambda r: serve_no_cache_file(os.path.join(D, "index.html"), "text/html")),
+        web.get("/3d", lambda r: serve_no_cache_file(os.path.join(D, "radar3d.html"), "text/html")),
         web.get("/events", events),
         web.get("/state", state_endpoint),
         web.post("/sim", sim_endpoint),

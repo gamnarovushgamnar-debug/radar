@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Радар 3D — рельєф</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  html,body{margin:0;height:100%;background:#0b0f14;font-family:system-ui,sans-serif;overflow:hidden}
+  #map{position:absolute;inset:0}
+  #hud{position:absolute;left:12px;top:12px;z-index:5;background:rgba(10,14,20,.85);color:#e5e7eb;
+       border:1px solid #1f2937;border-radius:10px;padding:10px 14px;min-width:230px;font-size:13px}
+  #hud b{display:block;font-size:15px;margin-bottom:6px}
+  #hud .row{display:flex;justify-content:space-between;gap:12px;margin:2px 0}
+  #hud .v{font-weight:700;font-variant-numeric:tabular-nums}
+  #hud button{margin-top:8px;background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:5px 10px;cursor:pointer}
+  #hud button.on{background:#dc2626;border-color:#dc2626}
+  .lbl{background:rgba(10,14,20,.8);color:#f3f4f6;padding:2px 6px;border-radius:5px;font-size:11px;white-space:nowrap;
+       border:1px solid #374151;transform:translateY(-6px)}
+  .lbl.kab{border-color:#dc2626;color:#fecaca}
+  .dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px #000;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hud">
+  <b id="h-name">Немає цілей</b>
+  <div class="row"><span>Висота</span><span class="v" id="h-alt">—</span></div>
+  <div class="row"><span>Швидкість</span><span class="v" id="h-v">—</span></div>
+  <div class="row"><span>Курс</span><span class="v" id="h-hdg">—</span></div>
+  <div class="row"><span>До цілі</span><span class="v" id="h-eta">—</span></div>
+  <button id="btn-follow">Слідкувати за ціллю</button>
+</div>
+<script>
+// Рельєф і супутник — безкоштовні відкриті тайли, без API-ключів
+const DEM = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+const SAT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+
+const map = new maplibregl.Map({
+  container: 'map',
+  center: [35.139, 47.838], zoom: 9.2, pitch: 65, bearing: 0, maxPitch: 85,
+  style: {
+    version: 8,
+    sources: {
+      sat: { type: 'raster', tiles: [SAT], tileSize: 256, maxzoom: 18, attribution: '© Esri' },
+      dem: { type: 'raster-dem', tiles: [DEM], tileSize: 256, encoding: 'terrarium', maxzoom: 14 }
+    },
+    layers: [{ id: 'sat', type: 'raster', source: 'sat' }],
+    sky: { 'sky-color': '#7dd3fc', 'horizon-color': '#dbeafe', 'fog-color': '#cbd5e1', 'fog-ground-blend': 0.6 }
+  },
+  maxZoom: 16
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+
+map.on('load', () => {
+  map.setTerrain({ source: 'dem', exaggeration: 1.6 });
+  map.addSource('pillars', { type: 'geojson', data: empty() });
+  map.addSource('trails', { type: 'geojson', data: empty() });
+  map.addLayer({ id: 'trails', type: 'line', source: 'trails',
+    paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-dasharray': [2, 2] } });
+  // висота цілі — вертикальний стовп від рельєфу; коротшає, коли ціль знижується
+  map.addLayer({ id: 'pillars', type: 'fill-extrusion', source: 'pillars',
+    paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'alt'],
+             'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.9 } });
+  connect();
+});
+
+const markers = {};        // id -> {marker, el}
+let tracks = [];
+let followId = null;
+let followOn = false;
+
+function empty() { return { type: 'FeatureCollection', features: [] }; }
+const COLORS = { kab: '#ef4444', missile: '#f97316', drone: '#f59e0b', strike: '#c084fc', impact: '#f43f5e' };
+
+function square(lat, lon, r = 0.0025) {
+  return [[lon - r, lat - r], [lon + r, lat - r], [lon + r, lat + r], [lon - r, lat + r], [lon - r, lat - r]];
+}
+
+function render(state) {
+  tracks = (state.tracks || []).filter(t => !t.ended);
+  const pill = [], trail = [];
+  const seen = new Set();
+
+  tracks.forEach(t => {
+    seen.add(String(t.id));
+    const color = COLORS[t.kind] || '#e5e7eb';
+    const alt = t.kind === 'kab' ? (t.alt || 0) : 0;
+    pill.push({ type: 'Feature', properties: { alt, color },
+      geometry: { type: 'Polygon', coordinates: [square(t.lat, t.lon, t.kind === 'kab' ? 0.0035 : 0.0015)] } });
+    if (t.fx && t.fx.length > 1) {
+      trail.push({ type: 'Feature', properties: { color },
+        geometry: { type: 'LineString', coordinates: t.fx.map(([la, lo]) => [lo, la]) } });
+    }
+    if (t.goal && !t.holding) {
+      trail.push({ type: 'Feature', properties: { color: '#94a3b8' },
+        geometry: { type: 'LineString', coordinates: [[t.lon, t.lat], [t.goal[1], t.goal[0]]] } });
+    }
+
+    // мітка з назвою/висотою
+    let m = markers[t.id];
+    if (!m) {
+      const el = document.createElement('div');
+      el.className = 'lbl' + (t.kind === 'kab' ? ' kab' : '');
+      el.onclick = () => { followId = t.id; };
+      m = markers[t.id] = { el, marker: new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([t.lon, t.lat]).addTo(map) };
+    }
+    m.el.className = 'lbl' + (t.kind === 'kab' ? ' kab' : '');
+    m.el.textContent = `${t.name}${t.kind === 'kab' ? ` · ${Math.round(t.alt || 0)} м` : ''}`;
+    m.marker.setLngLat([t.lon, t.lat]);
+  });
+
+  Object.keys(markers).forEach(id => {
+    if (!seen.has(id)) { markers[id].marker.remove(); delete markers[id]; }
+  });
+
+  map.getSource('pillars').setData({ type: 'FeatureCollection', features: pill });
+  map.getSource('trails').setData({ type: 'FeatureCollection', features: trail });
+
+  updateHud();
+  if (followOn) followCamera();
+}
+
+function selectedTrack() {
+  return tracks.find(t => String(t.id) === String(followId)) || tracks.find(t => t.kind === 'kab') || tracks[0];
+}
+
+function updateHud() {
+  const t = selectedTrack();
+  if (!t) {
+    document.getElementById('h-name').textContent = 'Немає цілей';
+    return;
+  }
+  document.getElementById('h-name').textContent = t.name;
+  document.getElementById('h-alt').textContent = t.kind === 'kab' ? `${Math.round(t.alt || 0)} м` : '—';
+  document.getElementById('h-v').textContent = t.v ? `${t.v} км/год` : '—';
+  document.getElementById('h-hdg').textContent = t.hdg != null ? `${Math.round(t.hdg)}°` : '—';
+  document.getElementById('h-eta').textContent = t.eta != null ? `${Math.floor(t.eta / 60)} хв ${t.eta % 60} с · ${t.dist_km} км` : '—';
+}
+
+function followCamera() {
+  const t = selectedTrack();
+  if (!t) return;
+  const hdg = t.hdg != null ? t.hdg : 0;
+  // камера позаду цілі, трохи вище її висоти
+  const back = (hdg + 180) % 360 * Math.PI / 180;
+  const off = 0.02;
+  map.easeTo({
+    center: [t.lon + off * Math.sin(back) * 0.5, t.lat + off * Math.cos(back) * 0.5 * 0.7],
+    bearing: hdg, pitch: 70, zoom: 11.5, duration: 900
+  });
+}
+
+document.getElementById('btn-follow').onclick = e => {
+  followOn = !followOn;
+  e.target.classList.toggle('on', followOn);
+  e.target.textContent = followOn ? 'Слідкую: ВИМКНУТИ' : 'Слідкувати за ціллю';
+  if (followOn) followCamera();
+};
+
+// Сервер шле стан через SSE (/events), як і основний радар
+function connect() {
+  fetch('/state').then(r => r.json()).then(render).catch(() => {});
+  const es = new EventSource('/events');
+  es.onmessage = ev => { try { render(JSON.parse(ev.data)); } catch (_) {} };
+  es.onerror = () => { es.close(); setTimeout(connect, 3000); };
+}
+</script>
+</body>
+</html>
