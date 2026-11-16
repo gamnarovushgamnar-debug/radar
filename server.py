@@ -38,7 +38,7 @@ HOME = ("Запоріжжя", 47.838, 35.139)
 POLL = float(os.getenv("POLL_INTERVAL", "1.0"))
 INITIAL_LOOKBACK = int(os.getenv("LOOKBACK", "240"))      # при старті читаємо лише останні 4 хв (було 30 хв — звідси «примарні» цілі)
 TTL_SCALE = float(os.getenv("TTL_SCALE", "0.5"))          # цілі живуть коротше без нових повідомлень
-STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "240"))  # «очікує курс»/«в районі» без нових повідомлень — зникає
+STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "600"))  # «очікує курс»/«в районі» без нових повідомлень — зникає
 PASSED_GOAL_SEC = int(os.getenv("PASSED_GOAL_SEC", "150"))
 NTFY = os.getenv("NTFY_TOPIC")
 KAB_H0, KAB_RANGE = 9000, 95
@@ -1243,7 +1243,11 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             if sub["kind"] == "kab":
                 pos = real_kab_launch_origin_for(tgt)
             elif sub["kind"] == "drone":
-                pos = realistic_drone_approach_origin(sub["id"], tgt, hdg_ovr=hdg_ovr, from_brg=from_brg, is_arrived=is_arrived)
+                if from_brg is None and hdg_ovr is None:
+                    # курс невідомий: не вигадуємо точку підльоту, а показуємо ціль і чекаємо на курс
+                    pos, tgt = tgt, None
+                else:
+                    pos = realistic_drone_approach_origin(sub["id"], tgt, hdg_ovr=hdg_ovr, from_brg=from_brg, is_arrived=is_arrived)
             else:
                 pos = tgt
                 tgt = None
@@ -1836,13 +1840,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
 
         if any(sb["kind"] == "drone" for sb, _ in subs) and (is_arrived or ACTUAL_LAUNCH_OR_FLIGHT_RX.search(tl)) and hdg_ovr is None and not is_loiter:
             live_drones = [t for t in tracks.values() if t["kind"] == "drone" and not t.get("ended") and now - t["seen"] < t["ttl"]]
-            if live_drones and not force_new:
-                latest = max(live_drones, key=lambda c: c["seen"])
-                tgt_pt = latest.get("goal") or ("Запоріжжя", HOME[1], HOME[2])
-                routes = [(None, tgt_pt, False)]
-            else:
-                note(f"{ch}: «{seg[:70]}» -> немає місця/курсу, трек НЕ створено (щоб не вигадувати)")
-                return subs
+            note(f"{ch}: «{seg[:70]}» -> немає місця/курсу, трек НЕ створено (щоб не вигадувати)")
+            return subs
         else:
             target_kind = subs[0][0]["kind"] if subs else None
             if not target_kind:
