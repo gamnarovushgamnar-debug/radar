@@ -42,6 +42,7 @@ STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "600"))  # «очікує ку�
 PASSED_GOAL_SEC = int(os.getenv("PASSED_GOAL_SEC", "150"))
 NTFY = os.getenv("NTFY_TOPIC")
 KAB_H0, KAB_RANGE = 9000, 95
+MISSILE_HEAD_START = float(os.getenv("MISSILE_HEAD_START", "40"))   # с: скільки балістика вже пролетіла до появи повідомлення
 ALERT_ETA2 = 60
 
 FRONTLINE = [
@@ -319,6 +320,13 @@ def _load_extra_places():
         print("places_extra.json error:", e)
 _load_extra_places()
 
+def _loc_variants(rx):
+    """Місцевий відмінок: Василівка → «у Василівці», Балабине ок; Мар'ївка → «в Мар'ївці» (к→ц, г→з, х→с перед закінченням)."""
+    out = re.sub(r"(?<=[а-яіїєґ'’])к\\w\*(?=\||$|\))", r"(?:к|ц)\\w*", rx)
+    out = re.sub(r"(?<=[а-яіїєґ'’])г\\w\*(?=\||$|\))", r"(?:г|з)\\w*", out)
+    out = re.sub(r"(?<=[а-яіїєґ'’])х\\w\*(?=\||$|\))", r"(?:х|с)\\w*", out)
+    return out
+RAW_PLACES[:] = [(n, la, lo, _loc_variants(rx)) for n, la, lo, rx in RAW_PLACES]
 PLACES = [(n, la, lo, rx) for n, la, lo, rx in RAW_PLACES]
 PLACE_BY_NAME = {n: (n, la, lo) for n, la, lo, _ in RAW_PLACES}
 
@@ -412,9 +420,9 @@ SUBS = [
       680, 20, 360, "kab", "#ef4444"),
     S("kinzhal", "missile", "Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 9000, 120, 300, "dart", "#e11d48"),
     S("zircon", "missile", "Циркон", r"циркон\w*|3м-?22", 7500, 120, 300, "dart", "#e11d48"),
-    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 6500, 120, 300, "ballistic", "#f43f5e"),
+    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 8500, 120, 300, "ballistic", "#f43f5e"),
     S("iskander_k", "missile", "Іскандер-К", r"[іи]скандер-?к|9м72[89]", 850, 60, 600, "cruise", "#f97316"),
-    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 6000, 120, 300, "ballistic", "#f43f5e"),
+    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 8500, 120, 300, "ballistic", "#f43f5e"),
     S("s300", "missile", "С-300", r"\bс-?(?:300|400)\w*|зкр\s+с-?300", 3500, 60, 300, "dart", "#fb7185"),
     S("kh22", "missile", "Х-22", r"\b[xх]-?(?:22|32)\b", 3200, 100, 300, "dart", "#f43f5e"),
     S("onyx", "missile", "Онікс", r"онікс\w*|оникс\w*|\bп-?800\b", 3000, 90, 300, "dart", "#f43f5e"),
@@ -689,7 +697,7 @@ def detect(tl):
 
 TO_PRE_RX = re.compile(
     r"(?:(?:→|->|=>|—>|–>)|"
-    r"(?:\bна|\bдо|\bк|пуск\w*\s+по|удар\w*\s+по|б['’]?ють\s+по|\bу\s+бік|\bв\s+бік|\bв\s+сторону|\bу\s+сторону|\bу\s+напрям\w*|\bв\s+напрям\w*|\bв\s+направ\w*|"
+    r"(?:\bна|\bдо|\bк|\bпо(?!\s+(?:русл|дніпр|днепр|річц|берег|правом|лівом|левом))|пуск\w*\s+по|удар\w*\s+по|б['’]?ють\s+по|\bу\s+бік|\bв\s+бік|\bв\s+сторону|\bу\s+сторону|\bу\s+напрям\w*|\bв\s+напрям\w*|\bв\s+направ\w*|"
     r"напрям\w*(?:\s+на)?|направ\w*(?:\s+на)?|курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|"
     r"пряму\w*(?:\s+на|\s+в|\s+у)?|летит\w*(?:\s+на|\s+в|\s+у)?|летять(?:\s+на|\s+в|\s+у)?|летят(?:\s+на|\s+в|\s+у)?|"
     r"йде\s+на|йдуть\s+на|іде\s+на|ідуть\s+на|идет\s+на|идут\s+на|"
@@ -1082,9 +1090,14 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False, from
                 tgt = (f"курс {round(hdg_ovr)}°", gla, glo)
             provisional = True
         if pos and tgt:
-            b = brg(pos[1], pos[2], tgt[1], tgt[2])
-            if (75.0 <= b <= 230.0) or (is_free_territory(pos[1], pos[2]) and not (250.0 <= b <= 360.0 or 0.0 <= b <= 50.0)):
-                pos = real_kab_launch_origin_for(tgt)
+            # Якщо канал сам назвав місце пуску (відоме н.п.) — ВІРИМО йому і не підміняємо на Токмак/Кінські Роздори.
+            # Підміна лишається тільки для «сміттєвих» точок: широкі регіони/двозначні назви або пуск з нульовою дистанцією до цілі.
+            named = pos[0] in PLACE_BY_NAME and pos[0] not in BROAD_REGIONS and pos[0] not in AMBIGUOUS_PLACES
+            too_close = hav(pos[1], pos[2], tgt[1], tgt[2]) < 3.0
+            if not named or too_close:
+                b = brg(pos[1], pos[2], tgt[1], tgt[2])
+                if (75.0 <= b <= 230.0) or (is_free_territory(pos[1], pos[2]) and not (250.0 <= b <= 360.0 or 0.0 <= b <= 50.0)):
+                    pos = real_kab_launch_origin_for(tgt)
         return pos, tgt, hdg_ovr, provisional
 
     return pos, tgt, hdg_ovr, provisional
@@ -1303,6 +1316,13 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             obs={}
         )
         t["obs"][ch or f"c{i}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=eff_goal, hdg=init_hdg, v=v, explicit=explicit_origin)
+        # Балістика/швидкі ракети: до публікації повідомлення вона вже летить — стартуємо з уже пройденого відрізка
+        if (not manual and sub["kind"] == "missile" and v >= 3000 and eff_goal and init_hdg is not None
+                and not holding and not t.get("loiter")):
+            tot = hav(pos[1], pos[2], eff_goal[1], eff_goal[2])
+            adv = min(v / 3600.0 * MISSILE_HEAD_START, tot * 0.6)
+            if adv > 1.0:
+                t["lat"], t["lon"] = fwd(pos[1], pos[2], init_hdg, adv)
         if not manual and 10 < now - ts <= 900 and t.get("hdg") is not None and not t.get("holding"):
             cur = ts                       # повідомлення старе — дорахувати, де ціль мала б бути зараз
             t["ls"] = ts
