@@ -857,6 +857,44 @@ html, body {
   #sheet-handle { display: flex; flex-direction: column; }
 
 }
+
+/* ── СИСТЕМА ТРИВОГ ── */
+#alarmbtn.on { background: rgba(220,38,38,.9); border-color: #fca5a5; }
+#alarmbtn.on svg { stroke: #fff; }
+.my-pin { width: 30px; height: 30px; border-radius: 50%; background: #22d3ee; color: #021018; font-weight: 900; font-size: 15px;
+  display: flex; align-items: center; justify-content: center; border: 3px solid #fff; box-shadow: 0 0 0 3px rgba(34,211,238,.45), 0 4px 14px rgba(0,0,0,.7); }
+#alarm-panel { position: fixed; inset: 0; z-index: 9000; display: none; background: rgba(0,0,0,.62); align-items: center; justify-content: center; }
+#alarm-panel.open { display: flex; }
+.ap-card { width: min(440px, 94vw); max-height: 92vh; overflow-y: auto; background: #0b111c; border: 1px solid rgba(248,113,113,.55);
+  border-radius: 14px; padding: 14px 16px 16px; color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,.8); }
+.ap-h { display: flex; justify-content: space-between; align-items: center; font-size: 15px; margin-bottom: 6px; }
+.ap-h button { background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; }
+.ap-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-weight: 800; font-size: 14px; }
+.ap-sec { margin: 12px 0 5px; font-size: 11px; font-weight: 800; letter-spacing: .6px; color: var(--muted); text-transform: uppercase; }
+.ap-note { font-size: 11.5px; line-height: 1.45; color: #cbd5e1; margin: 4px 0; }
+.ap-note.ok { color: #34d399; } .ap-note.bad { color: #fca5a5; }
+.ap-btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.ap-btns button { flex: 1 1 140px; padding: 9px 10px; border-radius: 9px; border: 1px solid rgba(56,189,248,.4); background: rgba(56,189,248,.1);
+  color: #e0f2fe; font-weight: 700; font-size: 12px; cursor: pointer; }
+.ap-btns button.active { background: #0891b2; border-color: #67e8f9; }
+.ap-chk { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13px; font-weight: 600; }
+.ap-chk input { width: 18px; height: 18px; accent-color: #ef4444; }
+#ap-r { width: 100%; accent-color: #22d3ee; }
+.sw { position: relative; width: 54px; height: 30px; display: inline-block; }
+.sw input { opacity: 0; width: 0; height: 0; }
+.sw i { position: absolute; inset: 0; background: #334155; border-radius: 30px; transition: .2s; cursor: pointer; }
+.sw i::before { content: ''; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.sw input:checked + i { background: #dc2626; }
+.sw input:checked + i::before { transform: translateX(24px); }
+#siren-overlay { position: fixed; inset: 0; z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 24px; text-align: center; color: #fff; background: #b91c1c; animation: sirenFlash .45s infinite alternate; }
+#siren-overlay.open { display: flex; }
+@keyframes sirenFlash { from { background: #7f1d1d; } to { background: #ef4444; } }
+#so-title { font-size: clamp(26px, 8vw, 54px); font-weight: 900; letter-spacing: 1px; line-height: 1.1; }
+#so-body { font-size: clamp(16px, 4.5vw, 26px); font-weight: 700; max-width: 640px; }
+#so-stop { margin-top: 10px; width: min(480px, 90vw); padding: 26px 10px; font-size: clamp(22px, 6vw, 34px); font-weight: 900; border-radius: 18px;
+  border: 4px solid #fff; background: #111827; color: #fff; cursor: pointer; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+#so-off { background: none; border: 0; color: #fecaca; text-decoration: underline; font-size: 14px; cursor: pointer; padding: 10px; }
 </style>
 </head>
 <body>
@@ -920,6 +958,9 @@ html, body {
 
 <!-- ПРАВІ КНОПКИ ІНСТРУМЕНТІВ КАРТИ -->
 <div id="map-tools">
+  <button class="tool-btn" id="alarmbtn" title="Система тривог: балістика / КАБ на мій район">
+    <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+  </button>
   <button class="tool-btn" id="sndbtn" title="Звукове оповіщення тривоги">
     <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
   </button>
@@ -935,6 +976,46 @@ html, body {
   <button class="tool-btn" id="ukrainebtn" title="Огляд всієї лінії фронту України">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
   </button>
+</div>
+
+<!-- СИСТЕМА ТРИВОГ -->
+<div id="alarm-panel">
+  <div class="ap-card">
+    <div class="ap-h"><b>🚨 Система тривог</b><button id="ap-close" aria-label="Закрити">✕</button></div>
+    <div class="ap-row"><span>Увімкнути систему тривог</span><label class="sw"><input type="checkbox" id="ap-on"><i></i></label></div>
+    <div id="ap-status" class="ap-note"></div>
+
+    <div class="ap-sec">Де ви</div>
+    <div class="ap-btns">
+      <button id="ap-place">📍 Поставити мітку на карті</button>
+      <button id="ap-gps">🎯 Визначити за GPS</button>
+    </div>
+    <div id="ap-loc" class="ap-note">Мітку не поставлено</div>
+
+    <div class="ap-sec">Радіус вашого району: <b id="ap-r-v">15 км</b></div>
+    <input type="range" id="ap-r" min="3" max="50" step="1" value="15">
+
+    <div class="ap-sec">Піднімати тривогу, якщо летить на вас</div>
+    <label class="ap-chk"><input type="checkbox" id="ap-k-missile"> Балістика / ракети</label>
+    <label class="ap-chk"><input type="checkbox" id="ap-k-kab"> КАБ</label>
+    <label class="ap-chk"><input type="checkbox" id="ap-k-drone"> Шахеди / БпЛА</label>
+
+    <div class="ap-btns">
+      <button id="ap-test-siren">🔊 Тест сирени</button>
+      <button id="ap-test-push">📲 Тест push</button>
+    </div>
+    <div class="ap-note" style="margin-top:10px;color:#94a3b8">
+      Сирена на повну гучність і вібрація грають, коли застосунок відкритий або згорнутий. Коли він закритий — приходить push-сповіщення
+      (вібрація + звук сповіщень); браузер не може підняти системну гучність телефона сам. Для найкращого результату встановіть радар як
+      застосунок («Додати на головний екран»), дозвольте сповіщення й вимкніть для нього економію батареї.
+    </div>
+  </div>
+</div>
+<div id="siren-overlay">
+  <div id="so-title">🚨 ТРИВОГА</div>
+  <div id="so-body"></div>
+  <button id="so-stop">ВИМКНУТИ СИГНАЛ</button>
+  <button id="so-off">Вимкнути систему тривог</button>
 </div>
 
 <!-- ПАНЕЛЬ РАДАРА / МОБІЛЬНА ШТОРКА -->
@@ -1234,9 +1315,8 @@ html, body {
 
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    for (const reg of regs) reg.unregister();
-  }).catch(() => {});
+  // Service worker потрібен для push-тривог при закритому застосунку
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 const HOME_DEFAULT = ["Запоріжжя", 47.838, 35.139];
@@ -2234,6 +2314,7 @@ function applyServerState(st) {
   renderTargetsList();
   renderFeedList(st.feed || []);
   renderChannelsList(st.channels || []);
+  if (typeof AlarmSys !== 'undefined') { try { AlarmSys.onState(); } catch (_) {} }
 }
 
 function renderTargetsList() {
@@ -2327,7 +2408,7 @@ function renderChannelsList(chs) {
   const chHtml = chs.map(c => `
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:3px 6px;background:rgba(6,10,18,0.6);border-radius:4px;border:1px solid rgba(148,163,184,0.1)">
       <span style="color:${c.ok ? '#34d399' : '#94a3b8'};font-weight:700">t.me/${c.name}</span>
-      <span style="color:#64748b">${c.checked || '—'}</span>
+      <span style="color:#64748b">${c.lag != null ? 'затримка ' + c.lag + ' с · ' : ''}${c.checked || '—'}</span>
     </div>
   `).join('');
   if (box.__h === chHtml) return;
@@ -3564,6 +3645,287 @@ document.getElementById('myposbtn').addEventListener('click', () => {
 });
 document.getElementById('homebtn').addEventListener('click', () => map.setView([home[1], home[2]], 10));
 document.getElementById('ukrainebtn').addEventListener('click', () => map.setView([47.85, 35.80], 7));
+
+
+/* ══════════════ СИСТЕМА ТРИВОГ ══════════════ */
+const AlarmSys = (() => {
+  const KEY = 'radar_alarm_v1';
+  const $ = id => document.getElementById(id);
+  const baseTitle = document.title;
+  function loadCfg() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
+  const cfg = Object.assign({ on: false, lat: null, lon: null, r: 15, kinds: { missile: true, kab: true, drone: false } }, loadCfg());
+  const saveCfg = () => { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (_) {} };
+
+  /* ── сирена (WebAudio, повна гучність) ── */
+  const Siren = {
+    ctx: null, nodes: null, running: false, vib: null, tt: null,
+    unlock() {
+      try {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state !== 'running') this.ctx.resume();
+      } catch (_) {}
+    },
+    start() {
+      this.unlock();
+      if (this.running || !this.ctx) return;
+      const c = this.ctx;
+      const master = c.createGain(); master.gain.value = 1.0;
+      const clip = c.createWaveShaper(); const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 3);   // жорстке обрізання = максимально «різка» гучність
+      clip.curve = curve;
+      const o1 = c.createOscillator(), o2 = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain();
+      o1.type = 'sawtooth'; o2.type = 'square';
+      o1.frequency.value = 900; o2.frequency.value = 905;
+      lfo.type = 'triangle'; lfo.frequency.value = 0.8; lg.gain.value = 380;      // вовче виття 520↔1280 Гц
+      lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+      const g1 = c.createGain(), g2 = c.createGain(); g1.gain.value = 0.7; g2.gain.value = 0.5;
+      o1.connect(g1); o2.connect(g2); g1.connect(clip); g2.connect(clip); clip.connect(master); master.connect(c.destination);
+      o1.start(); o2.start(); lfo.start();
+      this.nodes = [o1, o2, lfo, master]; this.running = true;
+      const buzz = () => { try { navigator.vibrate && navigator.vibrate([700, 200, 700, 200, 700]); } catch (_) {} };
+      buzz(); this.vib = setInterval(buzz, 2500);
+      this.tt = setInterval(() => { document.title = document.title.startsWith('🚨') ? '⚠ ТРИВОГА!' : '🚨 ТРИВОГА'; }, 600);
+    },
+    stop() {
+      if (!this.running) return;
+      try { this.nodes.forEach(n => { if (n.stop) n.stop(); n.disconnect && n.disconnect(); }); } catch (_) {}
+      this.nodes = null; this.running = false;
+      clearInterval(this.vib); clearInterval(this.tt); document.title = baseTitle;
+      try { navigator.vibrate && navigator.vibrate(0); } catch (_) {}
+    }
+  };
+
+  /* ── тихий аудіо-потік, щоб згорнута вкладка/PWA не засинала ── */
+  let keepEl = null;
+  function silentWav() {
+    const sr = 8000, n = sr, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    w(36, 'data'); v.setUint32(40, n, true); for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function keepAliveOn() {
+    try {
+      if (!keepEl) { keepEl = new Audio(silentWav()); keepEl.loop = true; keepEl.volume = 0.02; }
+      keepEl.play().catch(() => {});
+    } catch (_) {}
+  }
+  function keepAliveOff() { try { keepEl && keepEl.pause(); } catch (_) {} }
+
+  let wl = null;
+  async function lockScreen() { try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen'); } catch (_) {} }
+  function unlockScreen() { try { wl && wl.release(); } catch (_) {} wl = null; }
+
+  /* ── мітка «Я тут» + радіус ── */
+  let pin = null, circle = null, placing = false;
+  function drawPin() {
+    if (cfg.lat == null) {
+      if (pin) { map.removeLayer(pin); pin = null; }
+      if (circle) { map.removeLayer(circle); circle = null; }
+      return;
+    }
+    const ll = [cfg.lat, cfg.lon];
+    if (!pin) {
+      pin = L.marker(ll, { draggable: true, zIndexOffset: 5000,
+        icon: L.divIcon({ className: '', html: '<div class="my-pin">Я</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(map);
+      pin.on('dragend', e => { const q = e.target.getLatLng(); setLoc(q.lat, q.lng); });
+    } else pin.setLatLng(ll);
+    if (!circle) circle = L.circle(ll, { radius: cfg.r * 1000, color: '#22d3ee', weight: 1.5, dashArray: '6,6',
+      fillColor: '#22d3ee', fillOpacity: 0.07, interactive: false }).addTo(map);
+    else { circle.setLatLng(ll); circle.setRadius(cfg.r * 1000); }
+  }
+  function setLoc(lat, lon) {
+    cfg.lat = +lat.toFixed(5); cfg.lon = +lon.toFixed(5);
+    saveCfg(); drawPin(); refreshUI(); queueSync();
+  }
+
+  /* ── push ── */
+  let reg = null, sub = null, pushState = 'unknown', syncT = null;
+  const b64u = s => { const b = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(b), c => c.charCodeAt(0)); };
+  async function ensurePush(ask) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) { pushState = 'unsupported'; return false; }
+    try {
+      reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      if (Notification.permission === 'default' && ask) await Notification.requestPermission();
+      if (Notification.permission !== 'granted') { pushState = Notification.permission === 'denied' ? 'denied' : 'default'; return false; }
+      const kr = await (await fetch('/api/push/key')).json();
+      if (!kr.ok) { pushState = 'noserver'; return false; }
+      sub = await reg.pushManager.getSubscription();
+      const prev = localStorage.getItem('radar_vapid');
+      if (sub && prev && prev !== kr.key) { try { await sub.unsubscribe(); } catch (_) {} sub = null; }   // ключ сервера змінився
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(kr.key) });
+      localStorage.setItem('radar_vapid', kr.key);
+      pushState = 'ok'; return true;
+    } catch (e) { console.warn('push', e); pushState = 'error'; return false; }
+  }
+  async function syncServer() {
+    if (!sub || cfg.lat == null) return;
+    try {
+      await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), lat: cfg.lat, lon: cfg.lon, r: cfg.r, on: cfg.on,
+          kinds: Object.keys(cfg.kinds).filter(k => cfg.kinds[k]) }) });
+    } catch (_) {}
+  }
+  function queueSync() { clearTimeout(syncT); syncT = setTimeout(syncServer, 600); }
+
+  /* ── гео ── */
+  function segInfo(plat, plon, alat, alon, blat, blon) {
+    const k = Math.cos(plat * Math.PI / 180);
+    const ax = (alon - plon) * 111.32 * k, ay = (alat - plat) * 111.2, bx = (blon - plon) * 111.32 * k, by = (blat - plat) * 111.2;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const u = L2 < 1e-9 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2));
+    return [Math.hypot(ax + u * dx, ay + u * dy), u * Math.sqrt(L2)];
+  }
+  const lvlOf = eta => (eta <= 90 ? 2 : 1);
+  function threatFor(t) {
+    if (t.ended || t.holding || t.loiter || !t.v) return null;
+    if (!cfg.kinds[t.kind]) return null;
+    const a = animState[t.id];
+    const la = a ? a.lat : t.lat, lo = a ? a.lon : t.lon;
+    let ela, elo;
+    if (t.goal && t.to && !String(t.to).startsWith('курс')) { ela = t.goal[0]; elo = t.goal[1]; }
+    else if (t.hdg != null) {
+      let reach = 400;
+      if (t.kind === 'kab' && t.fx && t.fx[0]) reach = Math.max(0, 95 - hav(t.fx[0][0], t.fx[0][1], la, lo));
+      if (reach <= 0) return null;
+      const r = t.hdg * Math.PI / 180;
+      ela = la + reach * Math.cos(r) / 111.2; elo = lo + reach * Math.sin(r) / (111.2 * Math.cos(la * Math.PI / 180));
+    } else return null;
+    const R = t.kind === 'missile' ? Math.max(cfg.r, 20) : cfg.r;
+    const [d, along] = segInfo(cfg.lat, cfg.lon, la, lo, ela, elo);
+    if (d > R) return null;
+    const eta = Math.round(along / t.v * 3600);
+    return { id: t.id, kind: t.kind, name: t.name, dist: hav(la, lo, cfg.lat, cfg.lon), eta, lvl: lvlOf(eta) };
+  }
+
+  /* ── тривога ── */
+  const acked = new Set();
+  let activeKeys = [];
+  const KIND_UA = { kab: 'КАБ', missile: 'БАЛІСТИКА / РАКЕТА', drone: 'БпЛА' };
+  const fmtEta = s => (s >= 60 ? `~${Math.floor(s / 60)} хв ${s % 60} с` : `~${Math.max(0, s)} с`);
+  function showAlarm(title, body, keys) {
+    activeKeys = keys;
+    $('so-title').textContent = title;
+    $('so-body').textContent = body;
+    $('siren-overlay').classList.add('open');
+    Siren.start(); lockScreen();
+  }
+  function stopAlarm() {
+    activeKeys.forEach(k => acked.add(k));
+    activeKeys = [];
+    $('siren-overlay').classList.remove('open');
+    Siren.stop(); unlockScreen();
+  }
+  function onState() {
+    if (!cfg.on || cfg.lat == null) return;
+    const ths = Object.values(serverTracks).map(threatFor).filter(Boolean);
+    const fresh = ths.filter(th => !acked.has(th.id + ':' + th.lvl));
+    if (!fresh.length) return;
+    fresh.sort((a, b) => a.eta - b.eta);
+    const th = fresh[0];
+    showAlarm(`🚨 ${KIND_UA[th.kind] || 'ЗАГРОЗА'} НА ВАШ РАЙОН`,
+      `${th.dist.toFixed(1)} км до вас · підліт ${fmtEta(th.eta)}. НЕГАЙНО В УКРИТТЯ!`,
+      Array.from(new Set(activeKeys.concat(fresh.map(x => x.id + ':' + x.lvl)))));
+  }
+  function onPushMessage(d) {
+    if (!cfg.on || !d) return;
+    const key = d.id + ':' + d.lvl;
+    if (acked.has(key)) return;
+    showAlarm(d.title || '🚨 ТРИВОГА', d.body || '', Array.from(new Set(activeKeys.concat([key]))));
+  }
+
+  /* ── UI ── */
+  function refreshUI() {
+    $('alarmbtn').classList.toggle('on', cfg.on);
+    $('ap-on').checked = cfg.on;
+    $('ap-r').value = cfg.r; $('ap-r-v').textContent = cfg.r + ' км';
+    ['missile', 'kab', 'drone'].forEach(k => { $('ap-k-' + k).checked = !!cfg.kinds[k]; });
+    $('ap-loc').textContent = cfg.lat == null ? 'Мітку не поставлено — натисніть кнопку вище і торкніться карти'
+      : `Ваша мітка: ${cfg.lat.toFixed(4)}, ${cfg.lon.toFixed(4)} (можна перетягнути на карті)`;
+    $('ap-place').classList.toggle('active', placing);
+    const st = $('ap-status'); let txt = '', cls = '';
+    if (!cfg.on) txt = 'Система вимкнена: сирена й push не спрацьовують.';
+    else if (cfg.lat == null) { txt = '⚠ Поставте мітку, де ви, — без неї тривога не знає, що відбувається біля вас.'; cls = 'bad'; }
+    else if (pushState === 'ok') { txt = '✅ Тривога активна. Push прийде і при закритому застосунку.'; cls = 'ok'; }
+    else if (pushState === 'unsupported') { txt = 'Цей браузер не підтримує push (iPhone: додайте сайт на екран «Додому» й відкрийте з іконки). Сирена працює лише при відкритому застосунку.'; cls = 'bad'; }
+    else if (pushState === 'denied') { txt = 'Сповіщення заблоковані для цього сайту — дозвольте їх у налаштуваннях браузера.'; cls = 'bad'; }
+    else if (pushState === 'noserver') { txt = 'На сервері не встановлено pywebpush: push вимкнено. Сирена працює лише при відкритому застосунку.'; cls = 'bad'; }
+    else if (pushState === 'default') { txt = 'Дозвіл на сповіщення не надано — без нього закритий застосунок не розбудиться.'; cls = 'bad'; }
+    else if (pushState === 'error') { txt = 'Не вдалося підписатись на push. Спробуйте ще раз.'; cls = 'bad'; }
+    else txt = 'Налаштовую push…';
+    st.textContent = txt; st.className = 'ap-note ' + cls;
+  }
+  async function enable(on) {
+    cfg.on = on; saveCfg();
+    if (on) {
+      Siren.unlock(); keepAliveOn();
+      refreshUI();
+      await ensurePush(true);
+      await syncServer();
+    } else {
+      stopAlarm(); keepAliveOff();
+      await syncServer();
+    }
+    refreshUI();
+  }
+
+  $('alarmbtn').addEventListener('click', () => { $('alarm-panel').classList.add('open'); refreshUI(); });
+  $('ap-close').addEventListener('click', () => { placing = false; $('alarm-panel').classList.remove('open'); refreshUI(); });
+  $('alarm-panel').addEventListener('click', e => { if (e.target.id === 'alarm-panel') $('ap-close').click(); });
+  $('ap-on').addEventListener('change', e => enable(e.target.checked));
+  $('ap-place').addEventListener('click', () => {
+    placing = true; $('alarm-panel').classList.remove('open');
+    map.getContainer().style.cursor = 'crosshair';
+  });
+  map.on('click', e => {
+    if (!placing) return;
+    placing = false; map.getContainer().style.cursor = '';
+    setLoc(e.latlng.lat, e.latlng.lng);
+    $('alarm-panel').classList.add('open');
+  });
+  $('ap-gps').addEventListener('click', () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => { setLoc(pos.coords.latitude, pos.coords.longitude); map.setView([cfg.lat, cfg.lon], 12); },
+      () => { $('ap-loc').textContent = 'Не вдалося отримати GPS — поставте мітку вручну.'; }, { enableHighAccuracy: true, timeout: 12000 });
+  });
+  $('ap-r').addEventListener('input', e => { cfg.r = +e.target.value; $('ap-r-v').textContent = cfg.r + ' км'; saveCfg(); drawPin(); queueSync(); });
+  ['missile', 'kab', 'drone'].forEach(k => $('ap-k-' + k).addEventListener('change', e => { cfg.kinds[k] = e.target.checked; saveCfg(); queueSync(); }));
+  $('ap-test-siren').addEventListener('click', () => {
+    Siren.unlock();
+    showAlarm('🚨 ТЕСТ СИРЕНИ', 'Так звучатиме тривога. Натисніть «ВИМКНУТИ СИГНАЛ».', ['test-local']);
+  });
+  $('ap-test-push').addEventListener('click', async () => {
+    Siren.unlock();
+    const ok = await ensurePush(true); await syncServer(); refreshUI();
+    if (!ok || !sub) return;
+    try {
+      const r = await (await fetch('/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint }) })).json();
+      $('ap-status').textContent = r.ok ? '📲 Тестовий push надіслано — він має прийти за кілька секунд.' : 'Сервер не знайшов вашу підписку: ' + (r.error || '');
+    } catch (_) { $('ap-status').textContent = 'Не вдалося звернутись до сервера.'; }
+  });
+  $('so-stop').addEventListener('click', e => { e.stopPropagation(); stopAlarm(); });
+  $('so-off').addEventListener('click', e => { e.stopPropagation(); enable(false); });
+  $('siren-overlay').addEventListener('pointerdown', () => Siren.unlock());          // перший дотик розблоковує звук
+  document.addEventListener('pointerdown', () => { if (cfg.on) Siren.unlock(); }, { passive: true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Siren.running) { lockScreen(); Siren.unlock(); } });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', ev => { if (ev.data && ev.data.type === 'alarm') onPushMessage(ev.data.payload); });
+  }
+
+  drawPin(); refreshUI();
+  if (cfg.on) {          // після перезапуску сторінки/сервера підписку й мітку відновлюємо автоматично
+    keepAliveOn();
+    ensurePush(false).then(() => syncServer()).then(refreshUI);
+  }
+  const q = new URLSearchParams(location.search);
+  if (q.get('alarm') && cfg.on) onPushMessage({ id: q.get('alarm'), lvl: +(q.get('lvl') || 2), title: '🚨 ТРИВОГА', body: 'Відкрито зі сповіщення. Перевірте карту.' });
+
+  return { onState, cfg, stopAlarm };
+})();
 
 syncAdminUI();
 fetch('/state').then(r => r.json()).then(applyServerState).catch(() => {});
