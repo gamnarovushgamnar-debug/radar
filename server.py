@@ -410,14 +410,14 @@ SUBS = [
     S("kab", "kab", "КАБ",
       r"\bкаб(?:и|ів|ах|ам|ом|у|а|ів|чик|чики|ы|ов|ам|ами)?\b|авіабомб\w*|авиабомб\w*|умпк\w*|умпб\w*|\bфаб(?:и|ів|ах|ам|ом|у|ы|ов)?\b|\bодаб\w*|д-?30сн|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|пуск\w*\s+каб\w*",
       680, 20, 360, "kab", "#ef4444"),
-    S("kinzhal", "missile", "Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 3800, 120, 300, "dart", "#e11d48"),
-    S("zircon", "missile", "Циркон", r"циркон\w*|3м-?22", 4200, 120, 300, "dart", "#e11d48"),
-    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 3800, 120, 300, "ballistic", "#f43f5e"),
+    S("kinzhal", "missile", "Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 9000, 120, 300, "dart", "#e11d48"),
+    S("zircon", "missile", "Циркон", r"циркон\w*|3м-?22", 7500, 120, 300, "dart", "#e11d48"),
+    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 6500, 120, 300, "ballistic", "#f43f5e"),
     S("iskander_k", "missile", "Іскандер-К", r"[іи]скандер-?к|9м72[89]", 850, 60, 600, "cruise", "#f97316"),
-    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 3600, 120, 300, "ballistic", "#f43f5e"),
-    S("s300", "missile", "С-300", r"\bс-?(?:300|400)\w*|зкр\s+с-?300", 2800, 60, 300, "dart", "#fb7185"),
+    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 6000, 120, 300, "ballistic", "#f43f5e"),
+    S("s300", "missile", "С-300", r"\bс-?(?:300|400)\w*|зкр\s+с-?300", 3500, 60, 300, "dart", "#fb7185"),
     S("kh22", "missile", "Х-22", r"\b[xх]-?(?:22|32)\b", 3200, 100, 300, "dart", "#f43f5e"),
-    S("onyx", "missile", "Онікс", r"онікс\w*|оникс\w*|\bп-?800\b", 2400, 90, 300, "dart", "#f43f5e"),
+    S("onyx", "missile", "Онікс", r"онікс\w*|оникс\w*|\bп-?800\b", 3000, 90, 300, "dart", "#f43f5e"),
     S("kh101", "missile", "Х-101", r"\b[xх]-?(?:101|102|555|55)\b", 820, 60, 600, "cruise", "#f97316"),
     S("kalibr", "missile", "Калібр", r"калібр\w*|калибр\w*|3м-?14|3м-?54", 820, 60, 600, "cruise", "#f97316"),
     S("kh59", "missile", "Х-59/Х-69", r"\b[xх]-?(?:35|38|59|69)\b", 850, 60, 600, "cruise", "#f97316"),
@@ -1035,7 +1035,7 @@ def adjust_city_entry_goal(pos, tgt):
 def predict_next_threats(t, la, lo, hdg):
     return []
 
-def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False):
+def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False, from_brg=None):
     """Перевіряє фізичну реалістичність маршруту БЕЗ ВИГАДУВАННЯ КУРСУ:
     якщо КАБ заспавнено вручну або відомий тільки рубіж пуску без цілі — КАБ ЧЕКАЄ НА КУРС (tgt=None)."""
     if manual:
@@ -1049,7 +1049,13 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False):
 
     if sub_kind == "missile":
         if not pos and tgt:
-            pos = ("південно-східний напрямок", 47.15, 36.80)
+            # напрямок підльоту береться з повідомлення («з півдня», «курс 340°»), а не з жорстко заданої точки
+            in_brg = from_brg if from_brg is not None else ((hdg_ovr + 180.0) % 360 if hdg_ovr is not None else None)
+            if in_brg is not None:
+                sla, slo = fwd(tgt[1], tgt[2], in_brg, 110.0)
+                pos = (f"напрямок {round(in_brg)}°", sla, slo)
+            else:
+                pos = ("південно-східний напрямок (орієнтовно)", 47.15, 36.80)
         return pos, tgt, hdg_ovr, (tgt is None and hdg_ovr is None)
 
     if sub_kind == "kab":
@@ -1064,7 +1070,11 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False):
                 # КАБ без вказаної цілі або курсу НІКОЛИ не летить сам куди попало — чекає на курс!
                 provisional = True
         if not pos and tgt:
-            pos = real_kab_launch_origin_for(tgt)
+            if from_brg is not None:
+                sla, slo = fwd(tgt[1], tgt[2], from_brg, 40.0)
+                pos = (f"напрямок {round(from_brg)}°", sla, slo)
+            else:
+                pos = real_kab_launch_origin_for(tgt)
         if not pos and not tgt:
             pos = ("Токмак", 47.254, 35.704)
             if hdg_ovr is not None:
@@ -1212,7 +1222,7 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
     now = time.time()
     te = min(ts + REPORT_LAG, now)
 
-    pos, tgt, hdg_ovr, is_provisional = sanitize_tactical_route(sub["kind"], pos, tgt, hdg_ovr=hdg_ovr, manual=manual)
+    pos, tgt, hdg_ovr, is_provisional = sanitize_tactical_route(sub["kind"], pos, tgt, hdg_ovr=hdg_ovr, manual=manual, from_brg=from_brg)
 
     if sub["kind"] == "drone":
         ref_pt = tgt or pos
@@ -2002,7 +2012,8 @@ async def tick(s):
                             )
                         except Exception as e:
                             print("ntfy", e)
-            if now - LAST_PUSH[0] >= 2.0:
+            fast = any((t["kind"] in ("missile", "kab")) and not t.get("ended") and not t.get("holding") for t in tracks.values())
+            if now - LAST_PUSH[0] >= (0.9 if fast else 2.0):
                 LAST_PUSH[0] = now
                 await push()
         except Exception as e:
@@ -2091,8 +2102,18 @@ async def poll(s, ch):
                             note(f"{ch}: post_memory error {e_pm!r}")
                             post_memory[pid] = {"subs": [], "routes": [], "text": main_text}
                         new.append((ts, main_text, pid, reply_ctx))
+                if new:
+                    # обробляємо одразу: якщо наступний запит до t.me впаде, повідомлення вже не загубиться
+                    for ts_, tx_, pid_, rc_ in sorted(new, key=lambda x: x[0]):
+                        await process(s, ts_, tx_, ch, msg_key=pid_, reply_ctx=rc_)
+                    new = []
+                    got_fast = True
+                else:
+                    got_fast = False
+            else:
+                got_fast = False
 
-            if first or cycle % 2 == 0 or not new:
+            if first or cycle % 2 == 0 or not got_fast:
                 url = f"https://t.me/s/{ch}?_={int(time.time() * 1000)}"
                 async with s.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=4.5)) as r:
                     html, code = await r.text(), r.status

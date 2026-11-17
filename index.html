@@ -1985,7 +1985,7 @@ function stepClientKinematics() {
   const nowMs = performance.now();
   const rawDt = (nowMs - lastAnimTs) / 1000;
   if (rawDt < (povActive ? 0.004 : 0.030)) return;
-  const dt = Math.min(0.15, rawDt);
+  const dt = Math.min(2.0, rawDt);
   lastAnimTs = nowMs;
 
   if (isZooming) return;
