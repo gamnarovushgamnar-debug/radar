@@ -898,10 +898,120 @@ html, body {
   border: 4px solid #fff; background: #111827; color: #fff; cursor: pointer; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
 #so-off { background: none; border: 0; color: #fecaca; text-decoration: underline; font-size: 14px; cursor: pointer; padding: 10px; }
 </style>
+<style id="theme-v2">
+/* ═══ ДИЗАЙН v2 · чистий, контрастний, без важких ефектів ═══
+   Головне для плавності: жодних backdrop-filter / filter на карті й панелях — саме вони давали мерехтіння. */
+:root {
+  --bg: #0a0f18; --panel: #0f1623; --panel-2: #151e30; --panel-border: #1f2b42;
+  --accent: #4cc9f0; --amber: #ffb020; --danger: #ff4d57; --ok: #2dd4a0;
+  --text: #eef2f8; --muted: #8a99b0;
+}
+html, body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-feature-settings: "tnum" 1; }
+.leaflet-container { background: #0a0f18; font-family: inherit; }
+.leaflet-control-attribution { background: rgba(10,15,24,.72) !important; color: #6b7a90 !important; font-size: 9px !important; }
+.leaflet-control-attribution a { color: #8fa3c2 !important; }
+
+/* прибираємо все, що змушує браузер перемальовувати карту під панелями */
+.status-pill, .fchip, #selected-target-bar, .tool-btn, #dock, .ap-card { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#map.theme-dark .leaflet-tile-pane, #map.theme-esri_dark .leaflet-tile-pane { filter: none !important; }
+.fchip.off, .card.ended { filter: none !important; }
+.t-svg-box, .t-marker-root.selected .t-svg-box { filter: none !important; transition: none !important; }
+#hud-grid-overlay { display: none; }
+#watermark-overlay { opacity: .09 !important; }
+
+/* ── верхня панель ── */
+.status-pill { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 7px 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); font-weight: 600; }
+#clock-txt { color: var(--muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+#active-cnt-txt { color: var(--accent) !important; font-weight: 800; }
+.hud-brand-tag { color: var(--text); font-weight: 800; letter-spacing: .6px; }
+.hud-divider { background: var(--panel-border); height: 14px; }
+.pov-quick-pill { background: linear-gradient(180deg, #1aa6d6, #0e86b4); border: 0; border-radius: 12px; padding: 7px 13px;
+  font-size: 11px; font-weight: 800; box-shadow: 0 4px 14px rgba(14,134,180,.35); }
+.pov-quick-pill:hover { transform: none; filter: brightness(1.08); }
+
+/* ── фільтри цілей ── */
+.fchip { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 999px; padding: 5px 11px 5px 9px;
+  font-size: 11.5px; font-weight: 700; color: var(--text); box-shadow: none; }
+.fchip:hover { border-color: #2c3d5c; }
+.fchip.off { opacity: .42; }
+.fchip .cnt-badge { background: var(--panel-2); border: 0; color: var(--accent); border-radius: 999px; padding: 1px 7px; font-size: 10.5px; }
+
+/* ── кнопки справа ── */
+.tool-btn { width: 40px; height: 40px; border-radius: 12px; background: var(--panel); border: 1px solid var(--panel-border);
+  color: #c7d2e4; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.tool-btn:hover, .tool-btn.on { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+.tool-btn svg { width: 19px; height: 19px; }
+
+/* ── бокова панель ── */
+#dock { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.5); width: 360px; top: 96px; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 7px; background: transparent; border-bottom: 1px solid var(--panel-border); }
+.tab { border: 0; border-radius: 11px; padding: 8px 4px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.tab:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.tab.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--panel-border); border-bottom: 0; }
+.tab.active svg { stroke: var(--accent); }
+.pane { padding: 10px; gap: 8px; scrollbar-width: thin; scrollbar-color: #2a3a58 transparent; }
+
+/* ── картки цілей ── */
+.card { position: relative; overflow: hidden; background: var(--panel-2); border: 1px solid var(--panel-border); border-left: 1px solid var(--panel-border);
+  border-radius: 14px; padding: 10px 12px 10px 16px; transition: border-color .12s, background .12s; }
+.card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c, #ffb020); }
+.card:hover { background: #19243a; }
+.card.selected { border-color: var(--accent) !important; border-left: 1px solid var(--accent) !important; box-shadow: none; }
+.card.ended { opacity: .5; }
+.card-title { font-size: 13px; font-weight: 800; }
+.card-sub { font-size: 11.5px; color: #b6c2d6; margin-top: 5px; }
+.card-msg { font-size: 11px; color: var(--muted); }
+.eta-pill, .wait-pill, .cnt-pill { border-radius: 999px; padding: 2px 9px; font-size: 10.5px; }
+.card-pov-btn { border-radius: 8px; background: rgba(76,201,240,.12); border: 1px solid rgba(76,201,240,.4); color: #c9f0ff; }
+.card-pov-btn:hover { background: rgba(76,201,240,.28); }
+
+/* ── стрічка, налаштування ── */
+.feed-item, .sec-box { background: var(--panel-2); border: 1px solid var(--panel-border); border-radius: 14px; padding: 10px 12px; }
+.feed-head { color: var(--accent); }
+.sec-title { color: var(--muted); font-size: 10.5px; letter-spacing: .8px; }
+.style-btn { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 6px; font-size: 11px; }
+.style-btn:hover { border-color: #2c3d5c; }
+.style-btn.active { background: rgba(76,201,240,.14); border-color: var(--accent); color: var(--text); }
+.ctrl-row { font-size: 12px; padding: 2px 0; }
+.ctrl-row input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+.ctrl-input { background: #0a111d; border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+.btn-primary { background: #1296c8; border: 0; border-radius: 10px; padding: 8px 14px; font-size: 11.5px; }
+.btn-primary:hover { background: #17a8de; }
+.btn-sec { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 7px 11px; }
+.qchip, .uav-spawn-btn { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; }
+
+/* ── обрана ціль ── */
+#selected-target-bar { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; padding: 8px 10px 8px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+#sel-bar-pov-btn { background: #1296c8; border: 0; border-radius: 10px; box-shadow: none; }
+#sel-bar-pov-btn:hover { background: #17a8de; transform: none; }
+
+/* ── маркери на карті ── */
+.t-lbl-tag { background: #0a0f18; border: 1px solid #2a3a58; border-left: 3px solid var(--tc, #ffb020); border-radius: 6px; font-size: 10.5px; box-shadow: none; }
+.t-marker-root.selected .t-lock-ring { opacity: 1; border-color: var(--tc, #ffb020); }
+.leaflet-tooltip.landmark-lbl { background: rgba(10,15,24,.82); border: 0; color: #cfe8f7; box-shadow: none; }
+
+/* ── панель тривог ── */
+.ap-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 18px; padding: 16px 18px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+.ap-sec { color: var(--muted); letter-spacing: .8px; margin-top: 16px; }
+.ap-btns button { border-radius: 10px; border: 1px solid var(--panel-border); background: var(--panel-2); color: var(--text); }
+.ap-btns button:hover { border-color: var(--accent); }
+.ap-btns button.active { background: #1296c8; border-color: #1296c8; }
+.ap-sel { background: var(--panel-2); border: 1px solid var(--panel-border); color: var(--text); }
+
+@media (max-width: 768px) {
+  #dock { top: auto; width: 100%; border-radius: 18px 18px 0 0; }
+  .tool-btn { width: 36px; height: 36px; }
+  .status-pill { padding: 5px 9px; }
+  .fchip { padding: 4px 9px 4px 7px; font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; } }
+</style>
+
 </head>
 <body>
 
-<div id="map" class="theme-tactical"></div>
+<div id="map" class="theme-dark"></div>
 <div id="hud-grid-overlay"></div>
 <div id="watermark-overlay"></div>
 
@@ -1067,8 +1177,8 @@ html, body {
     <div class="sec-box">
       <div class="sec-title">Робочі картографічні підкладки (10 без API)</div>
       <div class="style-grid">
-        <div class="style-btn active" data-style="tactical">Тактична ОСІНТ</div>
-        <div class="style-btn" data-style="dark">Нічний ППО (Темна)</div>
+        <div class="style-btn" data-style="tactical">Тактична ОСІНТ</div>
+        <div class="style-btn active" data-style="dark">Нічний ППО (Темна)</div>
         <div class="style-btn" data-style="sat">Супутник Esri HD</div>
         <div class="style-btn" data-style="topo">Топографічна (Висоти)</div>
         <div class="style-btn" data-style="esri_topo">Рельєф Генштаб</div>
@@ -1362,7 +1472,7 @@ function mkTiles(url, o) {
 }
 const BASEMAPS = {
   tactical:    mkTiles('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 19, attribution: '© OSM · Оперативний Радар ZP' }),
-  dark:        mkTiles('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 19, attribution: '© OSM Dark · Оперативний Радар ZP' }),
+  dark:        mkTiles('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { subdomains: 'abcd', maxNativeZoom: 19, maxZoom: 19, attribution: '© OSM © CARTO · Оперативний Радар ZP' }),
   sat:         mkTiles('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 18, maxZoom: 19, attribution: '© Esri · Оперативний Радар ZP' }),
   topo:        mkTiles('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxNativeZoom: 17, maxZoom: 19, attribution: '© OpenTopoMap · Оперативний Радар ZP' }),
   esri_topo:   mkTiles('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 18, maxZoom: 19, attribution: '© Esri Topo · Оперативний Радар ZP' }),
@@ -1372,7 +1482,7 @@ const BASEMAPS = {
   cyclosm:     mkTiles('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 19, attribution: '© CyclOSM · Оперативний Радар ZP' }),
   light:       mkTiles('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, attribution: '© Esri Light · Оперативний Радар ZP' })
 };
-let currentBasemap = BASEMAPS.tactical.addTo(map);
+let currentBasemap = BASEMAPS.dark.addTo(map);
 let satLabelsLayer = mkTiles('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 18, maxZoom: 19, pane: 'overlayPane' });
 let esriDarkRefLayer = mkTiles('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, pane: 'overlayPane' });
 
@@ -2074,6 +2184,7 @@ let povTrackId = null;
 let povTimeWarp = 1;
 
 let lastAnimTs = performance.now();
+let lastVecTs = 0;
 function stepClientKinematics() {
   const nowMs = performance.now();
   const rawDt = (nowMs - lastAnimTs) / 1000;
@@ -2082,6 +2193,9 @@ function stepClientKinematics() {
   lastAnimTs = nowMs;
 
   if (isZooming) return;
+
+  const doVec = (nowMs - lastVecTs) >= 120;
+  if (doVec) lastVecTs = nowMs;
 
   Object.values(serverTracks).forEach(t => {
     const a = animState[t.id];
@@ -2137,6 +2251,7 @@ function stepClientKinematics() {
         }
       }
 
+      if (doVec) {
       const goalPt = a.goal;
       if (goalPt && !a.holding) {
         if (vectorPolyById[t.id]) {
@@ -2163,6 +2278,7 @@ function stepClientKinematics() {
       }
       if (trailPolyById[t.id] && a.trail && a.trail.length >= 2) {
         trailPolyById[t.id].setLatLngs(a.trail);
+      }
       }
     }
   });

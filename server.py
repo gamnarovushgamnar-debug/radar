@@ -2235,7 +2235,7 @@ async def send_push(ep, payload):
     def _do():
         return webpush(subscription_info=sb["sub"], data=json.dumps(payload, ensure_ascii=False),
                        vapid_private_key=VAPID_OBJ, vapid_claims={"sub": VAPID_SUB},
-                       ttl=60, headers={"Urgency": "high"})
+                       ttl=180, headers={"Urgency": "high"})
     try:
         await asyncio.get_running_loop().run_in_executor(None, _do)
     except Exception as e:
@@ -2320,6 +2320,125 @@ async def push_test(req):
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=400)
 
+
+# ───────────────────────── РЕАЛЬНИЙ ЧАС: Telethon (MTProto) ─────────────────────────
+# t.me/s/<канал> — це веб-вітрина Telegram, яка кешується й відстає на 10–60+ секунд. Саме це давало «велику затримку».
+# Telethon підписується на канали напряму і отримує пост за ~0.3–1 с. Вмикається змінними TG_API_ID, TG_API_HASH, TG_SESSION
+# (рядок сесії робить make_tg_session.py). Без них радар працює як раніше, через веб-вітрину.
+TG_API_ID = os.getenv("TG_API_ID")
+TG_API_HASH = os.getenv("TG_API_HASH")
+TG_SESSION = os.getenv("TG_SESSION")
+rt_state = {"on": False, "err": None, "last_msg": None, "count": 0}
+rt_seen = {}   # pid -> текст, уже оброблений real-time каналом (щоб polling не дублював)
+
+TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
+TG_ALERT_CHATS = [c.strip() for c in os.getenv("TG_ALERT_CHATS", "").split(",") if c.strip()]
+
+async def tg_bot_alert(s, text):
+    """Тривога в Telegram-бот: приходить навіть коли радар закритий, а екран телефона вимкнений."""
+    if not (TG_BOT_TOKEN and TG_ALERT_CHATS):
+        return
+    for chat in TG_ALERT_CHATS:
+        try:
+            async with s.post(f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
+                              json={"chat_id": chat, "text": text, "disable_notification": False},
+                              timeout=aiohttp.ClientTimeout(total=8)) as r:
+                await r.read()
+        except Exception as e:
+            print("tg bot alert:", repr(e)[:150])
+
+async def tg_realtime():
+    if not (TG_API_ID and TG_API_HASH and TG_SESSION):
+        rt_state["err"] = "вимкнено: немає TG_API_ID / TG_API_HASH / TG_SESSION"
+        return
+    try:
+        from telethon import TelegramClient, events as tl_events
+        from telethon.sessions import StringSession
+    except Exception as e:
+        rt_state["err"] = f"telethon не встановлено: {e!r}"
+        print(rt_state["err"])
+        return
+    by_lower = {c.lower(): c for c in CHANNELS}
+    while True:
+        client = None
+        try:
+            client = TelegramClient(StringSession(TG_SESSION), int(TG_API_ID), TG_API_HASH,
+                                    connection_retries=-1, retry_delay=1, auto_reconnect=True)
+            await client.connect()
+            if not await client.is_user_authorized():
+                rt_state["err"] = "сесія недійсна — згенеруйте TG_SESSION заново (make_tg_session.py)"
+                print(rt_state["err"])
+                await client.disconnect()
+                return
+
+            async def handle(ev, edited=False):
+                try:
+                    m = ev.message
+                    text = (m.message or "").strip()
+                    if not text:
+                        return
+                    uname = (getattr(ev.chat, "username", None) or "").lower()
+                    ch = by_lower.get(uname)
+                    if not ch:
+                        return
+                    text = "\n".join(ln.strip() for ln in text.split("\n") if ln.strip())
+                    pid = f"{ch}/{m.id}"
+                    if rt_seen.get(pid) == text:
+                        return
+                    rt_seen[pid] = text
+                    if len(rt_seen) > 1500:
+                        rt_seen.pop(next(iter(rt_seen)))
+                    seen_text[pid] = text
+                    try:
+                        last_ch_id[ch] = max(last_ch_id.get(ch, 0), int(m.id))
+                    except Exception:
+                        pass
+                    ts = time.time() if edited else m.date.timestamp()
+                    cl = clean_post(text).lower()
+                    try:
+                        post_memory[pid] = {"subs": detect(cl), "routes": extract_routes(cl), "text": text}
+                    except Exception:
+                        post_memory[pid] = {"subs": [], "routes": [], "text": text}
+                    if len(post_memory) > 500:
+                        post_memory.pop(next(iter(post_memory)))
+                    reply_ctx = None
+                    rid = getattr(getattr(m, "reply_to", None), "reply_to_msg_id", None)
+                    if rid:
+                        reply_ctx = post_memory.get(f"{ch}/{rid}")
+                        if reply_ctx is None:
+                            try:
+                                rm = await m.get_reply_message()
+                                if rm and rm.message:
+                                    rc = clean_post(rm.message).lower()
+                                    reply_ctx = {"subs": detect(rc), "routes": extract_routes(rc), "text": rm.message}
+                            except Exception:
+                                reply_ctx = None
+                    rt_state["last_msg"] = time.strftime("%H:%M:%S")
+                    rt_state["count"] += 1
+                    stats.setdefault(ch, {})
+                    stats[ch].update({"http": 200, "checked": time.strftime("%H:%M:%S"), "last_post": text[:200], "realtime": True})
+                    await process(None, ts, text, ch, msg_key=pid, reply_ctx=reply_ctx)
+                except Exception as e:
+                    note(f"realtime: помилка обробки: {e!r}")
+
+            client.add_event_handler(lambda ev: handle(ev, False), tl_events.NewMessage(chats=CHANNELS))
+            client.add_event_handler(lambda ev: handle(ev, True), tl_events.MessageEdited(chats=CHANNELS))
+            rt_state["on"] = True
+            rt_state["err"] = None
+            print("Telethon real-time: підключено, канали:", CHANNELS)
+            await client.run_until_disconnected()
+        except Exception as e:
+            rt_state["err"] = repr(e)[:200]
+            print("Telethon error:", rt_state["err"])
+        finally:
+            rt_state["on"] = False
+            try:
+                if client:
+                    await client.disconnect()
+            except Exception:
+                pass
+        await asyncio.sleep(5)
+
 async def keepalive(s):
     """Render free засинає без вхідного трафіку (звідси «величезна затримка» після простою) — не даємо заснути."""
     url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("PUBLIC_URL")
@@ -2362,15 +2481,20 @@ async def tick(s):
                     alerted.add((t["id"], lvl))
                     txt = f"{'КАБ' if t['kind'] == 'kab' else 'БАЛІСТИКА'}: {v['dist_km']} км ({v['eta'] and str(v['eta']) + ' с' or ''})"
                     await send({"lvl": lvl, "text": txt}, "alert")
+                    asyncio.create_task(tg_bot_alert(s, "🚨 " + txt))
                     if NTFY:
-                        try:
-                            await s.post(
-                                f"https://ntfy.sh/{NTFY}",
-                                data=txt.encode(),
-                                headers={"Title": "ALERT KAB/BALLISTIC", "Priority": "5", "Tags": "rotating_light,skull"}
-                            )
-                        except Exception as e:
-                            print("ntfy", e)
+                        async def _ntfy(_txt=txt):
+                            try:
+                                async with s.post(
+                                    f"https://ntfy.sh/{NTFY}",
+                                    data=_txt.encode("utf-8"),
+                                    headers={"Title": "ALERT KAB/BALLISTIC", "Priority": "5", "Tags": "rotating_light,skull"},
+                                    timeout=aiohttp.ClientTimeout(total=8)
+                                ) as _r:
+                                    await _r.read()
+                            except Exception as e:
+                                print("ntfy", e)
+                        asyncio.create_task(_ntfy())
             await notify_threats()
             fast = any((t["kind"] in ("missile", "kab")) and not t.get("ended") and not t.get("holding") for t in tracks.values())
             if now - LAST_PUSH[0] >= (0.9 if fast else 2.0):
@@ -2453,7 +2577,7 @@ async def poll(s, ch):
                 if res:
                     ts, main_text, pid, reply_ctx, num_id = res
                     last_ch_id[ch] = max(last_ch_id.get(ch, 0), num_id)
-                    if seen_text.get(pid) != main_text:
+                    if pid not in rt_seen and seen_text.get(pid) != main_text:
                         seen_text[pid] = main_text
                         cl = clean_post(main_text).lower()
                         try:
@@ -2499,7 +2623,7 @@ async def poll(s, ch):
                     if not main_text:
                         continue
                     stats[ch]["last_post"] = main_text[:200]
-                    if seen_text.get(pid_val) == main_text:
+                    if seen_text.get(pid_val) == main_text or pid_val in rt_seen:
                         continue
                     is_edit = pid_val in seen_text
                     seen_text[pid_val] = main_text
@@ -2527,7 +2651,7 @@ async def poll(s, ch):
         except Exception as e:
             stats[ch] = {"error": str(e), "checked": time.strftime("%H:%M:%S")}
             backoff = min(20.0, max(1.0, backoff * 2))
-        await asyncio.sleep(POLL + backoff)
+        await asyncio.sleep(POLL + backoff + (3.0 if rt_state["on"] else 0.0))   # real-time працює — веб-вітрина лише як страховка
 
 async def sim_endpoint(req):
     try:
@@ -2708,6 +2832,7 @@ async def main():
         web.post("/api/push/test", push_test),
         web.get("/debug", lambda r: web.json_response({
             "places_count": len(PLACES),
+            "realtime": rt_state,
             "channels": stats,
             "tracks": [
                 dict(id=t["id"], sub=t["sub"], v=effective_speed(t), hdg=t["hdg"] and round(t["hdg"]),
@@ -2726,6 +2851,7 @@ async def main():
         asyncio.create_task(poll(s, ch))
     asyncio.create_task(tick(s))
     asyncio.create_task(keepalive(s))
+    asyncio.create_task(tg_realtime())
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()

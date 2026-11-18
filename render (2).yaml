@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: radar
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    healthCheckPath: /health
+    envVars:
+      - key: NTFY_TOPIC
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FREE_AI
+        value: "1"
+      # Ключ для push-тривог. Після першого запуску скопіюйте VAPID_PEM з логів Render сюди,
+      # інакше після кожного перезапуску ключ зміниться й підписки доведеться оновлювати.
+      - key: VAPID_PEM
+        sync: false
+      - key: VAPID_SUB
+        value: "mailto:you@example.com"
+      # ── РЕАЛЬНИЙ ЧАС (прибирає затримку t.me): значення дає make_tg_session.py ──
+      - key: TG_API_ID
+        sync: false
+      - key: TG_API_HASH
+        sync: false
+      - key: TG_SESSION
+        sync: false
+      # ── Тривога в Telegram-бот (працює при закритому застосунку/екрані): токен від @BotFather, chat id через кому ──
+      - key: TG_BOT_TOKEN
+        sync: false
+      - key: TG_ALERT_CHATS
+        sync: false
