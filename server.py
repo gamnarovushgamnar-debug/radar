@@ -540,6 +540,96 @@ REGION_HEADER_RX = re.compile(
     re.I
 )
 
+# ───────────────────────── ФІЛЬТР «НОВИНА ≠ ОПЕРАТИВНЕ ПОВІДОМЛЕННЯ» ─────────────────────────
+# Оперативка коротка, в теперішньому часі: «Шахед біля Оріхова, курс на ЗП».
+# Новина довга, в минулому часі, із цифрами, джерелами, наслідками, прогнозами.
+# Рахуємо «бали новини»; оперативні ознаки їх знижують. Поріг NEWS_THRESHOLD можна міняти змінною середовища.
+NEWS_THRESHOLD = int(os.getenv("NEWS_THRESHOLD", "3"))
+
+# сильні ознаки новини (3 бали кожна)
+NEWS_STRONG_RX = re.compile(
+    r"(?:минулої\s+ночі|минулу\s+ніч|цієї\s+ночі|минулого\s+(?:тижня|місяця|року)|вчора|позавчора|"
+    r"у\s+ніч\s+на|в\s+ніч\s+на|за\s+(?:ніч|добу|цю\s+ніч|тиждень|місяць|минул\w+)|протягом\s+(?:ночі|доби|дня|тижня)|"
+    r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b|\b(?:січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)\b|"
+    r"збито\s+\d+\s*(?:з|із)\s*\d+|збит\w+\s+\d+\s*(?:з|із)\s*\d+|знищен\w+\s+\d+\s*(?:з|із)\s*\d+|\b\d+\s*(?:з|із)\s*\d+\s+(?:бпла|дрон|шахед|ракет)\w*|"
+    r"(?:загинул\w+|загинув|загинула|поранен\w+|постраждал\w+|травмован\w+|госпіталізован\w+)|"
+    r"(?:за\s+даними|за\s+інформацією|за\s+словами|повідомля\w+\s+(?:ова|генштаб|повітряні|міноборони|прокуратур)|заяви\w+|заявив\w*|наголос\w+|зазнач\w+|розпов\w+|підкрес\w+|коментує|прокоментува\w+)|"
+    r"(?:генштаб\w*|повітряні\s+сили|пс\s+зсу|міноборони|ова\b|голова\s+(?:ова|адміністрац\w+)|федоров\w*|зеленськ\w*|залужн\w*|сирськ\w*|ісв|isw|reuters|bbc|суспільне|тсн|рбк|укрінформ|інтерфакс)|"
+    r"(?:наслідк\w+|руйнуван\w+|пошкодж\w+|зруйнован\w+|пожеж\w+\s+(?:виникл|гасять|ліквід)|надзвичайник\w*|рятувальник\w*|дснс|відновлення|електропостачан\w*|світл\w+\s+нема)|"
+    r"(?:масован\w+\s+(?:атак|удар|обстріл)|комбінован\w+\s+(?:атак|удар)|окупант\w*\s+(?:атакува|завдал|запустил|випустил)|росі\w+\s+(?:атакува|завдал|запустил|випустил)|рф\s+(?:атакува|завдал|запустил|випустил)|ворог\s+(?:атакува|завдав|запустив|випустив))|"
+    r"(?:переговор\w*|санкці\w*|мобілізац\w*|тцк|законопроєкт\w*|верховн\w+\s+рад\w*|курс\s+(?:долара|євро)|експерт\w*|аналітик\w*|вважа\w+|припуска\w+|на\s+думку|огляд|підсумки|читайте|дивіться\s+також|докладніше|подробиці|деталі\s+за\s+посиланням|джерело:)|"
+    r"(?:відео|фото)\s*(?:наслідків|прильоту|удару|збиття|з\s+місця)|"
+    r"(?:\b[2-9]\d\s+(?:бпла|дрон\w*|шахед\w*|ракет\w*|керован\w+\s+авіабомб\w*|каб\w*)\b|\b\d{3,}\s+(?:бпла|дрон\w*|шахед\w*|ракет\w*)\b))",
+    re.I
+)
+
+# припущення / прогнози / питання / історія (3 бали)
+NEWS_HYPO_RX = re.compile(
+    r"(?:\bможе\s+(?:запуст|атакув|застосув|вдар|летіт)\w*|\bможуть\s+(?:запуст|атакув|застосув|вдар)\w*|\bімовірн\w*|\bймовірн\w*|\bвірогідн\w*|"
+    r"\bпрогноз\w*|\bочікує(?:мо|ться|ть)\b|\bчекаємо\b|\bіснує\s+(?:загроз|ризик)|\bготу(?:є|ють|ється|ються)\b|\bплану(?:є|ють)\b|\bризик\w*|"
+    r"\bякщо\b|\bчи\s+(?:летить|летять|є|буде|був|була|були|правда|це)\b|\bхтось\s+(?:бачив|знає|чув)|\bщо\s+там\b|\bяк\s+думаєте\b|\bпишуть\s+що\b|\bкажуть\s+що\b|\bчую\b|\bсхоже\s+що\b|"
+    r"\bзвідки\s+інформація|\bце\s+фейк|\bне\s+вірте\b|\bрозповсюджу\w+|\bфейк\w*|\bпропаганд\w*|\bтренд\w*|\bстатистик\w*)",
+    re.I
+)
+
+# розмовне / реклама / інформаційні блоки без польоту (3 бали)
+NEWS_CHAT_RX = re.compile(
+    r"(?:\bдякує(?:мо)?\b|\bслава\s+україн|\bслава\s+зсу|\bдонат\w*|\bзбір\s+на\b|\bреклам\w*|\bрозіграш\w*|\bконкурс\w*|\bпідписуйтесь|\bприєднуйтесь|\bпідтримай\w*|\bмонобанк|\bпривіт\b|\bдоброго\s+(?:ранку|дня|вечора)|\bз\s+днем\b|\bз\s+новим\s+роком)",
+    re.I
+)
+
+# слабкі ознаки (1 бал): розповідь у минулому часі
+NEWS_WEAK_RX = re.compile(
+    r"(?:\bвночі\b|\bуночі\b|\bранку\b|\bатакува\w+\b|\bзавдав\w*|\bздійсни\w+|\bпрорвал\w*|\bбуло\s+(?:збито|знищено|зафіксовано)|\bбули\s+(?:збиті|знищені|зафіксован\w+)|\bзбит\w+\b|\bзнищен\w+\b|\bпролунал\w+\b|\bвідбил\w+\b|\bвідпрацюва\w+\b|\bзагалом\b|\bвсього\b|\bпротягом\b|\bдеякі\b|\bбільшість\b|\bповідомл\w+\b)",
+    re.I
+)
+
+# оперативні ознаки (мінус 2 бали кожна, до −4): реальне «зараз і тут»
+NEWS_OPER_RX = re.compile(
+    r"(?:(?:→|->|=>|—>|–>)|\bкурс\w*\s+(?:на|у|в)\b|\bкурсом\b|\bв\s+бік\b|\bу\s+бік\b|\bв\s+напрямку\b|\bу\s+напрямку\b|\bнапрямок\b|\bвектор\w*\b|"
+    r"\b(?:летить|летять|летит|летят|рухається|рухаються|заходить|заходять|заходит|заходят|йде|йдуть|кружля\w*|кружит\w*|підлітає|підлітають|пролітає|пролітають|прилітає|прилітають)\b|"
+    r"\b(?:зараз|наразі|щойно|тільки\s+що|на\s+даний\s+момент|вже\s+біля|вже\s+над|вже\s+в)\b|\bпуск\w*\b|\bвихід\s+(?:каб|шахед|ракет)|"
+    r"\b(?:в|у)\s+районі\s+[а-яіїєґ]|\b(?:біля|над|повз)\s+[а-яіїєґ]{3})",
+    re.I
+)
+
+def news_score(text):
+    """Повертає (бали, причини). Чим більше балів — тим більше схоже на новину, а не на оперативку."""
+    t = text.strip()
+    tl = t.lower()
+    score, why = 0, []
+    n_strong = len(NEWS_STRONG_RX.findall(tl))
+    if n_strong:
+        add = 3 * min(n_strong, 3)
+        score += add; why.append(f"новинні маркери×{n_strong}")
+    if NEWS_HYPO_RX.search(tl):
+        score += 3; why.append("припущення/питання")
+    if NEWS_CHAT_RX.search(tl):
+        score += 3; why.append("розмовне/реклама")
+    n_weak = len(NEWS_WEAK_RX.findall(tl))
+    if n_weak:
+        score += min(n_weak, 3); why.append(f"минулий час×{n_weak}")
+    n = len(t)
+    if n > 280:
+        score += 1; why.append("довге")
+    if n > 450:
+        score += 2; why.append("дуже довге")
+    n_sent = len([x for x in re.split(r"[.!?]+\s+", t) if len(x) > 15])
+    if n_sent >= 4:
+        score += 2; why.append(f"{n_sent} речень")
+    if "?" in t and not re.search(r"→|->", t):
+        score += 2; why.append("питання")
+    # оперативні ознаки гасять бали, але лише в КОРОТКИХ текстах (у довгій новині теж зустрічається «в районі…»)
+    if n <= 300:
+        oper = len(NEWS_OPER_RX.findall(t))
+        if oper:
+            score -= 2 * min(oper, 2); why.append(f"оперативні ознаки×{oper}")
+    return score, why
+
+def is_news_like(text, threshold=None):
+    sc, why = news_score(text)
+    return (sc >= (NEWS_THRESHOLD if threshold is None else threshold)), sc, why
+
 def parse_iso_ts(dt_str):
     if not dt_str:
         return time.time()
@@ -934,6 +1024,7 @@ def extract_routes(tl):
     return []
 
 tracks, ids, clients, alerted, stats = {}, itertools.count(1), set(), set(), {}
+lag_stats = {}   # канал -> скільки секунд минуло між публікацією допису та його обробкою
 seen_text = {}
 last_ch_id = {}
 ch_last_sub = {}
@@ -1147,6 +1238,14 @@ def step(t, now):
             if str(g[0]).startswith("курс"):
                 gla, glo = fwd(t["lat"], t["lon"], t["hdg"], look_km)
                 t["goal"] = (g[0], gla, glo)
+            elif (t["kind"] == "drone" and not t.get("manual") and t.get("sub") not in TACTICAL_SHORT_DRONES
+                  and g[0] != "Запоріжжя" and g[0] not in ZP_DISTRICTS):
+                # проміжний н.п. на шляху: БпЛА не зупиняється, а летить далі тим самим курсом
+                t["frm"] = g[0]
+                gla, glo = fwd(t["lat"], t["lon"], t["hdg"], max(look_km, 8.0))
+                t["goal"] = ("курс %d°" % round(t["hdg"]), gla, glo)
+                t["to_name"] = t["goal"][0]
+                t["status_msg"] = f"Пролітає {g[0]}"
             else:
                 t["frm"] = g[0]
                 t["status_msg"] = f"В районі {g[0]}"
@@ -1206,6 +1305,17 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
         max_fuse_km = 8.0 if sub["id"] in TACTICAL_SHORT_DRONES else 15.0
         if eff_d <= max_fuse_km:
             return True, eff_d / (max_fuse_km + 5.0)
+        # нова фіксація «над X» лежить на лінії польоту вже відомої цілі → це та сама ціль (раніше народжувався дубль-«стоячка»)
+        if sub["id"] not in TACTICAL_SHORT_DRONES and c.get("hdg") is not None and not c.get("holding"):
+            dd = ang(brg(c["lat"], c["lon"], pos[1], pos[2]) - c["hdg"])
+            along = p_dist * math.cos(math.radians(dd))
+            cross = abs(p_dist * math.sin(math.radians(dd)))
+            if -18.0 <= along <= 70.0 and cross <= 12.0:
+                return True, min(0.9, (abs(along) + 1.5 * cross) / 90.0)
+        # ціль «очікує курс» і з’явилась друга точка поряд → це та сама ціль, з двох точок буде курс
+        if (c.get("holding") and not c.get("loiter") and not c.get("passed_goal")
+                and p_dist <= 30.0 and time.time() - c.get("seen", 0) <= 300):
+            return True, 0.5 + p_dist / 100.0
         return False, 999.0
 
     if tgt and not pos:
@@ -1230,6 +1340,24 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
         return True, 0.1
 
     return False, 999.0
+
+def _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
+    """Позиційне повідомлення без курсу («над X»): БпЛА НЕ зупиняємо.
+    Курс беремо з руху між двома фіксаціями (>=2 км), інакше лишаємо попередній."""
+    if t["kind"] != "drone" or t.get("sub") in TACTICAL_SHORT_DRONES:
+        return False
+    mv = hav(prev_lat, prev_lon, pos[1], pos[2])
+    h = brg(prev_lat, prev_lon, pos[1], pos[2]) if mv >= 2.0 else prev_hdg
+    if h is None:
+        return False
+    gla, glo = fwd(pos[1], pos[2], h, max(look_km, 8.0))
+    t["hdg"] = t["thdg"] = h
+    t["goal"] = ("курс %d°" % round(h), gla, glo)
+    t["to_name"] = t["goal"][0]
+    t["holding"] = False
+    t["passed_goal"] = False
+    t["ls"] = now
+    return True
 
 def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, manual=False, is_explicit_over=False, is_arrived=False):
     now = time.time()
@@ -1467,12 +1595,12 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
                     t["goal"] = prev_goal
                     t["to_name"] = prev_goal[0]
                     t["passed_goal"] = False
-                else:
+                elif not _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
                     t["holding"] = True
                     t["goal"] = None
                     t["to_name"] = pos[0]
                     t["hdg"] = brg(prev_lat, prev_lon, pos[1], pos[2]) if hav(prev_lat, prev_lon, pos[1], pos[2]) >= 0.5 else prev_hdg
-            else:
+            elif not _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
                 t["holding"] = True
                 t["goal"] = None
                 t["to_name"] = pos[0]
@@ -1802,6 +1930,10 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
     tl = seg.lower()
     if not tl or REAL_NEWS_RX.search(tl) or PURE_EXPLOSION_SOUND_RX.match(tl):
         return []
+    _nw, _sc, _why = is_news_like(seg)
+    if _nw:
+        note(f"{ch}: «{seg[:60]}» -> НОВИНА ({_sc}: {', '.join(_why)}), пропуск")
+        return []
 
     if PURE_ALARM_RX.match(tl):
         return []
@@ -1933,6 +2065,11 @@ def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
     cleaned = clean_post(text)
     if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 1200:
         return note(f"{ch}: «{text[:50]}» -> новина/не зведення, пропуск")
+    _nw, _sc, _why = is_news_like(cleaned)
+    if _nw:
+        # якщо пост багаторядковий, рядки-оперативки всередині перевіряються окремо нижче; цілий пост-новину відсікаємо
+        if len(cleaned) > 300 or "\n" not in cleaned:
+            return note(f"{ch}: «{text[:50]}» -> НОВИНА ({_sc}: {', '.join(_why)}), пропуск")
     full_has_zp = bool(ZP_UNIQUE_RX.search(cleaned.lower()))
     clauses = []
     for ln in cleaned.split("\n"):
@@ -1955,6 +2092,8 @@ async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
         cleaned = clean_post(text)
         if not cleaned or REAL_NEWS_RX.search(cleaned.lower()) or len(cleaned) > 1200:
             return
+        if ch in CHANNELS:
+            lag_stats[ch] = round(max(0.0, time.time() - ts), 1)
         ingest(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx)
         await push()
     except Exception as e:
@@ -1977,7 +2116,7 @@ def snap(now):
         "oblast": [[la, lo] for lo, la in OBLAST],
         "frontline": FRONTLINE,
         "channels": [
-            {"name": ch, "ok": stats.get(ch, {}).get("http") == 200, "checked": stats.get(ch, {}).get("checked", "—"), "last": stats.get(ch, {}).get("last_post", "")[:90]}
+            {"name": ch, "ok": stats.get(ch, {}).get("http") == 200, "checked": stats.get(ch, {}).get("checked", "—"), "last": stats.get(ch, {}).get("last_post", "")[:90], "lag": lag_stats.get(ch)}
             for ch in CHANNELS
         ]
     }
@@ -1994,6 +2133,206 @@ async def push():
     await send(snap(time.time()))
 
 LAST_PUSH = [0.0]
+
+# ───────────────────────── СИСТЕМА ТРИВОГ (Web Push) ─────────────────────────
+# Користувач ставить на карті мітку «Я тут», радіус і типи цілей. Якщо балістика/КАБ летить на цю точку —
+# сервер шле push на пристрій (працює й коли застосунок закритий). Сирена та кнопка «Вимкнути» — у клієнті.
+try:
+    import base64
+    from pywebpush import webpush, WebPushException
+    from py_vapid import Vapid
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives import serialization
+    PUSH_OK = True
+except Exception as _e:
+    PUSH_OK = False
+    print("Web Push вимкнено (встановіть pywebpush):", _e)
+
+_D0 = os.path.dirname(os.path.abspath(__file__))
+SUBS_FILE = os.getenv("SUBS_FILE", os.path.join(_D0, "push_subs.json"))
+VAPID_FILE = os.getenv("VAPID_FILE", os.path.join(_D0, "vapid_private.pem"))
+VAPID_SUB = os.getenv("VAPID_SUB", "mailto:radar@example.com")
+VAPID_OBJ, VAPID_PUB = None, None
+push_subs = {}     # endpoint -> {sub, lat, lon, r, kinds, on, ts}
+push_sent = {}     # (endpoint, track_id) -> найвищий вже надісланий рівень (1 — увага, 2 — підліт)
+MAX_SUBS = 5000
+MISSILE_MIN_R = 20.0   # для ракет/балістики мінімальний радіус «мого району», км
+
+def init_vapid():
+    global VAPID_OBJ, VAPID_PUB
+    if not PUSH_OK:
+        return
+    pem = os.getenv("VAPID_PEM", "").replace("\\n", "\n").strip()
+    if not pem and os.path.exists(VAPID_FILE):
+        pem = open(VAPID_FILE, encoding="utf-8").read().strip()
+    if not pem:
+        key = ec.generate_private_key(ec.SECP256R1())
+        pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                serialization.NoEncryption()).decode().strip()
+        try:
+            open(VAPID_FILE, "w", encoding="utf-8").write(pem)
+        except Exception as e:
+            print("vapid save:", e)
+        print("=== Згенеровано VAPID-ключ. Щоб ключ не мінявся після перезапуску, додайте у Render → Environment:")
+        print("VAPID_PEM=" + pem.replace("\n", "\\n"))
+    key = serialization.load_pem_private_key(pem.encode(), None)
+    pub = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    VAPID_PUB = base64.urlsafe_b64encode(pub).rstrip(b"=").decode()
+    VAPID_OBJ = Vapid.from_pem(pem.encode())
+
+def load_subs():
+    try:
+        with open(SUBS_FILE, encoding="utf-8") as f:
+            push_subs.update(json.load(f))
+    except Exception:
+        pass
+
+def save_subs():
+    try:
+        with open(SUBS_FILE, "w", encoding="utf-8") as f:
+            json.dump(push_subs, f, ensure_ascii=False)
+    except Exception as e:
+        print("subs save:", e)
+
+def seg_info(plat, plon, alat, alon, blat, blon):
+    """Відстань від точки P до відрізка AB (км) і довжина шляху від A до найближчої точки."""
+    k = math.cos(math.radians(plat))
+    ax, ay = (alon - plon) * 111.32 * k, (alat - plat) * 111.2
+    bx, by = (blon - plon) * 111.32 * k, (blat - plat) * 111.2
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy
+    u = 0.0 if L2 < 1e-9 else max(0.0, min(1.0, -(ax * dx + ay * dy) / L2))
+    cx, cy = ax + u * dx, ay + u * dy
+    return math.hypot(cx, cy), u * math.sqrt(L2)
+
+def threat_to_point(t, plat, plon, r_km):
+    """Чи летить ціль на точку (plat, plon) у радіусі r_km? Повертає {dist, eta, miss} або None."""
+    if t.get("ended") or t.get("holding") or t.get("loiter"):
+        return None
+    v = effective_speed(t)
+    if not v:
+        return None
+    la, lo, g, h = t["lat"], t["lon"], t.get("goal"), t.get("hdg")
+    if g and not str(g[0]).startswith("курс"):
+        elat, elon = g[1], g[2]
+    elif h is not None:
+        reach = max(0.0, KAB_RANGE - hav(*t["o"], la, lo)) if t["kind"] == "kab" else 400.0
+        if reach <= 0:
+            return None
+        elat, elon = fwd(la, lo, h, reach)
+    else:
+        return None
+    r = max(r_km, MISSILE_MIN_R) if t["kind"] == "missile" else r_km
+    d, along = seg_info(plat, plon, la, lo, elat, elon)
+    if d > r:
+        return None
+    return {"dist": round(hav(la, lo, plat, plon), 1), "eta": int(along / v * 3600), "miss": round(d, 1)}
+
+async def send_push(ep, payload):
+    sb = push_subs.get(ep)
+    if not (PUSH_OK and VAPID_OBJ and sb):
+        return
+    def _do():
+        return webpush(subscription_info=sb["sub"], data=json.dumps(payload, ensure_ascii=False),
+                       vapid_private_key=VAPID_OBJ, vapid_claims={"sub": VAPID_SUB},
+                       ttl=60, headers={"Urgency": "high"})
+    try:
+        await asyncio.get_running_loop().run_in_executor(None, _do)
+    except Exception as e:
+        code = getattr(getattr(e, "response", None), "status_code", None)
+        if code in (404, 410):
+            push_subs.pop(ep, None)
+            save_subs()
+        else:
+            print("push error:", repr(e)[:200])
+
+KIND_TITLE = {"kab": "КАБ", "missile": "БАЛІСТИКА / РАКЕТА", "drone": "БпЛА"}
+
+async def notify_threats():
+    if not (PUSH_OK and VAPID_OBJ and push_subs):
+        return
+    for ep, sb in list(push_subs.items()):
+        if not sb.get("on", True):
+            continue
+        for t in list(tracks.values()):
+            if t["kind"] not in sb["kinds"]:
+                continue
+            th = threat_to_point(t, sb["lat"], sb["lon"], sb["r"])
+            if not th:
+                continue
+            lvl = 2 if th["eta"] <= 90 else 1
+            if push_sent.get((ep, t["id"]), 0) >= lvl:
+                continue
+            push_sent[(ep, t["id"])] = lvl
+            eta = f"~{th['eta'] // 60} хв {th['eta'] % 60} с" if th["eta"] >= 60 else f"~{th['eta']} с"
+            asyncio.create_task(send_push(ep, {
+                "type": "alarm", "lvl": lvl, "id": t["id"], "kind": t["kind"],
+                "title": f"🚨 {KIND_TITLE.get(t['kind'], 'ЗАГРОЗА')} НА ВАШ РАЙОН",
+                "body": f"{th['dist']} км до вас, підліт {eta}. НЕГАЙНО В УКРИТТЯ!",
+                "tag": f"radar-{t['id']}", "ts": int(time.time())}))
+    if len(push_sent) > 5000:
+        live = {t["id"] for t in tracks.values()}
+        for k in [k for k in push_sent if k[1] not in live]:
+            push_sent.pop(k, None)
+
+async def push_key(req):
+    return web.json_response({"ok": bool(PUSH_OK and VAPID_PUB), "key": VAPID_PUB})
+
+async def push_subscribe(req):
+    try:
+        d = await req.json()
+        sub = d.get("subscription") or {}
+        ep = sub.get("endpoint")
+        if not ep or not str(ep).startswith("https://"):
+            return web.json_response({"ok": False, "error": "bad subscription"}, status=400)
+        if ep not in push_subs and len(push_subs) >= MAX_SUBS:
+            return web.json_response({"ok": False, "error": "full"}, status=503)
+        lat, lon = float(d["lat"]), float(d["lon"])
+        if not (43 <= lat <= 53 and 21 <= lon <= 41):
+            return web.json_response({"ok": False, "error": "location outside Ukraine"}, status=400)
+        r = max(3.0, min(60.0, float(d.get("r", 15))))
+        kinds = [k for k in (d.get("kinds") or []) if k in ("kab", "missile", "drone")]
+        push_subs[ep] = dict(sub=sub, lat=lat, lon=lon, r=r, kinds=kinds, on=bool(d.get("on", True)), ts=time.time())
+        save_subs()
+        return web.json_response({"ok": True, "subs": len(push_subs)})
+    except Exception as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=400)
+
+async def push_unsubscribe(req):
+    try:
+        d = await req.json()
+        push_subs.pop(d.get("endpoint"), None)
+        save_subs()
+    except Exception:
+        pass
+    return web.json_response({"ok": True})
+
+async def push_test(req):
+    try:
+        d = await req.json()
+        ep = d.get("endpoint")
+        if ep not in push_subs:
+            return web.json_response({"ok": False, "error": "not subscribed"}, status=404)
+        asyncio.create_task(send_push(ep, {"type": "alarm", "lvl": 2, "id": "test", "kind": "missile", "test": True,
+                                           "title": "🚨 ТЕСТ ТРЕВОГИ", "body": "Так працюватиме сигнал. Відкрийте застосунок і натисніть «Вимкнути».",
+                                           "tag": "radar-test", "ts": int(time.time())}))
+        return web.json_response({"ok": True})
+    except Exception as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=400)
+
+async def keepalive(s):
+    """Render free засинає без вхідного трафіку (звідси «величезна затримка» після простою) — не даємо заснути."""
+    url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("PUBLIC_URL")
+    if not url:
+        return
+    while True:
+        await asyncio.sleep(240)
+        try:
+            async with s.get(url.rstrip("/") + "/health", timeout=aiohttp.ClientTimeout(total=10)) as r:
+                await r.read()
+        except Exception:
+            pass
+
 
 async def tick(s):
     while True:
@@ -2013,7 +2352,7 @@ async def tick(s):
                     t["status_msg"] = "Локаційно втрачено"
             for t in list(tracks.values()):
                 step(t, now)
-                if t["kind"] != "kab" or t.get("ended") or t.get("holding") or not t["goal"] or hav(*t["goal"][1:], HOME[1], HOME[2]) > 28:
+                if t["kind"] not in ("kab", "missile") or t.get("ended") or t.get("holding") or not t["goal"] or hav(*t["goal"][1:], HOME[1], HOME[2]) > 28:
                     continue
                 v = view(t, now)
                 if v["short"]:
@@ -2021,17 +2360,18 @@ async def tick(s):
                 lvl = 2 if v["eta"] is not None and v["eta"] <= ALERT_ETA2 else 1
                 if (t["id"], lvl) not in alerted:
                     alerted.add((t["id"], lvl))
-                    txt = f"КАБ: {v['dist_km']} км ({v['eta'] and str(v['eta']) + ' с' or ''})"
+                    txt = f"{'КАБ' if t['kind'] == 'kab' else 'БАЛІСТИКА'}: {v['dist_km']} км ({v['eta'] and str(v['eta']) + ' с' or ''})"
                     await send({"lvl": lvl, "text": txt}, "alert")
                     if NTFY:
                         try:
                             await s.post(
                                 f"https://ntfy.sh/{NTFY}",
                                 data=txt.encode(),
-                                headers={"Title": "KAB ALERT", "Priority": "urgent", "Tags": "rotating_light"}
+                                headers={"Title": "ALERT KAB/BALLISTIC", "Priority": "5", "Tags": "rotating_light,skull"}
                             )
                         except Exception as e:
                             print("ntfy", e)
+            await notify_threats()
             fast = any((t["kind"] in ("missile", "kab")) and not t.get("ended") and not t.get("holding") for t in tracks.values())
             if now - LAST_PUSH[0] >= (0.9 if fast else 2.0):
                 LAST_PUSH[0] = now
@@ -2362,6 +2702,10 @@ async def main():
         web.get("/icon-192.png", f("icon-192.png")),
         web.get("/icon-512.png", f("icon-512.png")),
         web.get("/health", lambda r: web.Response(text="ok")),
+        web.get("/api/push/key", push_key),
+        web.post("/api/push/subscribe", push_subscribe),
+        web.post("/api/push/unsubscribe", push_unsubscribe),
+        web.post("/api/push/test", push_test),
         web.get("/debug", lambda r: web.json_response({
             "places_count": len(PLACES),
             "channels": stats,
@@ -2376,9 +2720,12 @@ async def main():
             "log": log,
         }, dumps=lambda o: json.dumps(o, ensure_ascii=False, indent=1)))
     ])
+    init_vapid()
+    load_subs()
     for ch in CHANNELS:
         asyncio.create_task(poll(s, ch))
     asyncio.create_task(tick(s))
+    asyncio.create_task(keepalive(s))
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()

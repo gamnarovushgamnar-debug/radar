@@ -879,6 +879,8 @@ html, body {
 .ap-btns button.active { background: #0891b2; border-color: #67e8f9; }
 .ap-chk { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13px; font-weight: 600; }
 .ap-chk input { width: 18px; height: 18px; accent-color: #ef4444; }
+#ap-vol { width: 100%; accent-color: #f87171; }
+.ap-sel { width: 100%; padding: 9px 10px; border-radius: 9px; background: #0f172a; color: #e0f2fe; border: 1px solid rgba(56,189,248,.4); font-size: 13px; font-weight: 700; }
 #ap-r { width: 100%; accent-color: #22d3ee; }
 .sw { position: relative; width: 54px; height: 30px; display: inline-block; }
 .sw input { opacity: 0; width: 0; height: 0; }
@@ -999,6 +1001,17 @@ html, body {
     <label class="ap-chk"><input type="checkbox" id="ap-k-missile"> Балістика / ракети</label>
     <label class="ap-chk"><input type="checkbox" id="ap-k-kab"> КАБ</label>
     <label class="ap-chk"><input type="checkbox" id="ap-k-drone"> Шахеди / БпЛА</label>
+
+    <div class="ap-sec">Звук сирени</div>
+    <select id="ap-sound" class="ap-sel"></select>
+    <div class="ap-sec">Гучність сирени: <b id="ap-vol-v">100%</b></div>
+    <input type="range" id="ap-vol" min="10" max="100" step="5" value="100">
+    <div class="ap-btns">
+      <button id="ap-upload">🎵 Завантажити свою мелодію</button>
+      <button id="ap-upload-del" style="display:none">🗑 Видалити мелодію</button>
+    </div>
+    <input type="file" id="ap-file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
+    <div id="ap-snd-note" class="ap-note"></div>
 
     <div class="ap-btns">
       <button id="ap-test-siren">🔊 Тест сирени</button>
@@ -3653,47 +3666,153 @@ const AlarmSys = (() => {
   const $ = id => document.getElementById(id);
   const baseTitle = document.title;
   function loadCfg() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
-  const cfg = Object.assign({ on: false, lat: null, lon: null, r: 15, kinds: { missile: true, kab: true, drone: false } }, loadCfg());
+  const cfg = Object.assign({ on: false, lat: null, lon: null, r: 15, kinds: { missile: true, kab: true, drone: false }, sound: 'wail', vol: 1 }, loadCfg());
   const saveCfg = () => { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (_) {} };
+
+  /* ── вибір звуку сирени + власна мелодія (зберігається в IndexedDB цього браузера) ── */
+  const SOUNDS = [
+    ['wail', 'Класична сирена (виття)'],
+    ['hilo', 'Двотональна (ту-ту)'],
+    ['pulse', 'Пульсуюча (біп-біп-біп)'],
+    ['klaxon', 'Клаксон (різкий)'],
+    ['legacy', 'Попередній звук'],
+    ['custom', 'Моя мелодія (свій файл)']
+  ];
+  const MAX_SND_MB = 12;
+  const CustomSnd = {
+    url: null, name: '',
+    _db() {
+      return new Promise((res, rej) => {
+        const r = indexedDB.open('radar_siren', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('f');
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      });
+    },
+    _apply(rec) {
+      if (this.url) { try { URL.revokeObjectURL(this.url); } catch (_) {} }
+      this.url = rec ? URL.createObjectURL(rec.blob) : null;
+      this.name = rec ? rec.name : '';
+      Siren.dropEl();
+    },
+    async load() {
+      try {
+        const db = await this._db();
+        const rec = await new Promise((res, rej) => { const q = db.transaction('f').objectStore('f').get('custom'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+        this._apply(rec || null);
+      } catch (_) { this._apply(null); }
+    },
+    async save(file) {
+      const rec = { name: file.name, blob: file };
+      const db = await this._db();
+      await new Promise((res, rej) => { const tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'custom'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+      this._apply(rec);
+    },
+    async remove() {
+      try {
+        const db = await this._db();
+        await new Promise((res, rej) => { const tx = db.transaction('f', 'readwrite'); tx.objectStore('f').delete('custom'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+      } catch (_) {}
+      this._apply(null);
+    }
+  };
 
   /* ── сирена (WebAudio, повна гучність) ── */
   const Siren = {
-    ctx: null, nodes: null, running: false, vib: null, tt: null,
+    ctx: null, nodes: null, timers: [], el: null, elPrimed: false, usingEl: false, running: false, vib: null, tt: null,
+    dropEl() { try { if (this.el) { this.el.pause(); this.el.src = ''; } } catch (_) {} this.el = null; this.elPrimed = false; },
+    ensureEl() {
+      if (!CustomSnd.url) return null;
+      if (!this.el) { this.el = new Audio(CustomSnd.url); this.el.loop = true; this.el.preload = 'auto'; }
+      return this.el;
+    },
     unlock() {
       try {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (this.ctx.state !== 'running') this.ctx.resume();
       } catch (_) {}
+      // «розблокуємо» елемент з мелодією першим дотиком, щоб потім він міг заграти без жесту користувача
+      try {
+        if (cfg.sound === 'custom' && !this.running && !this.elPrimed) {
+          const el = this.ensureEl();
+          if (el) {
+            this.elPrimed = true; el.muted = true;
+            el.play().then(() => { if (!this.running) { el.pause(); el.currentTime = 0; } el.muted = false; }).catch(() => { el.muted = false; this.elPrimed = false; });
+          }
+        }
+      } catch (_) {}
+    },
+    /* планувальник: заздалегідь розставляє події в аудіо-годиннику (не залежить від таймерів фонової вкладки) */
+    loop(fn, period) {
+      const c = this.ctx; let t0 = c.currentTime + 0.05, n = 0;
+      const fill = () => { const until = c.currentTime + 30; while (t0 <= until) { fn(t0, n++); t0 += period; } };
+      fill(); this.timers.push(setInterval(() => { if (c.state === 'running') fill(); }, 8000));
+    },
+    synth(kind, vol) {
+      const c = this.ctx, out = [];
+      const master = c.createGain(); master.gain.value = vol; master.connect(c.destination); out.push(master);
+      const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; out.push(o); return o; };
+      const gain = v => { const g = c.createGain(); g.gain.value = v; out.push(g); return g; };
+      const soft = amt => { const s = c.createWaveShaper(), cv = new Float32Array(256); for (let i = 0; i < 256; i++) cv[i] = Math.tanh((i / 128 - 1) * amt); s.curve = cv; out.push(s); return s; };
+
+      if (kind === 'wail') {                       // повільне виття вгору-вниз, як класична сирена цивільної оборони
+        const o1 = osc('sawtooth', 600), o2 = osc('sine', 600), lfo = osc('sine', 0.17), lg = gain(240);
+        const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; out.push(lp);
+        lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+        const g1 = gain(0.42), g2 = gain(0.6), sh = soft(1.6);
+        o1.connect(g1); o2.connect(g2); g1.connect(lp); g2.connect(lp); lp.connect(sh); sh.connect(master);
+        o1.start(); o2.start(); lfo.start();
+      } else if (kind === 'hilo') {                 // два тони по черзі
+        const o = osc('square', 960), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000; out.push(lp);
+        const g = gain(0.55); o.connect(lp); lp.connect(g); g.connect(master); o.start();
+        this.loop((t, n) => o.frequency.setValueAtTime(n % 2 ? 700 : 960, t), 0.55);
+      } else if (kind === 'pulse') {                // три короткі біпи й пауза
+        const o = osc('square', 1050), g = gain(0); o.connect(g); g.connect(soft(1.4)).connect(master); o.start();
+        this.loop((t) => { for (let i = 0; i < 3; i++) { g.gain.setValueAtTime(0.9, t + i * 0.26); g.gain.setValueAtTime(0, t + i * 0.26 + 0.15); } }, 1.5);
+      } else if (kind === 'klaxon') {               // різкий дисонансний клаксон
+        const o1 = osc('sawtooth', 440), o2 = osc('square', 466), g = gain(0);
+        o1.connect(g); o2.connect(g); g.connect(soft(3)).connect(master); o1.start(); o2.start();
+        this.loop((t) => { g.gain.setValueAtTime(0.8, t); g.gain.setValueAtTime(0, t + 0.5); }, 0.85);
+      } else {                                      // legacy: попередній звук
+        const clip = soft(3), o1 = osc('sawtooth', 900), o2 = osc('square', 905), lfo = osc('triangle', 0.8), lg = gain(380);
+        lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+        const g1 = gain(0.7), g2 = gain(0.5); o1.connect(g1); o2.connect(g2); g1.connect(clip); g2.connect(clip); clip.connect(master);
+        o1.start(); o2.start(); lfo.start();
+      }
+      this.nodes = out;
     },
     start() {
       this.unlock();
-      if (this.running || !this.ctx) return;
-      const c = this.ctx;
-      const master = c.createGain(); master.gain.value = 1.0;
-      const clip = c.createWaveShaper(); const curve = new Float32Array(256);
-      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 3);   // жорстке обрізання = максимально «різка» гучність
-      clip.curve = curve;
-      const o1 = c.createOscillator(), o2 = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain();
-      o1.type = 'sawtooth'; o2.type = 'square';
-      o1.frequency.value = 900; o2.frequency.value = 905;
-      lfo.type = 'triangle'; lfo.frequency.value = 0.8; lg.gain.value = 380;      // вовче виття 520↔1280 Гц
-      lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
-      const g1 = c.createGain(), g2 = c.createGain(); g1.gain.value = 0.7; g2.gain.value = 0.5;
-      o1.connect(g1); o2.connect(g2); g1.connect(clip); g2.connect(clip); clip.connect(master); master.connect(c.destination);
-      o1.start(); o2.start(); lfo.start();
-      this.nodes = [o1, o2, lfo, master]; this.running = true;
+      if (this.running) return;
+      const vol = Math.min(1, Math.max(0.05, cfg.vol == null ? 1 : cfg.vol));
+      let sound = cfg.sound || 'wail';
+      this.running = true;
+      if (sound === 'custom') {
+        const el = this.ensureEl();
+        if (el) {
+          this.usingEl = true; el.muted = false; el.volume = vol;
+          try { el.currentTime = 0; } catch (_) {}
+          const p = el.play();
+          if (p && p.catch) p.catch(() => {          // браузер не дав заграти файл — щоб не мовчати, вмикаємо звичайну сирену
+            if (this.running && this.usingEl) { this.usingEl = false; try { el.pause(); } catch (_) {} if (this.ctx) this.synth('wail', vol); }
+          });
+        } else { sound = 'wail'; }
+      }
+      if (sound !== 'custom' && this.ctx) { this.usingEl = false; this.synth(sound, vol); }
       const buzz = () => { try { navigator.vibrate && navigator.vibrate([700, 200, 700, 200, 700]); } catch (_) {} };
       buzz(); this.vib = setInterval(buzz, 2500);
       this.tt = setInterval(() => { document.title = document.title.startsWith('🚨') ? '⚠ ТРИВОГА!' : '🚨 ТРИВОГА'; }, 600);
     },
     stop() {
       if (!this.running) return;
-      try { this.nodes.forEach(n => { if (n.stop) n.stop(); n.disconnect && n.disconnect(); }); } catch (_) {}
-      this.nodes = null; this.running = false;
+      try { this.nodes && this.nodes.forEach(n => { if (n.stop) { try { n.stop(); } catch (_) {} } n.disconnect && n.disconnect(); }); } catch (_) {}
+      this.timers.forEach(clearInterval); this.timers = [];
+      try { if (this.el) { this.el.pause(); this.el.currentTime = 0; } } catch (_) {}
+      this.nodes = null; this.running = false; this.usingEl = false;
       clearInterval(this.vib); clearInterval(this.tt); document.title = baseTitle;
       try { navigator.vibrate && navigator.vibrate(0); } catch (_) {}
     }
   };
+  CustomSnd.load().then(() => { try { refreshSound(); } catch (_) {} });
 
   /* ── тихий аудіо-потік, щоб згорнута вкладка/PWA не засинала ── */
   let keepEl = null;
@@ -3837,9 +3956,23 @@ const AlarmSys = (() => {
   }
 
   /* ── UI ── */
+  function refreshSound() {
+    const sel = $('ap-sound');
+    if (!sel.options.length) SOUNDS.forEach(([id, label]) => sel.add(new Option(label, id)));
+    sel.value = cfg.sound || 'wail';
+    const v = Math.round((cfg.vol == null ? 1 : cfg.vol) * 100);
+    $('ap-vol').value = v; $('ap-vol-v').textContent = v + '%';
+    $('ap-upload-del').style.display = CustomSnd.url ? '' : 'none';
+    $('ap-upload').textContent = CustomSnd.url ? '🎵 Замінити мелодію' : '🎵 Завантажити свою мелодію';
+    const n = $('ap-snd-note');
+    if (cfg.sound === 'custom' && !CustomSnd.url) { n.textContent = 'Мелодію ще не завантажено — завантажте файл, інакше зазвучить звичайна сирена.'; n.className = 'ap-note bad'; }
+    else if (CustomSnd.url) { n.textContent = `Ваша мелодія: ${CustomSnd.name}. Грає по колу, поки ви не вимкнете сигнал. Файл зберігається лише в цьому браузері.`; n.className = 'ap-note ok'; }
+    else { n.textContent = 'Можна завантажити будь-який аудіофайл (mp3, wav, ogg, m4a) до ' + MAX_SND_MB + ' МБ.'; n.className = 'ap-note'; }
+  }
   function refreshUI() {
     $('alarmbtn').classList.toggle('on', cfg.on);
     $('ap-on').checked = cfg.on;
+    refreshSound();
     $('ap-r').value = cfg.r; $('ap-r-v').textContent = cfg.r + ' км';
     ['missile', 'kab', 'drone'].forEach(k => { $('ap-k-' + k).checked = !!cfg.kinds[k]; });
     $('ap-loc').textContent = cfg.lat == null ? 'Мітку не поставлено — натисніть кнопку вище і торкніться карти'
@@ -3892,6 +4025,28 @@ const AlarmSys = (() => {
   });
   $('ap-r').addEventListener('input', e => { cfg.r = +e.target.value; $('ap-r-v').textContent = cfg.r + ' км'; saveCfg(); drawPin(); queueSync(); });
   ['missile', 'kab', 'drone'].forEach(k => $('ap-k-' + k).addEventListener('change', e => { cfg.kinds[k] = e.target.checked; saveCfg(); queueSync(); }));
+  $('ap-sound').addEventListener('change', e => { cfg.sound = e.target.value; saveCfg(); Siren.elPrimed = false; refreshSound(); Siren.unlock();
+    if (cfg.sound === 'custom' && !CustomSnd.url) $('ap-file').click(); });
+  $('ap-vol').addEventListener('input', e => { cfg.vol = +e.target.value / 100; $('ap-vol-v').textContent = e.target.value + '%'; saveCfg();
+    if (Siren.el) Siren.el.volume = cfg.vol; });
+  $('ap-upload').addEventListener('click', () => $('ap-file').click());
+  $('ap-file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    const n = $('ap-snd-note');
+    if (!f) return;
+    if (f.size > MAX_SND_MB * 1048576) { n.textContent = `Файл завеликий (${(f.size / 1048576).toFixed(1)} МБ). Максимум — ${MAX_SND_MB} МБ.`; n.className = 'ap-note bad'; return; }
+    if (f.type && !f.type.startsWith('audio/') && !/\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(f.name)) { n.textContent = 'Це не схоже на аудіофайл.'; n.className = 'ap-note bad'; return; }
+    n.textContent = 'Перевіряю файл…'; n.className = 'ap-note';
+    const test = URL.createObjectURL(f);
+    try {                                                     // чи вміє браузер це відтворити
+      await new Promise((res, rej) => { const a = new Audio(); a.preload = 'metadata'; a.onloadedmetadata = res; a.onerror = () => rej(new Error('decode')); a.src = test; setTimeout(() => rej(new Error('timeout')), 8000); });
+    } catch (_) { URL.revokeObjectURL(test); n.textContent = 'Браузер не зміг прочитати цей файл. Спробуйте mp3 або wav.'; n.className = 'ap-note bad'; return; }
+    URL.revokeObjectURL(test);
+    try { await CustomSnd.save(f); cfg.sound = 'custom'; saveCfg(); Siren.unlock(); }
+    catch (_) { n.textContent = 'Не вдалося зберегти файл у браузері (можливо, приватний режим).'; n.className = 'ap-note bad'; return; }
+    refreshSound();
+  });
+  $('ap-upload-del').addEventListener('click', async () => { await CustomSnd.remove(); if (cfg.sound === 'custom') { cfg.sound = 'wail'; saveCfg(); } refreshSound(); });
   $('ap-test-siren').addEventListener('click', () => {
     Siren.unlock();
     showAlarm('🚨 ТЕСТ СИРЕНИ', 'Так звучатиме тривога. Натисніть «ВИМКНУТИ СИГНАЛ».', ['test-local']);
