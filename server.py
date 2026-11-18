@@ -39,7 +39,7 @@ POLL = float(os.getenv("POLL_INTERVAL", "1.0"))
 INITIAL_LOOKBACK = int(os.getenv("LOOKBACK", "240"))      # при старті читаємо лише останні 4 хв (було 30 хв — звідси «примарні» цілі)
 TTL_SCALE = float(os.getenv("TTL_SCALE", "0.5"))          # цілі живуть коротше без нових повідомлень
 STALE_HOLD_SEC = int(os.getenv("STALE_HOLD_SEC", "600"))  # «очікує курс»/«в районі» без нових повідомлень — зникає
-PASSED_GOAL_SEC = int(os.getenv("PASSED_GOAL_SEC", "150"))
+PASSED_GOAL_SEC = int(os.getenv("PASSED_GOAL_SEC", "600"))   # долетіла — чекає на курс (до 10 хв)
 NTFY = os.getenv("NTFY_TOPIC")
 KAB_H0, KAB_RANGE = 9000, 95
 MISSILE_HEAD_START = float(os.getenv("MISSILE_HEAD_START", "40"))   # с: скільки балістика вже пролетіла до появи повідомлення
@@ -1240,14 +1240,6 @@ def step(t, now):
             if str(g[0]).startswith("курс"):
                 gla, glo = fwd(t["lat"], t["lon"], t["hdg"], look_km)
                 t["goal"] = (g[0], gla, glo)
-            elif (t["kind"] == "drone" and not t.get("manual") and t.get("sub") not in TACTICAL_SHORT_DRONES
-                  and g[0] != "Запоріжжя" and g[0] not in ZP_DISTRICTS):
-                # проміжний н.п. на шляху: БпЛА не зупиняється, а летить далі тим самим курсом
-                t["frm"] = g[0]
-                gla, glo = fwd(t["lat"], t["lon"], t["hdg"], max(look_km, 8.0))
-                t["goal"] = ("курс %d°" % round(t["hdg"]), gla, glo)
-                t["to_name"] = t["goal"][0]
-                t["status_msg"] = f"Пролітає {g[0]}"
             else:
                 t["frm"] = g[0]
                 t["status_msg"] = f"В районі {g[0]}"
@@ -1339,9 +1331,21 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
         return False, 999.0
 
     if (is_turn or hdg_ovr is not None) and not pos:
-        return True, 0.1
+        return True, course_addressee_cost(c)
 
     return False, 999.0
+
+def course_addressee_cost(c):
+    """Повідомлення «курс …» без назви місця: кому воно адресоване.
+    Спершу цілі, що ЧЕКАЮТЬ курсу (долетіли/без курсу), найсвіжіша — першою; летючі — лише якщо чекаючих немає."""
+    age = max(0.0, time.time() - max(c.get("seen", 0), c.get("passed_at", 0)))
+    waiting = bool(c.get("holding") and not c.get("loiter"))
+    return (0.05 if waiting else 0.5) + min(0.4, age / 900.0)
+
+def pick_course_target(cands):
+    if not cands:
+        return None
+    return min(cands, key=course_addressee_cost)
 
 def _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
     """Позиційне повідомлення без курсу («над X»): БпЛА НЕ зупиняємо.
@@ -2072,7 +2076,7 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 if (not target_kind or t["kind"] == target_kind) and not t.get("ended")
             ]
             if (hdg_ovr is not None or is_loiter) and live_matches and not force_new:
-                latest = max(live_matches, key=lambda c: c["seen"])
+                latest = pick_course_target(live_matches)
                 if is_loiter:
                     latest["loiter"] = True
                     latest["holding"] = True
