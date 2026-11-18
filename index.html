@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Оперативний Радар ZP — Моніторинг повітряних цілей</title>
+<meta name="theme-color" content="#080b0f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'"/>
@@ -1008,6 +1012,171 @@ html, body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, s
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; } }
 </style>
 
+<style id="theme-v3-tactical">
+/* ═══ ТАКТИЧНИЙ ІНТЕРФЕЙС v3 · командний пульт ППО ═══
+   Без filter / backdrop-filter / нескінченних анімацій на карті — щоб не лагало й не мерехтіло. */
+:root {
+  --bg: #080b0f; --panel: #0d1218; --panel-2: #131a22; --line: #202a35; --line-2: #2e3a49;
+  --text: #e6edf3; --muted: #7f8c9b; --accent: #46d3ff; --amber: #ffb020; --danger: #ff4a4a; --ok: #35e0a1;
+  --k-drone: #ffb020; --k-kab: #ff4a4a; --k-missile: #ff7a2a; --k-strike: #c084fc;
+  --f-ui: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, Menlo, monospace;
+}
+html, body { font-family: var(--f-ui); background: var(--bg); }
+.leaflet-container { background: var(--bg); font-family: var(--f-ui); }
+
+/* карта: віньєтка + мікросітка (статичні, без анімації) */
+#hud-grid-overlay {
+  display: block !important; z-index: 410;
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(2,4,7,.62) 100%),
+    linear-gradient(rgba(70,211,255,.04) 1px, transparent 1px) 0 0 / 96px 96px,
+    linear-gradient(90deg, rgba(70,211,255,.04) 1px, transparent 1px) 0 0 / 96px 96px;
+}
+#watermark-overlay { opacity: .06 !important; }
+
+/* ── верхня панель ── */
+.status-pill {
+  background: rgba(8,12,17,.94); border: 1px solid var(--line-2); border-radius: 3px;
+  box-shadow: inset 3px 0 0 var(--accent), 0 6px 18px rgba(0,0,0,.5);
+  padding: 6px 13px 6px 15px; gap: 10px; font-weight: 600;
+}
+.radar-scope { width: 18px; height: 18px; border-width: 1.5px; }
+#clock-txt { font-family: var(--f-num); font-size: 10.5px; color: var(--muted); letter-spacing: .3px; }
+#active-cnt-txt { font-family: var(--f-num); font-size: 12px; font-weight: 700; color: var(--accent) !important; letter-spacing: .5px; }
+.hud-brand-tag { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--text); }
+.hud-divider { background: var(--line-2); height: 16px; }
+.pov-quick-pill {
+  background: rgba(70,211,255,.1); border: 1px solid var(--accent); border-radius: 3px; color: var(--accent);
+  padding: 6px 13px; font-size: 11px; font-weight: 700; letter-spacing: .8px; box-shadow: none;
+}
+.pov-quick-pill:hover { background: rgba(70,211,255,.22); filter: none; transform: none; }
+
+/* ── фільтри за типом цілі: колір типу = колір на карті ── */
+.fchip { border-radius: 3px; background: rgba(8,12,17,.94); border: 1px solid var(--line-2); border-left: 3px solid var(--k, var(--accent));
+  padding: 4px 9px 4px 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .3px; }
+.fchip[data-k="drone"] { --k: var(--k-drone); }
+.fchip[data-k="kab"] { --k: var(--k-kab); }
+.fchip[data-k="missile"] { --k: var(--k-missile); }
+.fchip[data-k="strike"] { --k: var(--k-strike); }
+.fchip:hover { border-color: var(--k); }
+.fchip.off { opacity: .4; }
+.fchip .cnt-badge { background: transparent; color: var(--k); font-family: var(--f-num); font-size: 12px; font-weight: 700; padding: 0 0 0 2px; border-radius: 0; }
+
+/* ── банер тривоги ── */
+#banner { border-radius: 3px; font-weight: 700; letter-spacing: .6px; }
+#banner.l1 { background: #3a2504; border: 1px solid var(--amber); color: #ffe2a8; box-shadow: inset 4px 0 0 var(--amber), 0 8px 22px rgba(0,0,0,.6); }
+#banner.l2 { background: #3a0b0b; border: 1px solid var(--danger); color: #ffd0d0; box-shadow: inset 4px 0 0 var(--danger), 0 8px 22px rgba(0,0,0,.6); animation: none; }
+
+/* ── кнопки інструментів ── */
+.tool-btn { width: 40px; height: 40px; border-radius: 3px; background: rgba(8,12,17,.94); border: 1px solid var(--line-2); color: #b8c4d2; box-shadow: 0 4px 12px rgba(0,0,0,.45); }
+.tool-btn:hover, .tool-btn.on { border-color: var(--accent); color: var(--accent); background: #0f1822; }
+
+/* ── бічна панель ── */
+#dock { background: rgba(10,14,19,.97); border: 1px solid var(--line-2); border-radius: 5px; box-shadow: 0 18px 44px rgba(0,0,0,.6); }
+#dock::before, #dock::after { content: ''; position: absolute; width: 14px; height: 14px; pointer-events: none; z-index: 3; }
+#dock::before { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+#dock::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.tabs { gap: 0; padding: 0; background: #0a0e13; border-bottom: 1px solid var(--line-2); }
+.tab { border-radius: 0; padding: 10px 4px 9px; font-size: 11.5px; font-weight: 600; letter-spacing: .5px; border-bottom: 2px solid transparent; }
+.tab.active { background: linear-gradient(180deg, transparent, rgba(70,211,255,.09)); color: var(--text); box-shadow: none; border-bottom: 2px solid var(--accent); }
+.pane { padding: 9px; gap: 7px; }
+
+/* ── картки цілей ── */
+.card { background: #10161d; border: 1px solid var(--line); border-radius: 3px; padding: 9px 11px 9px 15px; }
+.card::before { width: 3px; background: var(--c, var(--amber)); }
+.card:hover { background: #151d27; }
+.card.selected { border-color: var(--c, var(--accent)) !important; background: #131c27; }
+.card-title { font-size: 13.5px; font-weight: 700; letter-spacing: .3px; }
+.card-sub { font-family: var(--f-num); font-size: 11px; color: #b0bccb; }
+.card-sub b { color: var(--text); font-weight: 700; }
+.card-msg { font-family: var(--f-ui); font-size: 11px; color: var(--muted); }
+.eta-pill, .wait-pill { border-radius: 2px; font-family: var(--f-num); font-weight: 700; letter-spacing: .3px; }
+.eta-pill { font-size: 12.5px; padding: 2px 8px; color: var(--c, #ffd0d0);
+  background: color-mix(in srgb, var(--c, #ff4a4a) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c, #ff4a4a) 55%, transparent); }
+.wait-pill { font-size: 10.5px; color: var(--amber); background: rgba(255,176,32,.1); border: 1px dashed rgba(255,176,32,.55); }
+.cnt-pill { border-radius: 2px; font-family: var(--f-num); }
+.card-pov-btn { border-radius: 2px; font-weight: 600; background: rgba(70,211,255,.1); border: 1px solid rgba(70,211,255,.5); color: var(--accent); }
+.card-pov-btn:hover { background: rgba(70,211,255,.24); color: #fff; }
+.feed-item, .sec-box { border-radius: 3px; background: #10161d; border: 1px solid var(--line); }
+.sec-title { letter-spacing: 1px; }
+.style-btn, .qchip, .uav-spawn-btn, .btn-sec, .ctrl-input { border-radius: 3px; }
+.btn-primary { border-radius: 3px; background: #0e86b4; }
+.ap-card { border-radius: 5px; border: 1px solid var(--line-2); }
+
+/* ── обрана ціль ── */
+#selected-target-bar { background: rgba(8,12,17,.96); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); border-radius: 3px; padding: 8px 10px 8px 13px; }
+#sel-bar-title { font-size: 13px; font-weight: 700; letter-spacing: .4px; }
+#sel-bar-sub { font-family: var(--f-num); font-size: 11px; color: #b0bccb; }
+#sel-bar-pov-btn { border-radius: 3px; background: rgba(70,211,255,.14); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; }
+#sel-bar-pov-btn:hover { background: rgba(70,211,255,.28); color: #fff; }
+
+/* ═══ МАРКЕРИ ЦІЛЕЙ ═══ */
+.t-halo {
+  position: absolute; inset: -3px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(6,9,13,.82) 0 40%, color-mix(in srgb, var(--tc, #ffb020) 22%, transparent) 62%, transparent 72%);
+}
+.t-halo::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--tc, #ffb020) 55%, transparent); }
+.t-marker-root::after { content: ''; position: absolute; left: 50%; top: 36px; width: 1px; height: 6px; background: var(--tc, #ffb020); opacity: .8; }
+.t-svg-box { position: relative; z-index: 2; }
+
+/* прицільні кутики на обраній цілі */
+.t-lock-ring {
+  inset: -9px; border: 0 !important; border-radius: 0;
+  --b: var(--tc, #ffb020);
+  background:
+    linear-gradient(var(--b), var(--b)) 0 0 / 11px 2px no-repeat, linear-gradient(var(--b), var(--b)) 0 0 / 2px 11px no-repeat,
+    linear-gradient(var(--b), var(--b)) 100% 0 / 11px 2px no-repeat, linear-gradient(var(--b), var(--b)) 100% 0 / 2px 11px no-repeat,
+    linear-gradient(var(--b), var(--b)) 0 100% / 11px 2px no-repeat, linear-gradient(var(--b), var(--b)) 0 100% / 2px 11px no-repeat,
+    linear-gradient(var(--b), var(--b)) 100% 100% / 11px 2px no-repeat, linear-gradient(var(--b), var(--b)) 100% 100% / 2px 11px no-repeat;
+}
+.t-marker-root.selected .t-lock-ring, .t-marker-root.admin-draggable:hover .t-lock-ring { opacity: 1; animation: lockIn .22s ease-out both; }
+@keyframes lockIn { from { transform: scale(1.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.t-pulse-wave { width: 44px; height: 44px; border-width: 1px; }
+
+/* підпис: ETA — відстань */
+.t-lbl-tag {
+  top: 43px; display: flex; align-items: stretch; padding: 0;
+  background: rgba(8,12,17,.95); border: 1px solid color-mix(in srgb, var(--tc, #ffb020) 55%, #202a35); border-left: 0; border-radius: 2px;
+  font: 700 10.5px/1 var(--f-num); letter-spacing: 0; overflow: hidden; box-shadow: 0 3px 8px rgba(0,0,0,.6);
+}
+.t-lbl-tag::before { content: ''; width: 3px; background: var(--tc, #ffb020); flex: none; }
+.t-lbl-tag b { padding: 4px 6px 3px; color: var(--tc, #ffb020); font-weight: 700; }
+.t-lbl-tag span { padding: 4px 6px 3px; color: #b0bccb; font-weight: 500; }
+.t-lbl-tag b + span { border-left: 1px solid #263140; background: rgba(255,255,255,.035); }
+
+/* кінець траєкторії — приціл-ромб */
+.t-goal-wrap { background: none !important; border: 0 !important; }
+.t-goal { position: relative; width: 24px; height: 24px; pointer-events: none; }
+.t-goal::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(var(--tc), var(--tc)) center / 1.5px 100% no-repeat, linear-gradient(var(--tc), var(--tc)) center / 100% 1.5px no-repeat;
+}
+.t-goal i { position: absolute; inset: 5px; border: 1.6px solid var(--tc); background: rgba(8,12,17,.9); transform: rotate(45deg); }
+.t-goal::after { content: ''; position: absolute; left: 10.5px; top: 10.5px; width: 3px; height: 3px; border-radius: 50%; background: var(--tc); }
+
+/* центр ППО й кільця дальності */
+.home-mark-wrap, .ring-lbl-wrap { background: none !important; border: 0 !important; }
+.home-mark { position: relative; width: 34px; height: 34px; }
+.home-mark::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; border: 1.5px solid var(--accent); background: rgba(8,12,17,.88); }
+.home-mark::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(var(--accent), var(--accent)) 50% 0 / 1.5px 8px no-repeat, linear-gradient(var(--accent), var(--accent)) 50% 100% / 1.5px 8px no-repeat,
+              linear-gradient(var(--accent), var(--accent)) 0 50% / 8px 1.5px no-repeat, linear-gradient(var(--accent), var(--accent)) 100% 50% / 8px 1.5px no-repeat;
+}
+.home-mark i { position: absolute; left: 14px; top: 14px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.ring-lbl { display: inline-block; width: 100%; text-align: center; font: 700 9.5px/16px var(--f-num); color: var(--rc); background: rgba(8,12,17,.85); border-radius: 2px; }
+.leaflet-tooltip.landmark-lbl { font-family: var(--f-ui); font-weight: 600; color: #bfe8f7; background: rgba(8,12,17,.78); border-radius: 2px; }
+
+@media (max-width: 768px) {
+  #dock { border-radius: 10px 10px 0 0; }
+  #dock::before, #dock::after { display: none; }
+  .tool-btn { width: 36px; height: 36px; }
+  .status-pill { padding: 5px 9px 5px 12px; gap: 7px; }
+  .hud-brand-tag { letter-spacing: 1px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .t-lock-ring { animation: none !important; } }
+</style>
 </head>
 <body>
 
@@ -1684,14 +1853,19 @@ function drawStaticLayers() {
   flLayerGroup.clearLayers();
   landmarksLayerGroup.clearLayers();
 
-  L.circleMarker([home[1], home[2]], {
-    radius: 4.5, color: '#38bdf8', weight: 2, fillColor: '#0284c7', fillOpacity: 0.9, renderer: canvasRenderer
-  }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top" }).addTo(staticLayerGroup);
+  L.marker([home[1], home[2]], {
+    keyboard: false, zIndexOffset: -400,
+    icon: L.divIcon({ className: 'home-mark-wrap', html: '<div class="home-mark"><i></i></div>', iconSize: [34, 34], iconAnchor: [17, 17] })
+  }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top", offset: [0, -14] }).addTo(staticLayerGroup);
 
   if (showRings && map.getZoom() < 12) {
     [[20, '#10b981'], [45, '#f59e0b'], [70, '#ef4444']].forEach(([rKm, col]) => {
       L.circle([home[1], home[2]], {
-        radius: rKm * 1000, color: col, weight: 1, opacity: 0.32, fill: false, dashArray: '5,6', interactive: false, renderer: canvasRenderer
+        radius: rKm * 1000, color: col, weight: 1.3, opacity: 0.55, fill: false, dashArray: '2,7', lineCap: 'round', interactive: false, renderer: canvasRenderer
+      }).addTo(ringsLayerGroup);
+      L.marker(fwd(home[1], home[2], 0, rKm), {
+        interactive: false, keyboard: false,
+        icon: L.divIcon({ className: 'ring-lbl-wrap', html: `<span class="ring-lbl" style="--rc:${col}">${rKm} км</span>`, iconSize: [48, 16], iconAnchor: [24, 8] })
       }).addTo(ringsLayerGroup);
     });
   }
@@ -1895,15 +2069,24 @@ function getTargetLabelText(t, aState) {
   return timeStr ? `${timeStr} · ${distStr}` : distStr;
 }
 
+function lblHTML(txt) {
+  const p = String(txt).split(' · ');
+  return p.length > 1 ? `<b>${p[0]}</b><span>${p[1]}</span>` : `<span>${p[0]}</span>`;
+}
+function paintLbl(el, txt) {
+  if (el.__t !== txt) { el.__t = txt; el.innerHTML = lblHTML(txt); }
+}
+
 function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg, aState) {
   const spec = getTargetVisualSpec(t);
   const hdg = (hdgDeg != null) ? hdgDeg : ((t.hdg != null) ? t.hdg : 0);
   const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.loiter || t.holding) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
+    <div class="t-halo"></div>
     <div class="t-lock-ring"></div>
     <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg, 38)}</div>
-    <div class="t-lbl-tag" style="--tc:${spec.col}">${getTargetLabelText(t, aState)}</div>
+    <div class="t-lbl-tag" style="--tc:${spec.col}">${lblHTML(getTargetLabelText(t, aState))}</div>
   </div>`;
 }
 
@@ -1919,6 +2102,7 @@ let animState = {};
 let markerLayerById = {};
 let vectorPolyById = {};
 let originPolyById = {};
+let originDotById = {};
 let trailPolyById = {};
 let conePolyById = {};
 let goalDotById = {};
@@ -1934,10 +2118,7 @@ function updateMarkerDOMWithoutRecreating(m, t, isSelected) {
   root.classList.toggle('selected', isSelected);
   root.classList.toggle('admin-draggable', isAdmin);
   const lblEl = root.querySelector('.t-lbl-tag');
-  if (lblEl) {
-    const newTxt = getTargetLabelText(t, animState[t.id]);
-    if (lblEl.textContent !== newTxt) lblEl.textContent = newTxt;
-  }
+  if (lblEl) paintLbl(lblEl, getTargetLabelText(t, animState[t.id]));
   return true;
 }
 
@@ -2063,6 +2244,7 @@ document.getElementById('sel-bar-pov-btn').addEventListener('click', () => {
 function removeTrackVectorLayers(id) {
   if (vectorPolyById[id]) { tracksVectorGroup.removeLayer(vectorPolyById[id]); delete vectorPolyById[id]; }
   if (originPolyById[id]) { tracksVectorGroup.removeLayer(originPolyById[id]); delete originPolyById[id]; }
+  if (originDotById[id]) { tracksVectorGroup.removeLayer(originDotById[id]); delete originDotById[id]; }
   if (trailPolyById[id]) { tracksVectorGroup.removeLayer(trailPolyById[id]); delete trailPolyById[id]; }
   if (conePolyById[id]) { tracksVectorGroup.removeLayer(conePolyById[id]); delete conePolyById[id]; }
   if (goalDotById[id]) { tracksVectorGroup.removeLayer(goalDotById[id]); delete goalDotById[id]; }
@@ -2075,6 +2257,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     tracksVectorGroup.clearLayers();
     vectorPolyById = {};
     originPolyById = {};
+    originDotById = {};
     trailPolyById = {};
     conePolyById = {};
     goalDotById = {};
@@ -2089,7 +2272,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     if (showTrails && a.trail && a.trail.length >= 2 && !hiddenKinds.has(t.kind) && !t.ended) {
       if (!trailPolyById[t.id]) {
         trailPolyById[t.id] = L.polyline(a.trail, {
-          color: col, weight: 1.6, opacity: 0.36, interactive: false, renderer: canvasRenderer
+          color: col, weight: 3, opacity: 0.5, lineCap: 'round', lineJoin: 'round', interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
       } else {
         trailPolyById[t.id].setLatLngs(a.trail);
@@ -2103,6 +2286,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     if (hiddenKinds.has(t.kind) || t.ended || t.holding || t.loiter || a.holding || !goalPt || a.hdg == null) {
       if (vectorPolyById[t.id]) { tracksVectorGroup.removeLayer(vectorPolyById[t.id]); delete vectorPolyById[t.id]; }
       if (originPolyById[t.id]) { tracksVectorGroup.removeLayer(originPolyById[t.id]); delete originPolyById[t.id]; }
+      if (originDotById[t.id]) { tracksVectorGroup.removeLayer(originDotById[t.id]); delete originDotById[t.id]; }
       if (conePolyById[t.id]) { tracksVectorGroup.removeLayer(conePolyById[t.id]); delete conePolyById[t.id]; }
       if (goalDotById[t.id]) { tracksVectorGroup.removeLayer(goalDotById[t.id]); delete goalDotById[t.id]; }
       if (reticleMarkerById[t.id]) { map.removeLayer(reticleMarkerById[t.id]); delete reticleMarkerById[t.id]; }
@@ -2119,7 +2303,7 @@ function syncTrackVectorLayers(forceRebuild = false) {
     if (showCones && distKm > 0.15) {
       if (!conePolyById[t.id]) {
         conePolyById[t.id] = L.polygon([[a.lat, a.lon], pLeft, pRight], {
-          color: col, weight: 0.7, opacity: 0.28, fillColor: col, fillOpacity: 0.11, interactive: false, renderer: canvasRenderer
+          color: col, weight: 1, opacity: 0.4, fillColor: col, fillOpacity: 0.14, interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
       } else {
         conePolyById[t.id].setLatLngs([[a.lat, a.lon], pLeft, pRight]);
@@ -2132,24 +2316,32 @@ function syncTrackVectorLayers(forceRebuild = false) {
     if (t.fx && t.fx.length >= 2) {
       if (!originPolyById[t.id]) {
         originPolyById[t.id] = L.polyline([t.fx[0], [a.lat, a.lon]], {
-          color: col, weight: 1.4, opacity: 0.42, dashArray: '3,5', interactive: false, renderer: canvasRenderer
+          color: col, weight: 2, opacity: 0.6, dashArray: '1,7', lineCap: 'round', interactive: false, renderer: canvasRenderer
         }).addTo(tracksVectorGroup);
       } else {
         originPolyById[t.id].setLatLngs([t.fx[0], [a.lat, a.lon]]);
+      }
+      if (!originDotById[t.id]) {
+        originDotById[t.id] = L.circleMarker(t.fx[0], {
+          radius: 4, color: col, weight: 1.6, opacity: 0.9, fillColor: '#080b0f', fillOpacity: 1, interactive: false, renderer: canvasRenderer
+        }).addTo(tracksVectorGroup);
+      } else {
+        originDotById[t.id].setLatLng(t.fx[0]);
       }
     }
 
     if (!vectorPolyById[t.id]) {
       vectorPolyById[t.id] = L.polyline([[a.lat, a.lon], goalPt], {
-        color: col, weight: 2.2, opacity: 0.88, dashArray: '6,5', interactive: false, renderer: canvasRenderer
+        color: col, weight: 2.6, opacity: 0.95, dashArray: '10,7', interactive: false, renderer: canvasRenderer
       }).addTo(tracksVectorGroup);
     } else {
       vectorPolyById[t.id].setLatLngs([[a.lat, a.lon], goalPt]);
     }
 
     if (!goalDotById[t.id]) {
-      goalDotById[t.id] = L.circleMarker(goalPt, {
-        radius: 3.5, color: col, weight: 1.5, fillColor: '#070b12', fillOpacity: 0.9, interactive: false, renderer: canvasRenderer
+      goalDotById[t.id] = L.marker(goalPt, {
+        interactive: false, keyboard: false, zIndexOffset: -200,
+        icon: L.divIcon({ className: 't-goal-wrap', html: `<div class="t-goal" style="--tc:${col}"><i></i></div>`, iconSize: [24, 24], iconAnchor: [12, 12] })
       }).addTo(tracksVectorGroup);
     } else {
       goalDotById[t.id].setLatLng(goalPt);
@@ -2245,10 +2437,7 @@ function stepClientKinematics() {
         const svgEl = el.querySelector('.target-rot-svg');
         if (svgEl && a.hdg != null) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
         const lblEl = el.querySelector('.t-lbl-tag');
-        if (lblEl) {
-          const newTxt = getTargetLabelText(t, a);
-          if (lblEl.textContent !== newTxt) lblEl.textContent = newTxt;
-        }
+        if (lblEl) paintLbl(lblEl, getTargetLabelText(t, a));
       }
 
       if (doVec) {
