@@ -2997,4 +2997,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except AttributeError:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())іі
+        loop.run_until_complete(main())
