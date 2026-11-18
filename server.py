@@ -2274,11 +2274,131 @@ def snap(now):
         "feed": feed,
         "oblast": [[la, lo] for lo, la in OBLAST],
         "frontline": FRONTLINE,
+        "alerts": alerts_state["regions"],
+        "alerts_ok": alerts_state["ok"],
         "channels": [
             {"name": ch, "ok": stats.get(ch, {}).get("http") == 200, "checked": stats.get(ch, {}).get("checked", "—"), "last": stats.get(ch, {}).get("last_post", "")[:90], "lag": lag_stats.get(ch)}
             for ch in CHANNELS
         ]
     }
+
+
+# ───────────────────────── МАПА ТРИВОГ ПО ОБЛАСТЯХ ─────────────────────────
+# Джерело — офіційні API (потрібен безкоштовний токен, одна з двох змінних у Render → Environment):
+#   ALERTS_IN_UA_TOKEN  — https://alerts.in.ua/api-request  (дає й тривоги по районах → область підсвічується «частково»)
+#   UKRAINEALARM_TOKEN  — https://api.ukrainealarm.com      (тривоги по областях)
+# Без токена мапа працює, але області не підсвічуються (клієнт покаже підказку).
+ALERTS_IN_UA_TOKEN = os.getenv("ALERTS_IN_UA_TOKEN", "").strip()
+UKRAINEALARM_TOKEN = os.getenv("UKRAINEALARM_TOKEN", "").strip()
+alerts_state = {"regions": {}, "ok": False, "src": None, "ts": 0}
+
+OBLAST_GEO_BASE = "https://raw.githubusercontent.com/EugeneBorshch/ukraine_geojson/master/"
+OBLAST_FILES = {
+    "UA_05_Vinnytska.geojson": "Вінницька область", "UA_07_Volynska.geojson": "Волинська область",
+    "UA_09_Luhanska.geojson": "Луганська область", "UA_12_Dnipropetrovska.geojson": "Дніпропетровська область",
+    "UA_14_Donetska.geojson": "Донецька область", "UA_18_Zhytomyrska.geojson": "Житомирська область",
+    "UA_21_Zakarpatska.geojson": "Закарпатська область", "UA_23_Zaporizka.geojson": "Запорізька область",
+    "UA_26_Ivano_Frankivska.geojson": "Івано-Франківська область", "UA_32_Kyivska.geojson": "Київська область",
+    "UA_35_Kirovohradska.geojson": "Кіровоградська область", "UA_43_Avtonomna_Respublika_Krym.geojson": "Автономна Республіка Крим",
+    "UA_46_Lvivska.geojson": "Львівська область", "UA_48_Mykolaivska.geojson": "Миколаївська область",
+    "UA_51_Odeska.geojson": "Одеська область", "UA_53_Poltavska.geojson": "Полтавська область",
+    "UA_56_Rivnenska.geojson": "Рівненська область", "UA_59_Sumska.geojson": "Сумська область",
+    "UA_61_Ternopilska.geojson": "Тернопільська область", "UA_63_Kharkivska.geojson": "Харківська область",
+    "UA_65_Khersonska.geojson": "Херсонська область", "UA_68_Khmelnytska.geojson": "Хмельницька область",
+    "UA_71_Cherkaska.geojson": "Черкаська область", "UA_74_Chernihivska.geojson": "Чернігівська область",
+    "UA_77_Chernivetska.geojson": "Чернівецька область",
+}
+oblast_geo = {"fc": None}
+
+def _norm_region(n):
+    n = (n or "").strip()
+    low = n.lower()
+    if low in ("київ", "м. київ", "місто київ", "киев", "г. киев"):
+        return "м. Київ"
+    if "крим" in low:
+        return "Автономна Республіка Крим"
+    return n
+
+async def load_oblast_geo(s):
+    while oblast_geo["fc"] is None:
+        feats = []
+        async def one(fn, name):
+            try:
+                async with s.get(OBLAST_GEO_BASE + fn, timeout=aiohttp.ClientTimeout(total=30)) as r:
+                    if r.status != 200:
+                        return
+                    j = await r.json(content_type=None)
+                g = j.get("geometry") if j.get("type") == "Feature" else (j.get("features") or [{}])[0].get("geometry")
+                if g:
+                    feats.append({"type": "Feature", "properties": {"name": name}, "geometry": g})
+            except Exception as e:
+                print("geo load fail", fn, e)
+        await asyncio.gather(*[one(fn, nm) for fn, nm in OBLAST_FILES.items()])
+        if len(feats) >= 20:
+            oblast_geo["fc"] = {"type": "FeatureCollection", "features": feats}
+            print(f"Контури областей завантажено: {len(feats)}")
+            return
+        await asyncio.sleep(60)
+
+async def fetch_alerts(s):
+    """повертає {назва_області: 'full'|'partial'} або None при помилці"""
+    regs = {}
+    if ALERTS_IN_UA_TOKEN:
+        async with s.get("https://api.alerts.in.ua/v1/alerts/active.json",
+                         headers={"Authorization": "Bearer " + ALERTS_IN_UA_TOKEN},
+                         timeout=aiohttp.ClientTimeout(total=15)) as r:
+            if r.status != 200:
+                return None
+            j = await r.json(content_type=None)
+        for a in j.get("alerts", []):
+            if a.get("alert_type") != "air_raid":
+                continue
+            typ = a.get("location_type")
+            if typ == "oblast":
+                regs[_norm_region(a.get("location_title"))] = "full"
+            elif typ in ("raion", "hromada", "city"):
+                ob = _norm_region(a.get("location_oblast") or "")
+                if ob and regs.get(ob) != "full":
+                    regs[ob] = "partial"
+        alerts_state["src"] = "alerts.in.ua"
+        return regs
+    if UKRAINEALARM_TOKEN:
+        async with s.get("https://api.ukrainealarm.com/api/v3/alerts",
+                         headers={"Authorization": UKRAINEALARM_TOKEN},
+                         timeout=aiohttp.ClientTimeout(total=15)) as r:
+            if r.status != 200:
+                return None
+            j = await r.json(content_type=None)
+        for reg in j:
+            if reg.get("regionType") == "State" and any(x.get("type") == "AIR" for x in reg.get("activeAlerts", [])):
+                regs[_norm_region(reg.get("regionName"))] = "full"
+        alerts_state["src"] = "ukrainealarm.com"
+        return regs
+    return None
+
+async def alerts_loop(s):
+    if not (ALERTS_IN_UA_TOKEN or UKRAINEALARM_TOKEN):
+        print("Мапа тривог: токен не задано (ALERTS_IN_UA_TOKEN або UKRAINEALARM_TOKEN) — підсвітка областей вимкнена")
+        return
+    while True:
+        try:
+            regs = await fetch_alerts(s)
+            if regs is None:
+                alerts_state["ok"] = False
+            else:
+                changed = regs != alerts_state["regions"] or not alerts_state["ok"]
+                alerts_state.update(regions=regs, ok=True, ts=time.time())
+                if changed:
+                    await push()
+        except Exception as e:
+            alerts_state["ok"] = False
+            print("alerts error:", e)
+        await asyncio.sleep(12)
+
+async def oblasts_endpoint(req):
+    if oblast_geo["fc"] is None:
+        return web.json_response({"type": "FeatureCollection", "features": []}, headers={"Cache-Control": "no-store"})
+    return web.json_response(oblast_geo["fc"], headers={"Cache-Control": "public, max-age=86400"})
 
 async def send(payload, event=None):
     msg = (f"event: {event}\n" if event else "") + f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -2981,6 +3101,7 @@ async def main():
         web.get("/3d", lambda r: serve_no_cache_file(os.path.join(D, "radar3d.html"), "text/html")),
         web.get("/events", events),
         web.get("/state", state_endpoint),
+        web.get("/api/oblasts", oblasts_endpoint),
         web.post("/sim", sim_endpoint),
         web.get("/manifest.json", f("manifest.json")),
         web.get("/sw.js", lambda r: serve_no_cache_file(os.path.join(D, "sw.js"), "application/javascript")),
@@ -3013,6 +3134,8 @@ async def main():
     asyncio.create_task(tick(s))
     asyncio.create_task(keepalive(s))
     asyncio.create_task(tg_realtime())
+    asyncio.create_task(load_oblast_geo(s))
+    asyncio.create_task(alerts_loop(s))
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()

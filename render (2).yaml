@@ -37,3 +37,8 @@ services:
         sync: false
       - key: TG_ALERT_CHATS
         sync: false
+      # ── Мапа тривог по областях (потрібен ОДИН токен): https://alerts.in.ua/api-request або https://api.ukrainealarm.com ──
+      - key: ALERTS_IN_UA_TOKEN
+        sync: false
+      - key: UKRAINEALARM_TOKEN
+        sync: false

@@ -1181,6 +1181,113 @@ html, body { font-family: var(--f-ui); background: var(--bg); }
 .t-lock-ring { inset: -6px; }
 .t-pulse-wave { width: 72px; height: 72px; }
 
+
+/* ═══ v3.2: чистий сучасний вигляд, ціль = велика стрілка курсу ═══ */
+:root { --f-ui: Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; --f-num: Inter, "Segoe UI", system-ui, sans-serif;
+  --bg:#0e131a; --panel:#141b24; --panel-2:#1a232e; --line:#26313e; --line-2:#2f3c4c; }
+html, body, .leaflet-container { font-family: var(--f-ui); }
+#hud-grid-overlay { display: none !important; }
+#watermark-overlay { opacity: .05 !important; }
+
+.status-pill, .fchip, .tool-btn, #selected-target-bar, #banner { border-radius: 12px !important; border: 1px solid var(--line-2); background: rgba(20,27,36,.96); box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.status-pill { padding: 7px 14px; }
+.status-pill, .fchip { box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.hud-brand-tag { letter-spacing: .6px; font-size: 12px; font-weight: 700; }
+#clock-txt, #active-cnt-txt, .card-sub, #sel-bar-sub, .eta-pill, .wait-pill, .cnt-pill, .fchip .cnt-badge { font-family: var(--f-ui); font-variant-numeric: tabular-nums; }
+.pov-quick-pill { border-radius: 12px; background: #1296c8; border: 0; color: #fff; letter-spacing: .3px; }
+.pov-quick-pill:hover { background: #17a8de; }
+.fchip { border-left: 1px solid var(--line-2); border-radius: 999px !important; padding: 5px 12px 5px 10px; font-weight: 600; letter-spacing: 0; }
+.fchip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--k); flex: none; }
+.fchip svg { display: none; }
+.fchip .cnt-badge { color: var(--text); font-weight: 700; }
+.tool-btn { width: 42px; height: 42px; }
+.tool-btn:hover, .tool-btn.on { border-color: var(--accent); }
+
+#dock { border-radius: 18px; background: var(--panel); border: 1px solid var(--line-2); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+#dock::before, #dock::after { display: none; }
+.tabs { padding: 7px; gap: 4px; background: transparent; }
+.tab { border-radius: 10px; border-bottom: 0 !important; letter-spacing: 0; }
+.tab.active { background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line-2); border-bottom: 0 !important; }
+.card, .feed-item, .sec-box { border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
+.card { padding: 10px 12px 10px 16px; }
+.card::before { width: 4px; }
+.card-title { letter-spacing: 0; font-size: 13px; }
+.eta-pill, .wait-pill, .cnt-pill, .card-pov-btn, #sel-bar-pov-btn { border-radius: 999px; }
+.eta-pill { font-size: 12px; }
+.card-pov-btn, #sel-bar-pov-btn { background: rgba(70,211,255,.12); border: 1px solid rgba(70,211,255,.45); color: #bfeeff; }
+#selected-target-bar { border-left: 1px solid var(--line-2); padding: 8px 10px 8px 14px; }
+.style-btn, .qchip, .uav-spawn-btn, .btn-sec, .ctrl-input, .btn-primary { border-radius: 10px; }
+.ap-card { border-radius: 18px; }
+
+/* ── цілі на карті ── */
+.t-marker-root { width: 56px; height: 56px; }
+.t-svg-box { width: 52px; height: 52px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.55)) !important; }
+.t-halo, .t-arrow, .t-lbl-tag, .t-goal { display: none !important; }
+.t-lock-ring { inset: 1px; border: 2px solid #fff !important; border-radius: 50%; background: none; animation: none !important; }
+.t-marker-root.selected .t-lock-ring { opacity: .9; animation: none !important; }
+.t-pulse-wave { width: 56px; height: 56px; border-width: 2px; }
+.leaflet-tooltip.landmark-lbl { border-radius: 6px; font-family: var(--f-ui); }
+.ring-lbl { font-family: var(--f-ui); border-radius: 6px; }
+@media (max-width: 768px) { #dock { border-radius: 18px 18px 0 0; } .tool-btn { width: 38px; height: 38px; } }
+
+
+/* ═══ v3.3: темний строгий стиль + тривоги ═══ */
+:root { --bg:#06080b; --panel:#0b0f14; --panel-2:#10151b; --line:#19202a; --line-2:#222b37; --text:#c3ccd7; --muted:#6d7a8a;
+  --accent:#8aa3bd; --amber:#c8902e; --danger:#c8423d; --ok:#3f9f7a; --k-drone:#e0a43a; --k-kab:#d64545; --k-missile:#e07a3a; --k-strike:#a77fd6; }
+html, body { background: var(--bg); color: var(--text); }
+.leaflet-container { background: #05070a; }
+#map .leaflet-tile-pane { opacity: .5 !important; }
+#map.theme-sat .leaflet-tile-pane, #map.theme-light .leaflet-tile-pane { opacity: .42 !important; }
+#watermark-overlay { opacity: .035 !important; }
+
+.status-pill, .fchip, .tool-btn, #selected-target-bar { background: var(--panel) !important; border: 1px solid var(--line-2) !important; border-radius: 6px !important; box-shadow: 0 4px 14px rgba(0,0,0,.6) !important; }
+.status-pill { padding: 7px 13px; }
+.hud-brand-tag { color: var(--text); font-weight: 700; letter-spacing: 1.2px; }
+#clock-txt { color: var(--muted); }
+#active-cnt-txt { color: var(--accent) !important; }
+.hud-divider { background: var(--line-2); }
+.pov-quick-pill { background: var(--panel); border: 1px solid var(--line-2); color: var(--text); border-radius: 6px; font-weight: 600; }
+.pov-quick-pill:hover { background: var(--panel-2); border-color: var(--accent); }
+.fchip { padding: 4px 11px 4px 9px; }
+.fchip .cnt-badge { color: var(--text); }
+.tool-btn { color: #8795a6; }
+.tool-btn:hover, .tool-btn.on { color: var(--text); border-color: var(--accent) !important; background: var(--panel-2) !important; }
+
+#dock { background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: 0 16px 40px rgba(0,0,0,.65); }
+.tabs { padding: 0; gap: 0; border-bottom: 1px solid var(--line-2); }
+.tab { border-radius: 0; color: var(--muted); }
+.tab.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab.active svg { stroke: var(--accent); }
+.card, .feed-item, .sec-box { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; }
+.card:hover { background: #141b23; }
+.card.selected { border-color: var(--accent) !important; }
+.card-title { color: var(--text); }
+.card-sub b { color: var(--text); }
+.eta-pill, .wait-pill, .cnt-pill, .card-pov-btn, #sel-bar-pov-btn { border-radius: 4px; }
+.card-pov-btn, #sel-bar-pov-btn { background: #121923; border: 1px solid var(--line-2); color: var(--accent); }
+.card-pov-btn:hover, #sel-bar-pov-btn:hover { background: #18212d; color: var(--text); }
+.btn-primary { background: #1b2735; border: 1px solid #2b3a4d; color: var(--text); border-radius: 6px; }
+.btn-primary:hover { background: #223245; }
+.style-btn, .qchip, .uav-spawn-btn, .btn-sec, .ctrl-input { border-radius: 6px; background: var(--panel); border-color: var(--line-2); }
+.style-btn.active { background: #131c27; border-color: var(--accent); }
+.ap-card { border-radius: 8px; background: var(--panel); }
+.feed-head, .sec-title { color: var(--accent); }
+#selected-target-bar { border-left: 3px solid var(--accent) !important; }
+
+/* ── тривога по областях ── */
+#alert-strip { display: none; pointer-events: auto; flex-wrap: wrap; gap: 6px; }
+#alert-strip.on { display: flex; }
+.al-chip { display: inline-flex; align-items: center; gap: 8px; background: #190a0a; border: 1px solid #5a1e1b; border-left: 3px solid #e0261f;
+  color: #f0b8b4; border-radius: 6px; padding: 5px 11px; font-size: 11.5px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.6); }
+.al-chip.partial { background: #1a110a; border-color: #5a3a1b; border-left-color: #e0743a; color: #f0cfb4; }
+.al-chip.home { font-weight: 700; box-shadow: inset 0 0 0 1px #e0261f, 0 4px 14px rgba(0,0,0,.6); }
+.al-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff4a43; animation: alDot 1.4s ease-in-out infinite; }
+@keyframes alDot { 50% { opacity: .25; } }
+.al-hint { font-size: 10.5px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; }
+.ob-alert { animation: obPulse 3.4s ease-in-out infinite; }
+@keyframes obPulse { 0%, 100% { fill-opacity: .18; } 50% { fill-opacity: .34; } }
+@media (prefers-reduced-motion: reduce) { .ob-alert, .al-dot { animation: none !important; } }
+
 @media (max-width: 768px) {
   #dock { border-radius: 10px 10px 0 0; }
   #dock::before, #dock::after { display: none; }
@@ -1213,6 +1320,7 @@ html, body { font-family: var(--f-ui); background: var(--bg); }
     </div>
   </div>
   <div id="banner"></div>
+  <div id="alert-strip"></div>
   <div id="filterbar">
     <div class="fchip" data-k="drone">
       <svg viewBox="0 0 44 44"><path fill="#f59e0b" stroke="#080d15" stroke-width="1.3" d="M22 3 C23.1 3 23.7 5.8 23.9 9.8 C24.2 13.8 26.8 17.2 38.5 29.2 L38.5 33.8 L36.6 33.8 L36.6 31.2 L24.4 29.8 L23.5 34.8 L20.5 34.8 L19.6 29.8 L7.4 31.2 L7.4 33.8 L5.5 33.8 L5.5 29.2 C17.2 17.2 19.8 13.8 20.1 9.8 C20.3 5.8 20.9 3 22 3 Z"/></svg>
@@ -1377,10 +1485,6 @@ html, body { font-family: var(--f-ui); background: var(--bg); }
       <label class="ctrl-row">
         <span>Сектори загрози та вектори курсу</span>
         <input type="checkbox" id="chk-cones" checked>
-      </label>
-      <label class="ctrl-row">
-        <span>Лінія бойового зіткнення (ЛБЗ України)</span>
-        <input type="checkbox" id="chk-fl" checked>
       </label>
       <label class="ctrl-row">
         <span>Кільця дальності ППО (20 / 45 / 70 км)</span>
@@ -1853,7 +1957,7 @@ const POV_SETTLEMENTS = [
   ["Покровське", 47.982, 36.228, 2]
 ];
 
-let showCones = true, showFrontline = true, showRings = true, showLandmarks = true, showTrails = true;
+let showCones = true, showFrontline = false, showRings = true, showLandmarks = true, showTrails = true;
 const staticLayerGroup = L.layerGroup().addTo(map);
 const ringsLayerGroup = L.layerGroup().addTo(map);
 const flLayerGroup = L.layerGroup().addTo(map);
@@ -1872,7 +1976,7 @@ function drawStaticLayers() {
   }).bindTooltip("м. Запоріжжя (ЦЕНТР ППО)", { direction: "top", offset: [0, -14] }).addTo(staticLayerGroup);
 
   if (showRings && map.getZoom() < 12) {
-    [[20, '#10b981'], [45, '#f59e0b'], [70, '#ef4444']].forEach(([rKm, col]) => {
+    [[20, '#3f9f7a'], [45, '#c8902e'], [70, '#c8423d']].forEach(([rKm, col]) => {
       L.circle([home[1], home[2]], {
         radius: rKm * 1000, color: col, weight: 1.3, opacity: 0.55, fill: false, dashArray: '2,7', lineCap: 'round', interactive: false, renderer: canvasRenderer
       }).addTo(ringsLayerGroup);
@@ -1914,6 +2018,66 @@ function drawStaticLayers() {
 }
 drawStaticLayers();
 
+
+// ── ТРИВОГИ ПО ОБЛАСТЯХ: підсвітка контуру + стрічка ──
+const HOME_OBLAST = 'Запорізька область';
+map.createPane('alertPane');
+map.getPane('alertPane').style.zIndex = 330;
+map.getPane('alertPane').style.pointerEvents = 'none';
+const alertRenderer = L.svg({ pane: 'alertPane', padding: 0.4 });
+const ALERT_BASE = { color: '#26303c', weight: 1, opacity: 0.85, fillColor: '#000', fillOpacity: 0, dashArray: null };
+const alertLayerByName = {};
+let lastAlerts = {}, lastAlertsOk = null, alertSig = '';
+const demoAlerts = (new URLSearchParams(location.search).get('demo_alert') || '').split(',').map(x => x.trim()).filter(Boolean);
+
+function loadAlertGeo() {
+  fetch('/api/oblasts').then(r => r.json()).then(fc => {
+    if (!fc.features || !fc.features.length) { setTimeout(loadAlertGeo, 15000); return; }
+    L.geoJSON(fc, {
+      renderer: alertRenderer, interactive: false, style: () => ALERT_BASE,
+      onEachFeature: (f, l) => { alertLayerByName[f.properties.name] = l; }
+    }).addTo(map);
+    const kyiv = L.circle([50.45, 30.52], { radius: 17000, renderer: alertRenderer, interactive: false, ...ALERT_BASE }).addTo(map);
+    alertLayerByName['м. Київ'] = kyiv;
+    alertSig = '';
+    paintAlerts();
+  }).catch(() => setTimeout(loadAlertGeo, 15000));
+}
+loadAlertGeo();
+
+function paintAlerts() {
+  const regs = demoAlerts.length ? Object.fromEntries(demoAlerts.map(n => [n, 'full'])) : lastAlerts;
+  const sig = JSON.stringify(regs) + '|' + lastAlertsOk + '|' + Object.keys(alertLayerByName).length;
+  if (sig === alertSig) return;
+  alertSig = sig;
+  Object.entries(alertLayerByName).forEach(([n, l]) => {
+    const st = regs[n];
+    if (st === 'full') l.setStyle({ color: '#ff4a43', weight: 1.8, opacity: 0.95, fillColor: '#e0261f', fillOpacity: 0.26, dashArray: null });
+    else if (st === 'partial') l.setStyle({ color: '#e0743a', weight: 1.4, opacity: 0.9, fillColor: '#e0743a', fillOpacity: 0.12, dashArray: '6 5' });
+    else l.setStyle(ALERT_BASE);
+    if (l._path) l._path.classList.toggle('ob-alert', st === 'full');
+  });
+  const strip = document.getElementById('alert-strip');
+  const names = Object.keys(regs).sort((a, b) => (b === HOME_OBLAST) - (a === HOME_OBLAST) || a.localeCompare(b, 'uk'));
+  if (names.length) {
+    strip.className = 'on';
+    strip.innerHTML = names.map(n =>
+      `<div class="al-chip ${regs[n] === 'partial' ? 'partial' : ''} ${n === HOME_OBLAST ? 'home' : ''}"><i class="al-dot"></i>${n}${regs[n] === 'partial' ? ' · частково' : ''}</div>`
+    ).join('');
+  } else if (lastAlertsOk === false && !demoAlerts.length) {
+    strip.className = 'on';
+    strip.innerHTML = '<div class="al-hint">Мапа тривог не підключена — додайте ALERTS_IN_UA_TOKEN у Render</div>';
+  } else {
+    strip.className = '';
+    strip.innerHTML = '';
+  }
+}
+function applyAlerts(st) {
+  lastAlerts = st.alerts || {};
+  lastAlertsOk = st.alerts_ok === undefined ? null : st.alerts_ok;
+  paintAlerts();
+}
+
 let isZooming = false;
 map.on('zoomstart', () => { isZooming = true; });
 map.on('zoomend', () => {
@@ -1923,7 +2087,6 @@ map.on('zoomend', () => {
 });
 
 document.getElementById('chk-cones').addEventListener('change', e => { showCones = e.target.checked; syncTrackVectorLayers(true); });
-document.getElementById('chk-fl').addEventListener('change', e => { showFrontline = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-rings').addEventListener('change', e => { showRings = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-landmarks').addEventListener('change', e => { showLandmarks = e.target.checked; drawStaticLayers(); });
 document.getElementById('chk-trails').addEventListener('change', e => { showTrails = e.target.checked; syncTrackVectorLayers(true); });
@@ -1954,17 +2117,17 @@ function fmtEta(s) {
 
 function getTargetVisualSpec(t) {
   const sub = t.sub || '';
-  if (sub === 'geran3') return { col: '#ef4444', type: 'jet_drone' };
-  if (sub === 'molniya') return { col: '#38bdf8', type: 'molniya' };
-  if (sub === 'fpv') return { col: '#eab308', type: 'fpv' };
-  if (sub === 'lancet') return { col: '#2dd4bf', type: 'lancet' };
-  if (sub === 'recon' || sub === 'orlan' || sub === 'orion') return { col: '#cbd5e1', type: 'recon' };
-  if (sub === 'gerbera' || sub === 'italmas') return { col: '#a3e635', type: 'gerbera' };
-  if (t.kind === 'kab') return { col: '#ef4444', type: 'kab' };
-  if (sub === 'ballistic' || sub === 'iskander_m' || sub === 'kinzhal' || sub === 'zircon' || sub === 's300' || sub === 'kh22' || sub === 'onyx') return { col: '#f43f5e', type: 'ballistic' };
-  if (t.kind === 'missile' || sub === 'banderol') return { col: '#f97316', type: 'cruise' };
-  if (t.kind === 'strike' || t.kind === 'impact') return { col: '#c084fc', type: 'strike' };
-  return { col: '#f59e0b', type: 'shahed' };
+  if (sub === 'geran3') return { col: '#d64545', type: 'jet_drone' };
+  if (sub === 'molniya') return { col: '#5fa8d3', type: 'molniya' };
+  if (sub === 'fpv') return { col: '#c9b23a', type: 'fpv' };
+  if (sub === 'lancet') return { col: '#3fb5a8', type: 'lancet' };
+  if (sub === 'recon' || sub === 'orlan' || sub === 'orion') return { col: '#aab4c0', type: 'recon' };
+  if (sub === 'gerbera' || sub === 'italmas') return { col: '#9bc24a', type: 'gerbera' };
+  if (t.kind === 'kab') return { col: '#d64545', type: 'kab' };
+  if (sub === 'ballistic' || sub === 'iskander_m' || sub === 'kinzhal' || sub === 'zircon' || sub === 's300' || sub === 'kh22' || sub === 'onyx') return { col: '#e0485a', type: 'ballistic' };
+  if (t.kind === 'missile' || sub === 'banderol') return { col: '#e07a3a', type: 'cruise' };
+  if (t.kind === 'strike' || t.kind === 'impact') return { col: '#a77fd6', type: 'strike' };
+  return { col: '#e0a43a', type: 'shahed' };
 }
 
 // ── ТОЧНІ РЕАЛІСТИЧНІ ТЕКСТУРИ ВСІХ ЦІЛЕЙ (ВКЛЮЧНО З АВІАБОМБОЮ КАБ/УМПК ТА РАКЕТАМИ) ──
@@ -2096,10 +2259,8 @@ function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg, aState) {
   const pulseHtml = (t.kind === 'kab' || t.kind === 'missile' || t.sub === 'fpv' || t.loiter || t.holding) ? `<div class="t-pulse-wave" style="--tc:${spec.col}"></div>` : '';
   return `<div class="t-marker-root ${isSelected ? 'selected' : ''} ${isAdmin ? 'admin-draggable' : ''}" style="--tc:${spec.col}">
     ${pulseHtml}
-    <div class="t-halo"></div>
     <div class="t-lock-ring"></div>
-    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg, 62)}</div>
-    <div class="t-arrow" style="transform:rotate(${hdg}deg)"><svg viewBox="0 0 64 64" width="64" height="64"><path d="M32 -13 L43 3 L32 -1.5 L21 3 Z" fill="${spec.col}" stroke="#05080c" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+    <div class="t-svg-box"><svg class="target-rot-svg" viewBox="0 0 48 48" width="52" height="52" style="transform:rotate(${hdg}deg)"><path d="M24 3 L41 43 L24 34.5 L7 43 Z" fill="${spec.col}" stroke="#d5dbe3" stroke-width="2.4" stroke-linejoin="round"/><path d="M24 3 L24 34.5" stroke="rgba(0,0,0,.28)" stroke-width="1.4"/></svg></div>
   </div>`;
 }
 
@@ -2574,7 +2735,7 @@ function applyServerState(st) {
         icon: L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg, animState[t.id]),
-          iconSize: [64, 64], iconAnchor: [32, 32]
+          iconSize: [56, 56], iconAnchor: [28, 28]
         })
       }).addTo(map);
       m._sig = sig;
@@ -2603,7 +2764,7 @@ function applyServerState(st) {
         m.setIcon(L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg, animState[t.id]),
-          iconSize: [64, 64], iconAnchor: [32, 32]
+          iconSize: [56, 56], iconAnchor: [28, 28]
         }));
       } else {
         updateMarkerDOMWithoutRecreating(m, t, t.id === selectedTrackId);
@@ -2644,6 +2805,7 @@ function applyServerState(st) {
   scope.className = 'radar-scope' + (counts.kab > 0 || counts.missile > 0 ? ' err' : (activeTotal > 0 ? ' warn' : ''));
 
   syncTrackVectorLayers(false);
+  try { applyAlerts(st); } catch (_) {}
   renderTargetsList();
   renderFeedList(st.feed || []);
   renderChannelsList(st.channels || []);
