@@ -1168,6 +1168,19 @@ html, body { font-family: var(--f-ui); background: var(--bg); }
 .ring-lbl { display: inline-block; width: 100%; text-align: center; font: 700 9.5px/16px var(--f-num); color: var(--rc); background: rgba(8,12,17,.85); border-radius: 2px; }
 .leaflet-tooltip.landmark-lbl { font-family: var(--f-ui); font-weight: 600; color: #bfe8f7; background: rgba(8,12,17,.78); border-radius: 2px; }
 
+
+/* ═══ v3.1: великі цілі без підписів, тільки стрілка курсу ═══ */
+.t-marker-root { width: 64px; height: 64px; }
+.t-svg-box { width: 62px; height: 62px; }
+.t-lbl-tag, .t-goal { display: none !important; }
+.t-marker-root::after { display: none; }
+.t-halo { inset: -4px; }
+.t-halo::after { inset: 9px; }
+.t-arrow { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.t-arrow svg { overflow: visible; display: block; }
+.t-lock-ring { inset: -6px; }
+.t-pulse-wave { width: 72px; height: 72px; }
+
 @media (max-width: 768px) {
   #dock { border-radius: 10px 10px 0 0; }
   #dock::before, #dock::after { display: none; }
@@ -2085,8 +2098,8 @@ function buildTargetMarkerHTML(t, isSelected, isAdmin, hdgDeg, aState) {
     ${pulseHtml}
     <div class="t-halo"></div>
     <div class="t-lock-ring"></div>
-    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg, 38)}</div>
-    <div class="t-lbl-tag" style="--tc:${spec.col}">${lblHTML(getTargetLabelText(t, aState))}</div>
+    <div class="t-svg-box">${renderSilhouetteSVG(spec.type, spec.col, hdg, 62)}</div>
+    <div class="t-arrow" style="transform:rotate(${hdg}deg)"><svg viewBox="0 0 64 64" width="64" height="64"><path d="M32 -13 L43 3 L32 -1.5 L21 3 Z" fill="${spec.col}" stroke="#05080c" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
   </div>`;
 }
 
@@ -2436,6 +2449,8 @@ function stepClientKinematics() {
         }
         const svgEl = el.querySelector('.target-rot-svg');
         if (svgEl && a.hdg != null) svgEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
+        const arEl = el.querySelector('.t-arrow');
+        if (arEl && a.hdg != null) arEl.style.transform = `rotate(${a.hdg.toFixed(1)}deg)`;
         const lblEl = el.querySelector('.t-lbl-tag');
         if (lblEl) paintLbl(lblEl, getTargetLabelText(t, a));
       }
@@ -2559,7 +2574,7 @@ function applyServerState(st) {
         icon: L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg, animState[t.id]),
-          iconSize: [42, 42], iconAnchor: [21, 21]
+          iconSize: [64, 64], iconAnchor: [32, 32]
         })
       }).addTo(map);
       m._sig = sig;
@@ -2588,7 +2603,7 @@ function applyServerState(st) {
         m.setIcon(L.divIcon({
           className: 't-icon-wrap',
           html: buildTargetMarkerHTML(t, t.id === selectedTrackId, isAdmin, animState[t.id].hdg, animState[t.id]),
-          iconSize: [42, 42], iconAnchor: [21, 21]
+          iconSize: [64, 64], iconAnchor: [32, 32]
         }));
       } else {
         updateMarkerDOMWithoutRecreating(m, t, t.id === selectedTrackId);

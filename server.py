@@ -383,7 +383,7 @@ SUBS = [
     S("banderol", "drone", "Бандероль", r"бандерол\w*|\bs-?8000\b", 340, 35, 900, "cruise", "#f43f5e"),
     S("geran3", "drone", "Реактивний",
       r"(?:реактив\w*|реактів\w*|реактв\w*)(?!\s+(?:систем|залп|артил))(?:\s+(?:шах\w*|геран\w*|бпл\w*|дрон\w*|мопед\w*|ціл\w*))?|(?:шах\w*|геран\w*|бпл\w*|дрон\w*)\s+реактив\w*|(?:шахед|шахид|герань|геран)\w*[-–\s]*(?:3|238)\b|\bjet\w*|\bджет\w*|турбореактив\w*|реактивк\w*",
-      310, 32, 720, "jet", "#ef4444"),
+      600, 32, 720, "jet", "#ef4444"),
     S("geran2", "drone", "Шахед-136",
       r"шах[еєиі]?д\w*|шхд\w*|шхед\w*|шахд\w*|геран\w*|гєран\w*|моп[еє]д\w*|газонокосарк\w*|балалайк\w*|дирчик\w*|трикутник\w*|\bударн\w+\s+(?:бпла|дрон|бла)\w*",
       185, 32, 1200, "delta", "#f59e0b"),
@@ -395,7 +395,7 @@ SUBS = [
       95, 10, 360, "quad", "#eab308"),
     S("lancet", "drone", "Ланцет",
       r"ланцет\w*|виріб\s*5[12]|изделие\s*5[12]|\bх-?вод\w*",
-      145, 16, 480, "xwing", "#2dd4bf"),
+      110, 16, 480, "xwing", "#2dd4bf"),
     S("gerbera", "drone", "Гербера",
       r"гербер\w*|пароді\w*|пароди\w*|імітатор\w*|имитатор\w*|фальш-?ціл\w*",
       165, 28, 1200, "decoy", "#a3e635"),
@@ -404,10 +404,10 @@ SUBS = [
       165, 28, 1200, "decoy", "#a3e635"),
     S("orion", "drone", "Оріон",
       r"оріон\w*|орион\w*|іноходец\w*",
-      210, 32, 900, "plane", "#fb923c"),
+      200, 32, 900, "plane", "#fb923c"),
     S("orlan", "drone", "Орлан-10",
       r"орлан\w*",
-      130, 24, 900, "plane", "#94a3b8"),
+      110, 24, 900, "plane", "#94a3b8"),
     S("recon", "drone", "РозвідБпЛА",
       r"суперкам\w*|supercam|\bzala\b|\bзала\b|елерон\w*|\beleron|мерлін\w*|форпост\w*|розвід\w*\s*(?:бпла|дрон|бла|крил)\w*|развед\w*\s*(?:бпла|дрон|бла|крыл)\w*|крил\w+\s+розвід\w*|\bрозвідкрил\w*|\bразведкрыл\w*|\bрозвідник\w*|\bразведчик\w*|(?:ворож\w+\s+)?\bкрил(?:о|а)\b",
       115, 18, 720, "plane", "#94a3b8"),
@@ -418,14 +418,14 @@ SUBS = [
     S("kab", "kab", "КАБ",
       r"\bкаб(?:и|ів|ах|ам|ом|у|а|ів|чик|чики|ы|ов|ам|ами)?\b|авіабомб\w*|авиабомб\w*|умпк\w*|умпб\w*|\bфаб(?:и|ів|ах|ам|ом|у|ы|ов)?\b|\bодаб\w*|д-?30сн|керован\w+\s+авіабомб\w*|управляем\w+\s+авиабомб\w*|пуск\w*\s+каб\w*",
       680, 20, 360, "kab", "#ef4444"),
-    S("kinzhal", "missile", "Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 9000, 120, 300, "dart", "#e11d48"),
+    S("kinzhal", "missile", "Кинджал", r"кинджал\w*|кінжал\w*|кинжал\w*|\b[xх]-?47\w*", 4500, 120, 300, "dart", "#e11d48"),
     S("zircon", "missile", "Циркон", r"циркон\w*|3м-?22", 7500, 120, 300, "dart", "#e11d48"),
-    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 8500, 120, 300, "ballistic", "#f43f5e"),
+    S("iskander_m", "missile", "Іскандер-М", r"[іи]скандер-?м|9м723|[іи]скандер(?!-?к)|kn-?23|кн-?23", 4500, 120, 300, "ballistic", "#f43f5e"),
     S("iskander_k", "missile", "Іскандер-К", r"[іи]скандер-?к|9м72[89]", 850, 60, 600, "cruise", "#f97316"),
-    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 8500, 120, 300, "ballistic", "#f43f5e"),
+    S("ballistic", "missile", "Балістика", r"баліст\w*|балист\w*|баллист\w*|швидкісн\w+\s+(?:ціл\w*|на\s+)|скоростн\w+\s+(?:цел\w*|на\s+)", 4500, 120, 300, "ballistic", "#f43f5e"),
     S("s300", "missile", "С-300", r"\bс-?(?:300|400)\w*|зкр\s+с-?300", 3500, 60, 300, "dart", "#fb7185"),
     S("kh22", "missile", "Х-22", r"\b[xх]-?(?:22|32)\b", 3200, 100, 300, "dart", "#f43f5e"),
-    S("onyx", "missile", "Онікс", r"онікс\w*|оникс\w*|\bп-?800\b", 3000, 90, 300, "dart", "#f43f5e"),
+    S("onyx", "missile", "Онікс", r"онікс\w*|оникс\w*|\bп-?800\b", 2800, 90, 300, "dart", "#f43f5e"),
     S("kh101", "missile", "Х-101", r"\b[xх]-?(?:101|102|555|55)\b", 820, 60, 600, "cruise", "#f97316"),
     S("kalibr", "missile", "Калібр", r"калібр\w*|калибр\w*|3м-?14|3м-?54", 820, 60, 600, "cruise", "#f97316"),
     S("kh59", "missile", "Х-59/Х-69", r"\b[xх]-?(?:35|38|59|69)\b", 850, 60, 600, "cruise", "#f97316"),
@@ -1534,12 +1534,32 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
         prev_to = t.get("to_name")
         was_holding = bool(t.get("holding") or t.get("loiter"))
 
+        pos_applied = False
+        if pos and not manual and not pos[0].startswith("підліт") and pos[0] not in LAUNCH_ONLY_ORIGINS \
+                and not (t.get("holding") or t.get("loiter")) and t.get("hdg") is not None:
+            # Антителепорт: летюча ціль не стрибає на згадане місце, якщо воно далеко від розрахункової позиції.
+            _jump = hav(t["lat"], t["lon"], pos[1], pos[2])
+            _tol = 8.0 + effective_speed(t) / 3600.0 * 60.0
+            _ahead = False
+            if _jump > _tol:
+                _dd = ang(brg(t["lat"], t["lon"], pos[1], pos[2]) - t["hdg"])
+                _ahead = abs(_dd) <= 25.0 and _jump <= _tol * 3.0     # випередила розрахунок вздовж курсу
+            _pend = t.get("pend")
+            if _jump <= _tol or _ahead:
+                t.pop("pend", None)
+            elif _pend and now - _pend[2] <= 240 and hav(_pend[0], _pend[1], pos[1], pos[2]) <= 10.0:
+                t.pop("pend", None)          # друга фіксація біля того ж місця — вірю, це не помилка
+            else:
+                t["pend"] = (pos[1], pos[2], now)
+                note(f"{ch}: «{text[:50]}» -> стрибок {round(_jump)} км до «{pos[0]}» ігнорую (чекаю підтвердження)")
+                pos = None
         if pos and not pos[0].startswith("підліт") and pos[0] not in LAUNCH_ONLY_ORIGINS:
             same_place_repeat = (pos[0] == t["frm"] and not manual and hav(t["lat"], t["lon"], pos[1], pos[2]) <= 4.0)
             t["frm"] = pos[0]
             if not same_place_repeat:
                 t["lat"], t["lon"] = pos[1], pos[2]
                 t["ls"] = now
+                pos_applied = True
             t["obs"][ch or f"u{t['n']}"] = dict(ts=te, lat=pos[1], lon=pos[2], goal=tgt, hdg=hdg_ovr, v=t["v"], explicit=True)
 
         if is_loiter:
@@ -1558,7 +1578,7 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
                 if prev_goal and prev_to and prev_to != tgt[0] and not str(prev_to).startswith("курс"):
                     d_old_to_new = hav(prev_goal[1], prev_goal[2], tgt[1], tgt[2])
                     d_cur_to_new = hav(t["lat"], t["lon"], tgt[1], tgt[2])
-                    if d_old_to_new < d_cur_to_new and d_old_to_new <= 10.0:
+                    if d_old_to_new < d_cur_to_new and d_old_to_new <= 10.0 and hav(t["lat"], t["lon"], prev_goal[1], prev_goal[2]) <= 8.0:
                         t["lat"], t["lon"] = prev_goal[1], prev_goal[2]
                         t["frm"] = prev_to
                         t["ls"] = now
@@ -1622,6 +1642,13 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
                     t["hdg"] = t["thdg"] = brg(prev_lat, prev_lon, pos[1], pos[2])
             t["status_msg"] = f"Над {pos[0]}"
 
+    if t["kind"] == "drone" and locals().get("pos_applied") and not manual and 3.0 < now - ts <= 600 \
+            and t.get("hdg") is not None and not t.get("holding") and not t.get("loiter"):
+        t["ls"] = ts
+        _cur = ts
+        while _cur < now:
+            _cur = min(now, _cur + 10.0)
+            step(t, _cur)
     t["unc"] = max(1.0, round(sigma_of(t["frm"]) / (1.0 + 0.25 * (len(t["channels"]) - 1)), 1))
     if cnt and not t.get("grp"):
         t["cnt"] = cnt
