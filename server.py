@@ -1107,12 +1107,14 @@ def realistic_drone_approach_origin(sub_id, tgt, hdg_ovr=None, from_brg=None, is
         dist_km = 2.0
     elif sub_id in ("molniya", "lancet"):
         dist_km = 3.2
+    elif sub_id == "geran3" and t_name not in ZP_DISTRICTS:
+        dist_km = 13.0          # реактивний оголошують за ~10-15 км до цілі
     elif t_name in ZP_DISTRICTS:
         dist_km = 4.2
     elif t_name == "Запоріжжя":
         dist_km = 8.0
     else:
-        dist_km = 5.5
+        dist_km = 10.0
 
     sla, slo = fwd(tla, tlo, in_brg, dist_km)
     if is_arrived:
@@ -1151,7 +1153,7 @@ def sanitize_tactical_route(sub_kind, pos, tgt, hdg_ovr=None, manual=False, from
             # напрямок підльоту береться з повідомлення («з півдня», «курс 340°»), а не з жорстко заданої точки
             in_brg = from_brg if from_brg is not None else ((hdg_ovr + 180.0) % 360 if hdg_ovr is not None else None)
             if in_brg is not None:
-                sla, slo = fwd(tgt[1], tgt[2], in_brg, 110.0)
+                sla, slo = fwd(tgt[1], tgt[2], in_brg, 200.0)
                 pos = (f"напрямок {round(in_brg)}°", sla, slo)
             else:
                 pos = ("південно-східний напрямок (орієнтовно)", 47.15, 36.80)
@@ -1394,8 +1396,9 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             if sub["kind"] == "kab":
                 pos = real_kab_launch_origin_for(tgt)
             elif sub["kind"] == "drone":
-                if from_brg is None and hdg_ovr is None:
-                    # курс невідомий: не вигадуємо точку підльоту, а показуємо ціль і чекаємо на курс
+                if from_brg is None and hdg_ovr is None and (
+                        is_arrived or sub["id"] in TACTICAL_SHORT_DRONES or sub["id"] in ("recon", "orlan")):
+                    # «вже над X» або тактичний/розвідувальний дрон: показуємо саму точку і чекаємо на курс
                     pos, tgt = tgt, None
                 else:
                     pos = realistic_drone_approach_origin(sub["id"], tgt, hdg_ovr=hdg_ovr, from_brg=from_brg, is_arrived=is_arrived)
@@ -1454,8 +1457,12 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
         if not manual and 10 < now - ts <= 900 and t.get("hdg") is not None and not t.get("holding"):
             cur = ts                       # повідомлення старе — дорахувати, де ціль мала б бути зараз
             t["ls"] = ts
+            _fast = t["kind"] == "missile"
+            _tot = hav(t["lat"], t["lon"], t["goal"][1], t["goal"][2]) if t.get("goal") else 0.0
             while cur < now:
-                cur = min(now, cur + 30.0)
+                if _fast and t.get("goal") and _tot > 1.0 and hav(t["lat"], t["lon"], t["goal"][1], t["goal"][2]) < 0.15 * _tot:
+                    break                  # не «долітаємо» до цілі при запізненні посту — лишаємо ≥15% шляху
+                cur = min(now, cur + (4.0 if _fast else 30.0))
                 step(t, cur)
         return t
 
@@ -1609,9 +1616,10 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
             t["status_msg"] = f"Над {pos[0]}"
 
     t["unc"] = max(1.0, round(sigma_of(t["frm"]) / (1.0 + 0.25 * (len(t["channels"]) - 1)), 1))
-    if cnt:
+    if cnt and not t.get("grp"):
         t["cnt"] = cnt
     t["text"] = text
+    sync_group(t)
     return t
 
 def view(t, now):
@@ -1778,6 +1786,50 @@ def infer_implicit_subs(tl, pos, tgt, ch, reply_ctx=None):
         return [(SUB["drone"], cnt)]
     return []
 
+STRICT_CNT_RX = re.compile(
+    r"(?<![\d.,])(\d{1,2})\s*(?:[xх×]|шт\w*|од\b|ціл\w*|бпла|шах\w*|каб\w*|дрон\w*|мопед\w*|ракет\w*|реактив\w*|геран\w*|балліст\w*|баліст\w*)"
+    r"|\b(два|дві|две|пара|пару|три|чотири|четыре|п['’]ять|пять)\b\s+(?:шах\w*|каб\w*|бпла|дрон\w*|мопед\w*|ракет\w*|реактив\w*|геран\w*|баліст\w*|балліст\w*|ціл\w*|\w+)", re.I)
+_WN = {"два": 2, "дві": 2, "две": 2, "пара": 2, "пару": 2, "три": 3, "чотири": 4, "четыре": 4, "п'ять": 5, "п’ять": 5, "пять": 5}
+
+def strict_count(tl):
+    """Кількість, явно названа біля типу цілі («2 шахеди», «три реактиви»); «15 км» і т.п. ігноруються."""
+    best = 1
+    for m in STRICT_CNT_RX.finditer(tl):
+        n = int(m.group(1)) if m.group(1) else _WN.get((m.group(2) or "").lower(), 1)
+        best = max(best, n)
+    return min(best, 6)
+
+def sync_group(t):
+    g_id = t.get("grp")
+    if not g_id:
+        return
+    for sib in tracks.values():
+        if sib is t or sib.get("grp") != g_id or sib.get("ended"):
+            continue
+        for k in ("goal", "holding", "loiter", "to_name", "status_msg", "v", "ttl", "sub", "seen", "ls", "provisional_goal", "passed_goal"):
+            if k in t:
+                sib[k] = t[k]
+        sg = sib.get("goal")
+        if sg and not str(sg[0]).startswith("курс") and hav(sib["lat"], sib["lon"], sg[1], sg[2]) > 0.25:
+            sib["hdg"] = sib["thdg"] = brg(sib["lat"], sib["lon"], sg[1], sg[2])
+        else:
+            sib["hdg"], sib["thdg"] = t.get("hdg"), t.get("thdg")
+
+def spawn_group(first, sb, n, pos, tgt, ts, text, ch, **kw):
+    """«Їх два» → два окремі треки поруч (з кроком ~0.8 км упоперек курсу); одна група — спільні оновлення курсу."""
+    first["grp"] = first["id"]
+    first["cnt"] = None
+    for k in range(1, n):
+        c = upsert(sb, pos, tgt, ts, text, ch=ch, cnt=None, force_new=True, **kw)
+        if not c:
+            continue
+        c["grp"] = first["id"]
+        off = ((k + 1) // 2) * 0.8 * (1 if k % 2 else -1)
+        h = c["hdg"] if c.get("hdg") is not None else 0.0
+        c["lat"], c["lon"] = fwd(c["lat"], c["lon"], (h + 90.0) % 360, off)
+        c["o"] = (c["lat"], c["lon"])
+        c["fx"] = [(time.time(), c["lat"], c["lon"], c["unc"])]
+
 def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, is_explicit_over=False, reply_ctx=None, is_arrived=False):
     loc = pos or tgt
     kinds = list(dict.fromkeys(sb["kind"] for sb, _ in subs if sb["kind"] not in ("strike", "impact")))
@@ -1829,7 +1881,11 @@ def act(intent, subs, pos, tgt, ts, text, ch, how="", v_ovr=None, hdg_ovr=None, 
             if loc and loc[0] not in BROAD_REGIONS:
                 upsert(sb, loc, None, ts, text, ch=ch, cnt=cnt, msg_key=msg_key)
         else:
-            upsert(sb, pos, tgt, ts, text, ch=ch, cnt=cnt, v_ovr=v_ovr, hdg_ovr=hdg_ovr, from_brg=from_brg, is_turn=is_turn, is_loiter=is_loiter, force_new=force_new, msg_key=msg_key, is_explicit_over=is_explicit_over, is_arrived=is_arrived)
+            _kw = dict(v_ovr=v_ovr, hdg_ovr=hdg_ovr, from_brg=from_brg, is_turn=is_turn, is_loiter=is_loiter, msg_key=msg_key, is_explicit_over=is_explicit_over, is_arrived=is_arrived)
+            _tr = upsert(sb, pos, tgt, ts, text, ch=ch, cnt=cnt, force_new=force_new, **_kw)
+            _n = min(cnt or 1, strict_count(text.lower())) if cnt else 1
+            if _tr and _n >= 2 and _tr.get("n") == 1 and _tr.get("fix_seq", 1) == 1 and not is_turn and not is_loiter:
+                spawn_group(_tr, sb, _n, pos, tgt, ts, text, ch, **_kw)
     feed_add(ts, ch, text, [sb["kind"] for sb, _ in subs], pos, tgt)
     note(tag + f"{[(sb['id'], c) for sb, c in subs]} поз={pos and pos[0]} ціль={tgt and tgt[0]} над={is_explicit_over} курс={hdg_ovr}")
 
@@ -2024,6 +2080,7 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                     latest["status_msg"] = f"Кружляє ({latest['frm']})"
                     latest["seen"] = now
                     latest["fix_seq"] = latest.get("fix_seq", 1) + 1
+                    sync_group(latest)
                     return subs
                 if hdg_ovr is not None:
                     latest["loiter"] = False
@@ -2039,6 +2096,7 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                     latest["status_msg"] = None
                     latest["seen"] = now
                     latest["fix_seq"] = latest.get("fix_seq", 1) + 1
+                    sync_group(latest)
                     return subs
             if from_brg is not None and subs:
                 sla, slo = fwd(HOME[1], HOME[2], from_brg, 8.5)
@@ -2051,11 +2109,23 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
     if intent == "impact" and not [1 for sb, _ in subs if sb["kind"] != "strike"]:
         subs = [x for x in subs if x[0]["id"] != "arty"]
 
+    per_counts = None
+    if len(routes) > 1 and re.search(r"[а-яіїєґ'’]\s*/\s*[а-яіїєґ]|\s(?:або|чи|или)\s", tl):
+        _o = {(r[0][0] if r[0] else None) for r in routes}
+        if len(_o) == 1:
+            mx = strict_count(tl)
+            if mx < 2:
+                routes = routes[:1]
+            else:
+                routes = routes[:mx]
+                per_counts = [mx // len(routes) + (1 if i < mx % len(routes) else 0) for i in range(len(routes))]
+
     for r_idx, route_item in enumerate(routes):
         pos, tgt = route_item[0], route_item[1]
         is_exp_over = route_item[2] if len(route_item) > 2 else False
         r_key = f"{msg_key}:r{r_idx}" if msg_key else None
-        act(intent, subs, pos, tgt, ts, seg, ch, v_ovr=v_ovr, hdg_ovr=hdg_ovr, from_brg=from_brg, is_turn=is_turn, is_loiter=is_loiter, force_new=force_new, msg_key=r_key, is_explicit_over=is_exp_over, reply_ctx=reply_ctx, is_arrived=is_arrived)
+        _subs_i = subs if not per_counts else [(sb, (per_counts[r_idx] if per_counts[r_idx] >= 2 else None)) for sb, _ in subs]
+        act(intent, _subs_i, pos, tgt, ts, seg, ch, v_ovr=v_ovr, hdg_ovr=hdg_ovr, from_brg=from_brg, is_turn=is_turn, is_loiter=is_loiter, force_new=force_new, msg_key=r_key, is_explicit_over=is_exp_over, reply_ctx=reply_ctx, is_arrived=is_arrived)
     return subs
 
 def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
