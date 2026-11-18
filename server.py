@@ -1292,7 +1292,8 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
     if not sub.get("generic") and c["sub"] != "drone" and c["sub"] != sub["id"]:
         return False, 999.0
 
-    if pos and pos[0] not in LAUNCH_ONLY_ORIGINS and not pos[0].startswith("підліт"):
+    if pos and (pos[0] not in LAUNCH_ONLY_ORIGINS or (sub["kind"] == "drone" and (hdg_ovr is not None or is_turn))) \
+            and not pos[0].startswith("підліт"):
         p_dist = hav(pos[1], pos[2], c["lat"], c["lon"])
         g_dist = hav(pos[1], pos[2], c["goal"][1], c["goal"][2]) if c.get("goal") else p_dist
         eff_d = min(p_dist, g_dist)
@@ -1327,25 +1328,27 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
             if (120.0 <= b_to_tgt <= 235.0) and not is_turn and not c.get("holding") and tgt[0] not in ZP_DISTRICTS and d_to_tgt > 5.0:
                 return False, 999.0
             bonus = -0.25 if (is_turn or c.get("passed_goal") or c.get("holding") or c.get("provisional_goal")) else 0.0
-            return True, max(0.01, (eff_d / (max_tgt_km + 5.0)) + bonus)
+            ctxb = addressee_score(c, place=None, course_msg=False) if ADDR else 0.0
+            if ctxb <= -4.0:
+                return False, 999.0
+            return True, max(0.01, (eff_d / (max_tgt_km + 5.0)) + bonus - 0.03 * ctxb)
         return False, 999.0
 
     if (is_turn or hdg_ovr is not None) and not pos:
-        return True, course_addressee_cost(c)
+        cst = course_addressee_cost(c)
+        return (cst < 900.0), cst
 
     return False, 999.0
 
 def course_addressee_cost(c):
-    """Повідомлення «курс …» без назви місця: кому воно адресоване.
-    Спершу цілі, що ЧЕКАЮТЬ курсу (долетіли/без курсу), найсвіжіша — першою; летючі — лише якщо чекаючих немає."""
-    age = max(0.0, time.time() - max(c.get("seen", 0), c.get("passed_at", 0)))
-    waiting = bool(c.get("holding") and not c.get("loiter"))
-    return (0.05 if waiting else 0.5) + min(0.4, age / 900.0)
+    sc = addressee_score(c, hdg_new=ADDR.get("hdg"), course_msg=True)
+    if sc < -3.0:
+        return 999.0          # явно не цей трек — не чіпаємо
+    return max(0.01, 0.9 - 0.05 * sc)
 
 def pick_course_target(cands):
-    if not cands:
-        return None
-    return min(cands, key=course_addressee_cost)
+    best = min(cands, key=course_addressee_cost, default=None)
+    return best if best is not None and course_addressee_cost(best) < 900.0 else None
 
 def _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
     """Позиційне повідомлення без курсу («над X»): БпЛА НЕ зупиняємо.
@@ -1365,7 +1368,7 @@ def _resume_course(t, pos, prev_lat, prev_lon, prev_hdg, now, look_km):
     t["ls"] = now
     return True
 
-def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, manual=False, is_explicit_over=False, is_arrived=False):
+def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_ovr=None, from_brg=None, is_turn=False, is_loiter=False, force_new=False, msg_key=None, manual=False, is_explicit_over=False, is_arrived=False):
     now = time.time()
     te = min(ts + REPORT_LAG, now)
 
@@ -1625,6 +1628,55 @@ def upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_o
     t["text"] = text
     sync_group(t)
     return t
+
+ch_last_track = {}     # канал -> (час, id треку), якого він востаннє стосувався
+ADDR = {}              # контекст поточного повідомлення для вибору адресата
+
+def upsert(*a, **kw):
+    t = _upsert(*a, **kw)
+    ch = kw.get("ch")
+    if t and ch and not kw.get("manual") and t["kind"] not in ("strike", "impact"):
+        ch_last_track[ch] = (time.time(), t["id"])
+    return t
+
+def addressee_score(c, place=None, hdg_new=None, course_msg=False):
+    """Наскільки повідомлення стосується саме цього треку (більше = краще). Ознаки: відповідь (reply), тип цілі,
+    власний канал, місце поруч, чекає курсу, сумісність нового курсу, свіжість."""
+    now = time.time()
+    sc = 0.0
+    # 1) reply на пост, який створив/оновив цей трек
+    rp = ADDR.get("reply_pid")
+    if rp and any(k == rp or k.startswith(rp + ":") for k in c.get("msg_keys", ())):
+        sc += 12.0
+    # 2) тип цілі: «реактив» ≠ «шахед»; загальний «БпЛА» нейтральний
+    for sid in ADDR.get("sub_ids", ()):
+        sb = SUB.get(sid)
+        if not sb or sb.get("generic") or c["sub"] == "drone":
+            continue
+        sc += 3.0 if c["sub"] == sid else -4.0
+    # 3) канал: той самий, що писав про цей трек (особливо — останній, про кого цей канал писав)
+    ch = ADDR.get("ch")
+    if ch:
+        lt = ch_last_track.get(ch)
+        if lt and lt[1] == c["id"] and now - lt[0] <= 420:
+            sc += 4.0
+        elif ch in c.get("channels", ()):
+            sc += 1.0
+    # 4) місце з повідомлення: біля поточної позиції, цілі або точки походження
+    if place:
+        d = min(hav(place[1], place[2], c["lat"], c["lon"]),
+                hav(place[1], place[2], c["goal"][1], c["goal"][2]) if c.get("goal") else 999.0)
+        sc += 3.0 if d <= 5 else (1.5 if d <= 15 else -min(4.0, d / 25.0))
+    # 5) курс: хто чекає — тому і адресовано; летючій цілі різкий розворот малоймовірний
+    if course_msg:
+        if c.get("holding") and not c.get("loiter"):
+            sc += 3.0
+        elif hdg_new is not None and c.get("hdg") is not None:
+            dd = abs(ang(hdg_new - c["hdg"]))
+            sc += 1.5 if dd <= 60 else (-1.5 if dd >= 120 else 0.0)
+    # 6) свіжість
+    sc -= min(2.0, max(0.0, now - max(c.get("seen", 0), c.get("passed_at", 0))) / 300.0)
+    return sc
 
 def view(t, now):
     la, lo, g = t["lat"], t["lon"], t["goal"]
@@ -2030,7 +2082,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
     if subs and any(sb["id"] == "geran3" for sb, _ in subs) and not NEW_TARGET_WORDS_RX.search(tl):
         _now = time.time()
         _refs = [p for r in routes for p in (r[0], r[1]) if p]
-        _cand = [t for t in tracks.values()
+        _has_jet = any(t.get("sub") == "geran3" and not t.get("ended") and _now - t["seen"] < 420 for t in tracks.values())
+        _cand = [] if (_has_jet and not _refs) else [t for t in tracks.values()
                  if t["kind"] == "drone" and t.get("sub") in ("geran2", "drone") and not t.get("ended") and _now - t["seen"] < 420
                  and (not _refs or min(hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs) <= 30.0)]
         if _cand:
@@ -2040,6 +2093,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
             _t["v"] = v_ovr or SUB["geran3"]["v"]
             _t["fix_seq"] = _t.get("fix_seq", 1) + 1
             note(f"{ch}: «{seg[:60]}» -> тип уточнено: Реактивний")
+    ADDR.clear()
+    ADDR.update(ch=ch, reply_pid=(reply_ctx or {}).get("pid"), sub_ids=[sb["id"] for sb, _ in subs], hdg=hdg_ovr)
     is_turn = bool(TURN_RX.search(tl) or implicit_course_update)
     is_loiter = bool(LOITER_RX.search(tl))
     force_new = bool(NEW_TARGET_WORDS_RX.search(tl))
@@ -2075,8 +2130,11 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
                 t for t in tracks.values()
                 if (not target_kind or t["kind"] == target_kind) and not t.get("ended")
             ]
-            if (hdg_ovr is not None or is_loiter) and live_matches and not force_new:
-                latest = pick_course_target(live_matches)
+            latest = pick_course_target(live_matches) if (hdg_ovr is not None or is_loiter) and live_matches and not force_new else None
+            if (hdg_ovr is not None or is_loiter) and live_matches and not force_new and latest is None:
+                note(f"{ch}: «{seg[:70]}» -> курс є, але адресата серед цілей не знайдено, пропуск")
+                return subs
+            if latest is not None:
                 if is_loiter:
                     latest["loiter"] = True
                     latest["holding"] = True
@@ -2479,6 +2537,8 @@ async def tg_realtime():
                     rid = getattr(getattr(m, "reply_to", None), "reply_to_msg_id", None)
                     if rid:
                         reply_ctx = post_memory.get(f"{ch}/{rid}")
+                        if reply_ctx is not None:
+                            reply_ctx = dict(reply_ctx, pid=f"{ch}/{rid}")
                         if reply_ctx is None:
                             try:
                                 rm = await m.get_reply_message()
@@ -2594,7 +2654,7 @@ def extract_tg_message_and_reply(w):
         if r_pid and any(k.endswith("/" + r_pid) for k in post_memory):
             for k, v in post_memory.items():
                 if k.endswith("/" + r_pid):
-                    reply_ctx = v
+                    reply_ctx = dict(v, pid=k)
                     break
         elif r_tx:
             rc = clean_post(r_tx).lower()
@@ -2937,4 +2997,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except AttributeError:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
+        loop.run_until_complete(main())іі
