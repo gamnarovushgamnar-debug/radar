@@ -1259,7 +1259,7 @@ def step(t, now):
     umax = 4.0 if v_eff < 400 else 7.0
     t["unc"] = min(umax, t["unc"] + dt * v_eff / 3600 * 0.03)
 
-def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=False):
+def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=False, from_brg=None, is_loiter=False, is_arrived=False):
     if force_new:
         return False, 999.0
     if c["kind"] != sub["kind"]:
@@ -1292,49 +1292,77 @@ def can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=False, force_new=
     if not sub.get("generic") and c["sub"] != "drone" and c["sub"] != sub["id"]:
         return False, 999.0
 
-    if pos and (pos[0] not in LAUNCH_ONLY_ORIGINS or (sub["kind"] == "drone" and (hdg_ovr is not None or is_turn))) \
-            and not pos[0].startswith("підліт"):
-        p_dist = hav(pos[1], pos[2], c["lat"], c["lon"])
-        g_dist = hav(pos[1], pos[2], c["goal"][1], c["goal"][2]) if c.get("goal") else p_dist
-        eff_d = min(p_dist, g_dist)
-        max_fuse_km = 8.0 if sub["id"] in TACTICAL_SHORT_DRONES else 15.0
-        if eff_d <= max_fuse_km:
-            return True, eff_d / (max_fuse_km + 5.0)
-        # нова фіксація «над X» лежить на лінії польоту вже відомої цілі → це та сама ціль (раніше народжувався дубль-«стоячка»)
-        if sub["id"] not in TACTICAL_SHORT_DRONES and c.get("hdg") is not None and not c.get("holding"):
+    return drone_fuse_cost(c, sub, pos, tgt, hdg_ovr, from_brg, is_turn, is_loiter, is_arrived)
+
+def _reach_km(c, age):
+    """Скільки км ціль могла пролетіти з моменту останньої фіксації (обмежено, щоб не «склеювати» півобласті)."""
+    v = c.get("v") or 150
+    return min(70.0, v * min(max(age, 0.0), 1800.0) / 3600.0)
+
+def drone_fuse_cost(c, sub, pos, tgt, hdg_ovr, from_brg, is_turn, is_loiter, is_arrived):
+    """Чи це повідомлення про ТУ САМУ ціль, що й трек c. Враховує час, відстань, яку ціль могла пролетіти, курс і ціль маршруту.
+    Повертає (так/ні, вартість 0..1) — менша вартість = кращий збіг."""
+    now = time.time()
+    tact = sub["id"] in TACTICAL_SHORT_DRONES or c.get("sub") in TACTICAL_SHORT_DRONES
+    age = max(0.0, now - c.get("seen", now))
+    reach = _reach_km(c, age)
+    if tact:
+        reach = min(reach, 6.0)
+    moving = c.get("hdg") is not None and not c.get("holding") and not c.get("loiter")
+    synthetic = (not c.get("explicit_origin", True)) and c.get("fix_seq", 1) <= 2   # позиція була вигадана парсером
+    has_pos = bool(pos) and not pos[0].startswith("підліт")
+    ctx = addressee_score(c, place=None, hdg_new=hdg_ovr, course_msg=False) if ADDR else 0.0
+    if ctx <= -6.0:
+        return False, 999.0
+    bonus = -0.025 * ctx
+
+    # Інвентований трек («з півдня на Запоріжжя») — перша ж реальна точка його замінює, а не народжує дубль
+    if synthetic and has_pos and hav(pos[1], pos[2], c["lat"], c["lon"]) <= 90.0:
+        return True, max(0.01, 0.30 + bonus)
+
+    # Маршрут «з A на B»: збігається початок і ціль з уже відомим треком → та сама ціль (канал-повторювач)
+    if has_pos and tgt and c.get("goal") and not tact:
+        if hav(tgt[1], tgt[2], c["goal"][1], c["goal"][2]) <= 25.0 and hav(pos[1], pos[2], c["o"][0], c["o"][1]) <= 25.0:
+            return True, max(0.01, 0.10 + bonus)
+
+    if has_pos:
+        d = hav(pos[1], pos[2], c["lat"], c["lon"])
+        if moving:
+            R = (6.0 if tact else 11.0) + 0.45 * reach
+            if d <= R:
+                return True, max(0.01, d / (R + 6.0) + bonus)
+            # точка лежить на лінії польоту (повідомлення випереджає/відстає від розрахунку)
             dd = ang(brg(c["lat"], c["lon"], pos[1], pos[2]) - c["hdg"])
-            along = p_dist * math.cos(math.radians(dd))
-            cross = abs(p_dist * math.sin(math.radians(dd)))
-            if -18.0 <= along <= 70.0 and cross <= 12.0:
-                return True, min(0.9, (abs(along) + 1.5 * cross) / 90.0)
-        # ціль «очікує курс» і з’явилась друга точка поряд → це та сама ціль, з двох точок буде курс
-        if (c.get("holding") and not c.get("loiter") and not c.get("passed_goal")
-                and p_dist <= 30.0 and time.time() - c.get("seen", 0) <= 300):
-            return True, 0.5 + p_dist / 100.0
+            along = d * math.cos(math.radians(dd))
+            cross = abs(d * math.sin(math.radians(dd)))
+            if not tact and -12.0 <= along <= reach + 25.0 and cross <= 8.0 + 0.12 * max(along, 0.0):
+                return True, max(0.01, min(0.9, (abs(along) * 0.6 + 1.5 * cross) / (reach + 40.0) + bonus))
+            return False, 999.0
+        # ціль без курсу: могла піти в будь-який бік на відстань reach
+        R = 8.0 + (reach if not tact else 3.0) * 0.95
+        if d <= R:
+            return True, max(0.01, 0.15 + d / (R + 8.0) * 0.6 + bonus)
         return False, 999.0
 
-    if tgt and not pos:
-        d_to_tgt = hav(c["lat"], c["lon"], tgt[1], tgt[2])
-        d_goal_tgt = hav(c["goal"][1], c["goal"][2], tgt[1], tgt[2]) if c.get("goal") else d_to_tgt
-        eff_d = min(d_to_tgt, d_goal_tgt)
-        if sub["id"] in TACTICAL_SHORT_DRONES:
-            max_tgt_km = 8.5
-        elif is_turn or tgt[0] in ZP_DISTRICTS or (c.get("holding") and not c.get("passed_goal")):
-            max_tgt_km = 45.0
-        else:
-            max_tgt_km = 15.0
-        if eff_d <= max_tgt_km:
-            b_to_tgt = brg(c["lat"], c["lon"], tgt[1], tgt[2])
-            if (120.0 <= b_to_tgt <= 235.0) and not is_turn and not c.get("holding") and tgt[0] not in ZP_DISTRICTS and d_to_tgt > 5.0:
-                return False, 999.0
-            bonus = -0.25 if (is_turn or c.get("passed_goal") or c.get("holding") or c.get("provisional_goal")) else 0.0
-            ctxb = addressee_score(c, place=None, course_msg=False) if ADDR else 0.0
-            if ctxb <= -4.0:
-                return False, 999.0
-            return True, max(0.01, (eff_d / (max_tgt_km + 5.0)) + bonus - 0.03 * ctxb)
+    if tgt:
+        d_to = hav(c["lat"], c["lon"], tgt[1], tgt[2])
+        if c.get("goal") and hav(tgt[1], tgt[2], c["goal"][1], c["goal"][2]) <= 35.0:
+            return True, max(0.01, 0.10 + bonus)
+        if tact:
+            return (d_to <= 8.5), (d_to / 14.0 + bonus if d_to <= 8.5 else 999.0)
+        if c.get("passed_goal") and c.get("holding"):
+            return (d_to <= 45.0), (0.35 + d_to / 150.0 + bonus if d_to <= 45.0 else 999.0)
+        if moving:
+            dd = abs(ang(brg(c["lat"], c["lon"], tgt[1], tgt[2]) - c["hdg"]))
+            lim = 100.0 if is_turn else 70.0
+            if dd <= lim and d_to <= 160.0:
+                return True, max(0.01, 0.20 + dd / 220.0 + d_to / 700.0 + bonus)
+            return False, 999.0
+        if d_to <= 130.0:
+            return True, max(0.01, 0.30 + d_to / 500.0 + bonus)
         return False, 999.0
 
-    if (is_turn or hdg_ovr is not None) and not pos:
+    if (is_turn or hdg_ovr is not None or is_loiter):
         cst = course_addressee_cost(c)
         return (cst < 900.0), cst
 
@@ -1393,7 +1421,7 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
 
     best_t, best_cost = None, 1.0
     for c in live:
-        ok, cost = can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=is_turn, force_new=force_new)
+        ok, cost = can_fuse_into_track(c, sub, pos, tgt, hdg_ovr, te, is_turn=is_turn, force_new=force_new, from_brg=from_brg, is_loiter=is_loiter, is_arrived=is_arrived)
         if ok and cost < best_cost:
             best_cost, best_t = cost, c
 
@@ -1535,7 +1563,9 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
         was_holding = bool(t.get("holding") or t.get("loiter"))
 
         pos_applied = False
+        _was_synth = (not t.get("explicit_origin", True)) and t.get("fix_seq", 1) <= 3
         if pos and not manual and not pos[0].startswith("підліт") and pos[0] not in LAUNCH_ONLY_ORIGINS \
+                and not _was_synth \
                 and not (t.get("holding") or t.get("loiter")) and t.get("hdg") is not None:
             # Антителепорт: летюча ціль не стрибає на згадане місце, якщо воно далеко від розрахункової позиції.
             _jump = hav(t["lat"], t["lon"], pos[1], pos[2])
@@ -1553,7 +1583,11 @@ def _upsert(sub, pos, tgt, ts, text, ch="канал", cnt=None, v_ovr=None, hdg_
                 t["pend"] = (pos[1], pos[2], now)
                 note(f"{ch}: «{text[:50]}» -> стрибок {round(_jump)} км до «{pos[0]}» ігнорую (чекаю підтвердження)")
                 pos = None
-        if pos and not pos[0].startswith("підліт") and pos[0] not in LAUNCH_ONLY_ORIGINS:
+        _launch_ok = pos and pos[0] in LAUNCH_ONLY_ORIGINS and _was_synth      # реальна точка замінює вигадану
+        if pos and not pos[0].startswith("підліт") and (pos[0] not in LAUNCH_ONLY_ORIGINS or _launch_ok):
+            if _was_synth:
+                t["explicit_origin"] = True
+                t["o"] = (pos[1], pos[2])
             same_place_repeat = (pos[0] == t["frm"] and not manual and hav(t["lat"], t["lon"], pos[1], pos[2]) <= 4.0)
             t["frm"] = pos[0]
             if not same_place_repeat:
@@ -2112,7 +2146,8 @@ def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=
         _has_jet = any(t.get("sub") == "geran3" and not t.get("ended") and _now - t["seen"] < 420 for t in tracks.values())
         _cand = [] if (_has_jet and not _refs) else [t for t in tracks.values()
                  if t["kind"] == "drone" and t.get("sub") in ("geran2", "drone") and not t.get("ended") and _now - t["seen"] < 420
-                 and (not _refs or min(hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs) <= 30.0)]
+                 and (not _refs or min(hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs) <= 30.0
+                      or (t.get("goal") and min(hav(t["goal"][1], t["goal"][2], p[1], p[2]) for p in _refs) <= 35.0))]
         if _cand:
             _t = min(_cand, key=lambda t: min([hav(t["lat"], t["lon"], p[1], p[2]) for p in _refs] or [0.0]))
             _t["sub"] = "geran3"
@@ -2246,6 +2281,40 @@ def ingest(ts, text, ch="", msg_key=None, reply_ctx=None):
     elif clauses:
         ingest_segment(ts, clauses[0], ch, msg_key=msg_key, reply_ctx=reply_ctx, full_post_has_zp=full_has_zp)
 
+def merge_duplicate_tracks():
+    """Дві «різні» цілі на одному місці з однаковим курсом — це одна ціль, повторена кількома каналами."""
+    live = [t for t in tracks.values() if t["kind"] == "drone" and not t.get("ended")]
+    dead = set()
+    for i, a in enumerate(live):
+        if a["id"] in dead:
+            continue
+        for b in live[i + 1:]:
+            if b["id"] in dead or (a.get("grp") and a.get("grp") == b.get("grp")):
+                continue
+            if a["sub"] != b["sub"] and "drone" not in (a["sub"], b["sub"]):
+                continue
+            tact = a["sub"] in TACTICAL_SHORT_DRONES or b["sub"] in TACTICAL_SHORT_DRONES
+            if hav(a["lat"], a["lon"], b["lat"], b["lon"]) > (1.5 if tact else 4.0):
+                continue
+            if a.get("hdg") is not None and b.get("hdg") is not None and abs(ang(a["hdg"] - b["hdg"])) > 45.0:
+                continue
+            keep, drop = (a, b) if (a.get("hdg") is not None, len(a["channels"]), -a["id"]) >= (b.get("hdg") is not None, len(b["channels"]), -b["id"]) else (b, a)
+            if keep.get("hdg") is None and drop.get("hdg") is not None:
+                for k in ("hdg", "thdg", "goal", "to_name", "holding", "passed_goal", "status_msg"):
+                    keep[k] = drop.get(k)
+            if keep["sub"] == "drone" and drop["sub"] != "drone":
+                keep["sub"], keep["ttl"], keep["v"] = drop["sub"], drop["ttl"], drop["v"]
+            keep["channels"] |= drop["channels"]
+            keep["msg_keys"] |= drop["msg_keys"]
+            keep["n"] = max(keep["n"], len(keep["channels"]))
+            keep["seen"] = max(keep["seen"], drop["seen"])
+            dead.add(drop["id"])
+            note(f"злито дубль #{drop['id']} -> #{keep['id']}")
+            if drop is a:
+                break
+    for k in dead:
+        tracks.pop(k, None)
+
 async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
     try:
         cleaned = clean_post(text)
@@ -2254,6 +2323,7 @@ async def process(s, ts, text, ch, msg_key=None, reply_ctx=None):
         if ch in CHANNELS:
             lag_stats[ch] = round(max(0.0, time.time() - ts), 1)
         ingest(ts, cleaned, ch, msg_key=msg_key, reply_ctx=reply_ctx)
+        merge_duplicate_tracks()
         await push()
     except Exception as e:
         import traceback
