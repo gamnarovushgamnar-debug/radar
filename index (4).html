@@ -2735,7 +2735,7 @@ function applyServerState(st) {
   const d = new Date((st.now || Date.now() / 1000) * 1000);
   const pad = n => String(n).padStart(2, '0');
   document.getElementById('clock-txt').textContent =
-    `СТАНОМ НА ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    `СТАНОМ НА ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} · v2-tex`;
 
   const incomingIds = new Set();
   const counts = { drone: 0, kab: 0, missile: 0, strike: 0 };
