@@ -320,6 +320,41 @@ def _load_extra_places():
         print("places_extra.json error:", e)
 _load_extra_places()
 
+# ───────── АВТО-ДОДАВАННЯ НЕВІДОМИХ Н.П. (кеш; сам пошук — geo_worker нижче) ─────────
+GEO_AUTO = os.getenv("GEO_AUTO", "1") != "0"
+GEO_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "places_cache.json")
+
+def _geo_rx(*bases):
+    """Регекс із основ назв: «Кринки», «Кринок» → основа «крин» + будь-яке закінчення. Основа ≥4 літер, інакше не додаємо."""
+    parts = []
+    for b in bases:
+        b = re.sub(r"[^а-яіїєґ'’ -]", "", str(b or "").lower()).strip()
+        if len(b) < 4:
+            continue
+        stem = b if len(b) <= 5 else b[:len(b) - 2]
+        part = re.escape(stem) + r"\w*"
+        if part not in parts:
+            parts.append(part)
+    return "|".join(parts)
+
+def _load_geo_cache():
+    try:
+        if not os.path.exists(GEO_CACHE_PATH):
+            return
+        data = json.load(open(GEO_CACHE_PATH, encoding="utf-8"))
+        have = {(n, round(la, 3)) for n, la, lo, rx in RAW_PLACES}
+        k = 0
+        for it in data:
+            key = (str(it["name"]), round(float(it["lat"]), 3))
+            if key in have or not it.get("rx"):
+                continue
+            RAW_PLACES.insert(0, (key[0], float(it["lat"]), float(it["lon"]), it["rx"]))
+            k += 1
+        print(f"places_cache.json: додано {k} н.п.")
+    except Exception as e:
+        print("places_cache.json error:", e)
+_load_geo_cache()
+
 def _loc_variants(rx):
     """Місцевий відмінок: Василівка → «у Василівці», Балабине ок; Мар'ївка → «в Мар'ївці» (к→ц, г→з, х→с перед закінченням)."""
     out = re.sub(r"(?<=[а-яіїєґ'’])к\\w\*(?=\||$|\))", r"(?:к|ц)\\w*", rx)
@@ -554,7 +589,7 @@ NEWS_STRONG_RX = re.compile(
     r"збито\s+\d+\s*(?:з|із)\s*\d+|збит\w+\s+\d+\s*(?:з|із)\s*\d+|знищен\w+\s+\d+\s*(?:з|із)\s*\d+|\b\d+\s*(?:з|із)\s*\d+\s+(?:бпла|дрон|шахед|ракет)\w*|"
     r"(?:загинул\w+|загинув|загинула|поранен\w+|постраждал\w+|травмован\w+|госпіталізован\w+)|"
     r"(?:за\s+даними|за\s+інформацією|за\s+словами|повідомля\w+\s+(?:ова|генштаб|повітряні|міноборони|прокуратур)|заяви\w+|заявив\w*|наголос\w+|зазнач\w+|розпов\w+|підкрес\w+|коментує|прокоментува\w+)|"
-    r"(?:генштаб\w*|повітряні\s+сили|пс\s+зсу|міноборони|ова\b|голова\s+(?:ова|адміністрац\w+)|федоров\w*|зеленськ\w*|залужн\w*|сирськ\w*|ісв|isw|reuters|bbc|суспільне|тсн|рбк|укрінформ|інтерфакс)|"
+    r"(?<![а-яіїєґ'’])(?:генштаб\w*|повітряні\s+сили|пс\s+зсу|міноборони|ова(?![а-яіїєґ'’])|голова\s+(?:ова|адміністрац\w+)|федоров\w*|зеленськ\w*|залужн\w*|сирськ\w*|ісв(?![а-яіїєґ'’])|isw|reuters|bbc|суспільне|тсн(?![а-яіїєґ'’])|рбк(?![а-яіїєґ'’])|укрінформ|інтерфакс)|"
     r"(?:наслідк\w+|руйнуван\w+|пошкодж\w+|зруйнован\w+|пожеж\w+\s+(?:виникл|гасять|ліквід)|надзвичайник\w*|рятувальник\w*|дснс|відновлення|електропостачан\w*|світл\w+\s+нема)|"
     r"(?:масован\w+\s+(?:атак|удар|обстріл)|комбінован\w+\s+(?:атак|удар)|окупант\w*\s+(?:атакува|завдал|запустил|випустил)|росі\w+\s+(?:атакува|завдал|запустил|випустил)|рф\s+(?:атакува|завдал|запустил|випустил)|ворог\s+(?:атакува|завдав|запустив|випустив))|"
     r"(?:переговор\w*|санкці\w*|мобілізац\w*|тцк|законопроєкт\w*|верховн\w+\s+рад\w*|курс\s+(?:долара|євро)|експерт\w*|аналітик\w*|вважа\w+|припуска\w+|на\s+думку|огляд|підсумки|читайте|дивіться\s+також|докладніше|подробиці|деталі\s+за\s+посиланням|джерело:)|"
@@ -678,10 +713,10 @@ def clean_post(raw_text):
     return "\n".join(lines).strip()
 
 CARDINAL_DIRECTIONS = [
-    (315.0, r"північно[\s\-]*захід\w*|северо[\s\-]*запад\w*|\bпн[\s\-]*зх\b|\bсз\b"),
-    (45.0,  r"північно[\s\-]*схід\w*|северо[\s\-]*восток\w*|северо[\s\-]*восточ\w*|\bпн[\s\-]*сх\b|\bсв\b"),
-    (225.0, r"південно[\s\-]*захід\w*|юго[\s\-]*запад\w*|\bпд[\s\-]*зх\b|\bюз\b"),
-    (135.0, r"південно[\s\-]*схід\w*|юго[\s\-]*восток\w*|юго[\s\-]*восточ\w*|\bпд[\s\-]*сх\b|\bюв\b"),
+    (315.0, r"північно[\s\-]*захід\w*|північн\w+\s+захід\w*|северо[\s\-]*запад\w*|\bпн[\s\-]*зх\b|\bсз\b"),
+    (45.0,  r"північно[\s\-]*схід\w*|північн\w+\s+схід\w*|северо[\s\-]*восток\w*|северо[\s\-]*восточ\w*|\bпн[\s\-]*сх\b|\bсв\b"),
+    (225.0, r"південно[\s\-]*захід\w*|південн\w+\s+захід\w*|юго[\s\-]*запад\w*|\bпд[\s\-]*зх\b|\bюз\b"),
+    (135.0, r"південно[\s\-]*схід\w*|південн\w+\s+схід\w*|юго[\s\-]*восток\w*|юго[\s\-]*восточ\w*|\bпд[\s\-]*сх\b|\bюв\b"),
     (0.0,   r"північ(?:ний|ного|ному|ним)?(?:\s+(?:курс|напрям|вектор))?|\bна\s+північ\b|\bна\s+север\b|северн\w+\s+(?:курс|направ|вектор)"),
     (180.0, r"півден(?:ний|ного|ному|ним)?\s+(?:курс|напрям|вектор)|\bна\s+південь\b|\bна\s+юг\b|южн\w+\s+(?:курс|направ|вектор)"),
     (270.0, r"захід(?:ний|ного|ному|ним)?(?:\s+(?:курс|напрям|вектор))?|\bна\s+захід\b|\bна\s+запад\b|западн\w+\s+(?:курс|направ|вектор)"),
@@ -689,9 +724,11 @@ CARDINAL_DIRECTIONS = [
 ]
 
 APPROACH_FROM_CARDINAL = [
+    (135.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:південн\w*[\s\-]*(?:схід|сход)\w*|юго[\s\-]*вост\w*)"),
+    (225.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:південн\w*[\s\-]*(?:захід|заход)\w*|юго[\s\-]*запад\w*)"),
+    (45.0,  r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:північн\w*[\s\-]*(?:схід|сход)\w*|северо[\s\-]*вост\w*)"),
+    (315.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:північн\w*[\s\-]*(?:захід|заход)\w*|северо[\s\-]*запад\w*)"),
     (180.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:півдня|південн\w+|юга|южн\w+)"),
-    (135.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:південн\w*[\s\-]*схід\w*|юго[\s\-]*вост\w*)"),
-    (225.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:південн\w*[\s\-]*захід\w*|юго[\s\-]*запад\w*)"),
     (90.0,  r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:сходу|східн\w+|востока|восточн\w*)"),
     (270.0, r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:заходу|західн\w+|запада|западн\w*)"),
     (0.0,   r"(?:з|із|зі|від|со|от|с)\s+(?:боку\s+|сторони\s+)?(?:півночі|північн\w+|севера|северн\w*)"),
@@ -883,6 +920,20 @@ def fwd(la, lo, h, km):
     r = math.radians(h)
     return la + km * math.cos(r) / 111.2, lo + km * math.sin(r) / (111.2 * math.cos(math.radians(la)))
 
+# «на Василівці / в Оріхові / на Біленькому» — місцевий відмінок = ціль УЖЕ ТАМ (не «летить туди»).
+# «на Василівку / на Оріхів / на Запоріжжя» — знахідний = напрямок руху. Раніше обидва читались як «куди».
+_LOC_PREP_RX = re.compile(r"(?:\bна|\bв|\bу)\s*(?:м\.|с\.|смт\.?|селищ\w*)?\s*$", re.I)
+_LOC_END_RX = re.compile(r"(?:[а-яіїєґ]і|[ое]ві|ому|єму)$", re.I)
+# «з напрямку Токмака», «зі сторони Оріхова», «з боку Мелітополя» — це ЗВІДКИ, хоч у слові є «напрямок»
+_FROM_DIR_RX = re.compile(r"(?:\bз|\bіз|\bзі|\bвід|\bот|\bиз|\bс|\bсо)\s+(?:напрям\w*|направл\w*|сторон\w*|боку|стороны|району|района|р-ну)\s*(?:м\.|с\.|смт\.?)?\s*$", re.I)
+def _is_locative(tok, name):
+    t = tok.lower().replace("’", "'").strip()
+    nm = name.lower().replace("’", "'").split(" (")[0].strip()
+    if not t or t == nm:
+        return False                     # називний/знахідний збігається з довідником
+    last = t.split()[-1].split("-")[-1]
+    return bool(_LOC_END_RX.search(last))
+
 def extract_routes(tl):
     SPAN_PRE_STRIP = re.compile(
         r"^(?:(?:в\s+бік|у\s+бік|в\s+сторону|у\s+сторону|курс\w*(?:\s+на)?|вектор\w*(?:\s+на)?|з-?під|із-?під|из-?под|"
@@ -963,8 +1014,12 @@ def extract_routes(tl):
             role = "from"
         elif VIA_PRE_RX.search(pre) and not TO_PRE_RX.search(pre[-18:]):
             role = "via" if re.search(r"(?:\bчерез|\bкрізь|\bсквозь|\bвздовж|\bвдоль)\s*(?:м\.|с\.|смт)?\s*$", pre, re.I) else "at"
+        elif _FROM_DIR_RX.search(pre):
+            role = "from"
         elif TO_PRE_RX.search(pre):
             role = "to"
+            if _LOC_PREP_RX.search(pre) and _is_locative(tl[st:en], n):
+                role = "at"
         elif FROM_PRE_RX.search(pre):
             role = "from"
         elif idx > 0 and ARROW_BETWEEN_RX.search(between):
@@ -973,6 +1028,8 @@ def extract_routes(tl):
                 roles[-1] = ("from", roles[-1][1])
         elif idx > 0 and LIST_CONJ_RX.search(between) and roles[-1][0] in ("to", "from", "at"):
             role = roles[-1][0]
+        if role == "unk" and _LOC_PREP_RX.search(pre) and _is_locative(tl[st:en], n):
+            role = "at"                  # «в Оріхові», «у Василівці» — вже там
         if role == "to" and idx > 0 and roles and roles[-1][0] == "unk" and ARROW_BETWEEN_RX.search(between):
             roles[-1] = ("from", roles[-1][1])
         roles.append((role, (n, la, lo)))
@@ -2070,7 +2127,7 @@ def _covered_by_known_place(low, a, b):
                 return True
     return False
 
-def log_unmatched(seg, ch):
+def log_unmatched(seg, ch, ts=None, msg_key=None):
     """Записує слова, схожі на назви н.п., яких немає в базі — тоді їх легко додати в places_extra.json."""
     try:
         low_seg = seg.lower()
@@ -2081,6 +2138,11 @@ def log_unmatched(seg, ch):
                 continue
             _unmatched_seen.add(low)
             note(f"{ch}: невідомий н.п. «{cand}» у «{seg[:70]}»")
+            try:   # лише для оперативних повідомлень про ціль — на новини геокодер не витрачаємо
+                if GEO_AUTO and ts is not None and len(_geo_queue) < 60 and not _GEO_STOP_RX.match(low) and detect(low_seg) and not is_news_like(seg)[0]:
+                    _geo_queue.append((ts, seg, ch, msg_key, cand))
+            except Exception:
+                pass
             with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "unmatched_places.log"), "a", encoding="utf-8") as f:
                 f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}\t{ch}\t{cand}\t{seg[:160]}\n")
     except Exception:
@@ -2089,7 +2151,7 @@ def log_unmatched(seg, ch):
 SUB_WORD_RX = re.compile(r"^(?:шахед|шахід|бпла|дрон|каб|ракет|мопед|ланцет|молні|фпв|бандерол|курс|напрям|група|група|україн|росі|ппо|тривог)\w*$", re.I)
 
 def ingest_segment(ts, seg, ch="", msg_key=None, inherited_subs=None, reply_ctx=None, full_post_has_zp=False):
-    log_unmatched(seg, ch)
+    log_unmatched(seg, ch, ts, msg_key)
     seg = SAFETY_REMINDER_STRIP_RX.sub("", seg).strip(" -–—•|,")
     tl = seg.lower()
     if not tl or REAL_NEWS_RX.search(tl) or PURE_EXPLOSION_SOUND_RX.match(tl):
@@ -3894,6 +3956,145 @@ async def serve_no_cache_file(path, content_type):
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
     )
 
+# ───────────────────────── АВТО-ДОДАВАННЯ НЕВІДОМИХ Н.П. (OpenStreetMap Nominatim) ─────────────────────────
+# Якщо в оперативному повідомленні є невідоме село («біля Кринок»), сервер шукає його в OSM, запам'ятовує
+# (places_cache.json) і одразу обробляє повідомлення вдруге. Вимкнути: GEO_AUTO=0 у Render → Environment.
+GEO_VIEWBOX = os.getenv("GEO_VIEWBOX", "33.0,49.4,38.2,45.9")      # lon_лів, lat_верх, lon_прав, lat_ниж
+GEO_MAX_KM = float(os.getenv("GEO_MAX_KM", "220"))
+_geo_queue = []
+# слова, що ЗВУЧАТЬ як назви, але ними не є: сторони світу, «район», «центр», країни тощо — їх не шукаємо й не додаємо
+_GEO_STOP_RX = re.compile(r"^(?:пів(?:ден|ніч|д|н)|схід|сход|захід|запад|центр|напря|район|облас|україн|росі|кордон|фронт|лін|регіон|"
+                          r"місто|село|околиц|берег|правий|лівий|південь|північ|ппо|тривог|зсу|рф\b|нато|європ|польщ|білорус)", re.I)
+_GEO_TYPES = {"village", "hamlet", "town", "city", "suburb", "neighbourhood", "locality", "isolated_dwelling",
+              "quarter", "administrative", "borough", "city_block"}
+_GEO_ENDINGS = [("ого", "е"), ("ого", "ий"), ("ої", "а"), ("ої", "я"), ("ому", "е"), ("ій", "а"), ("ці", "ка"),
+                ("ові", ""), ("еві", ""), ("ова", "ів"), ("ки", "ка"), ("ок", "ки"), ("ів", "і"), ("я", "ь"), ("а", ""),
+                ("ю", "ь"), ("у", ""), ("ом", ""), ("ем", "ь"), ("ою", "а"), ("ею", "я"), ("и", "а")]
+
+def _geo_word_forms(w):
+    low = w.lower()
+    out = [w]
+    for suf, rep_ in _GEO_ENDINGS:
+        if low.endswith(suf) and len(low) - len(suf) >= 3:
+            f = low[:-len(suf)] + rep_
+            f = f[:1].upper() + f[1:] if w[:1].isupper() else f
+            if f not in out:
+                out.append(f)
+        if len(out) >= 4:
+            break
+    return out
+
+def _geo_guesses(cand):
+    """Називний відмінок на око: «Кирпотиного» → Кирпотине, «Малої Білозірки» → Мала Білозірка. Спершу оригінал."""
+    words = cand.split()
+    forms = [_geo_word_forms(w) for w in words]
+    out = [cand]
+    for k in (1, 2):                       # перші/другі варіанти для всіх слів одразу
+        v = " ".join(f[k] if len(f) > k else f[-1] for f in forms)
+        if v not in out:
+            out.append(v)
+    if len(words) > 1:                     # лише останнє слово міняємо
+        v = " ".join(words[:-1] + [forms[-1][1] if len(forms[-1]) > 1 else words[-1]])
+        if v not in out:
+            out.append(v)
+    return out[:5]
+
+def _geo_pick(results, variants):
+    import difflib
+    best = None
+    for r in results or []:
+        try:
+            cat = r.get("category") or r.get("class")
+            typ = r.get("type") or r.get("addresstype")
+            if cat not in ("place", "boundary") or typ not in _GEO_TYPES:
+                continue
+            name = (r.get("name") or str(r.get("display_name", "")).split(",")[0]).strip()
+            la, lo = float(r["lat"]), float(r["lon"])
+            d = hav(HOME[1], HOME[2], la, lo)
+            if not name or d > GEO_MAX_KM:
+                continue
+            sim = max(difflib.SequenceMatcher(None, v.lower(), name.lower()).ratio() for v in variants)
+            pre = max(len(os.path.commonprefix([v.lower().split()[0], name.lower().split()[0]])) for v in variants)
+            if sim < 0.72 or pre < 3:          # лише дуже схожі назви з однаковим початком — інакше краще промовчати
+                continue
+            key = (round(sim, 2), -d)
+            if best is None or key > best[0]:
+                best = (key, name, la, lo, sim)
+        except Exception:
+            continue
+    return best[1:] if best else None
+
+def _geo_register(name, lat, lon, cand=None):
+    """Додає н.п. у живі довідники й у кеш-файл. Якщо назва вже є — додаємо лише нову форму слова (аліас)."""
+    exists = any(n == name for n, *_ in RAW_PLACES)
+    rx = _geo_rx(cand) if exists else _geo_rx(name, cand)
+    if not rx:
+        return False
+    entry = (name, float(lat), float(lon), _loc_variants(rx))
+    RAW_PLACES.insert(0, entry)
+    PLACES.insert(0, entry)
+    PLACE_BY_NAME.setdefault(name, (name, float(lat), float(lon)))
+    try:
+        data = []
+        if os.path.exists(GEO_CACHE_PATH):
+            data = json.load(open(GEO_CACHE_PATH, encoding="utf-8"))
+        data.append({"name": name, "lat": float(lat), "lon": float(lon), "rx": rx})
+        json.dump(data, open(GEO_CACHE_PATH, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception as e:
+        note(f"геокодер: не вдалося записати кеш: {e!r}")
+    return True
+
+async def _geo_search(session, q):
+    params = {"q": q, "format": "jsonv2", "limit": "6", "countrycodes": "ua", "viewbox": GEO_VIEWBOX,
+              "bounded": "1", "accept-language": "uk"}
+    headers = {"User-Agent": "zp-radar/1.0 (self-hosted air-situation map)"}
+    async with session.get("https://nominatim.openstreetmap.org/search", params=params, headers=headers,
+                           timeout=aiohttp.ClientTimeout(total=10)) as r:
+        if r.status != 200:
+            return []
+        return await r.json(content_type=None)
+
+async def _geo_process_one(session, item):
+    ts, seg, ch, msg_key, cand = item
+    if _GEO_STOP_RX.match(cand.strip().lower()):
+        return False
+    variants = _geo_guesses(cand)
+    found = None
+    for q in variants[:4]:
+        found = _geo_pick(await _geo_search(session, q), variants)
+        await asyncio.sleep(1.2)                       # правило Nominatim: не частіше 1 запиту/с
+        if found:
+            break
+    if not found:
+        note(f"геокодер: «{cand}» не знайдено")
+        return False
+    name, la, lo, sim = found
+    if not _geo_register(name, la, lo, cand):
+        return False
+    note(f"геокодер: «{cand}» → {name} ({la:.3f}, {lo:.3f}), збіг {sim:.2f}")
+    if time.time() - ts < 900:                         # повідомлення свіже — обробляємо його ще раз уже з новим н.п.
+        if msg_key:                                    # прибираємо цілі, створені лише цим повідомленням без н.п. (дублі)
+            for tid in [i for i, t in tracks.items() if t.get("msg_keys")
+                        and all(k == msg_key or k.startswith(msg_key + ":") for k in t["msg_keys"])]:
+                del tracks[tid]
+        ingest(ts, seg, ch, msg_key=(msg_key + ":geo") if msg_key else None)
+        await push()
+    return True
+
+async def geo_worker(session):
+    await asyncio.sleep(15)
+    while True:
+        try:
+            if not _geo_queue:
+                await asyncio.sleep(2)
+                continue
+            await _geo_process_one(session, _geo_queue.pop(0))
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            note(f"геокодер: помилка {e!r}")
+            await asyncio.sleep(5)
+
 async def main():
     conn = aiohttp.TCPConnector(limit=35, ttl_dns_cache=300)
     s = aiohttp.ClientSession(connector=conn)
@@ -3941,6 +4142,8 @@ async def main():
     asyncio.create_task(tg_realtime())
     asyncio.create_task(load_oblast_geo(s))
     asyncio.create_task(alerts_loop(s))
+    if GEO_AUTO:
+        asyncio.create_task(geo_worker(s))
     run = web.AppRunner(app)
     await run.setup()
     await web.TCPSite(run, "0.0.0.0", int(os.getenv("PORT", 8080))).start()
